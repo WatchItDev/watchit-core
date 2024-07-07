@@ -14,31 +14,48 @@ import "../interfaces/IRegistrable.sol";
 abstract contract Registrable is IRegistrable {
     using ERC165Checker for address;
 
-    // mapping to record distributor state address:active.
+    /// @notice Mapping to record the status of distributors.
+    /// @dev Maps distributor addresses to their status.
     mapping(IDistributor => Status) public status;
     bytes4 private constant INTERFACE_ID_IDISTRIBUTOR =
         type(IDistributor).interfaceId;
 
-    // Error definitions
+    /// @notice Error to be thrown when a distributor contract is invalid.
     error InvalidDistributorContract();
+    
+    /// @notice Error to be thrown when a distributor is inactive.
     error InvalidInactiveDistributor();
+    
+    /// @notice Error to be thrown when a distributor enrollment is invalid.
     error InvalidDistributorEnrollment();
+    
+    /// @notice Error to be thrown when a distributor already exists.
     error DistributorAlreadyExists();
+    
+    /// @notice Error to be thrown when a distributor is pending approval.
     error DistributorPendingApproval();
 
-    // Event definitions
+    /// @notice Event emitted when a distributor is registered.
+    /// @param distributor The address of the registered distributor.
     event DistributorRegistered(IDistributor indexed distributor);
+    
+    /// @notice Event emitted when a distributor is approved.
+    /// @param distributor The address of the approved distributor.
     event DistributorApproved(IDistributor indexed distributor);
+    
+    /// @notice Event emitted when a distributor quits.
+    /// @param distributor The address of the distributor that quit.
     event DistributorQuit(IDistributor indexed distributor);
 
-    // Modifier to ensure that the given distributor contract supports the IDistributor interface.
+    /// @notice Modifier to ensure that the given distributor contract supports the IDistributor interface.
+    /// @param distributor The distributor contract address.
     modifier validContractOnly(IDistributor distributor) {
         if (!address(distributor).supportsInterface(INTERFACE_ID_IDISTRIBUTOR))
             revert InvalidDistributorContract();
         _;
     }
 
-    // Default value is the first element listed in definition of the type...
+    /// @notice Enum to represent the status of a distributor.
     enum Status {
         Pending,
         Waiting,
@@ -49,7 +66,7 @@ abstract contract Registrable is IRegistrable {
     /**
      * @notice Checks if the distributor is active.
      * @param distributor The distributor contract address.
-     * @return bool true if distributor is active, false otherwise.
+     * @return bool True if the distributor is active, false otherwise.
      */
     function isActive(
         IDistributor distributor
@@ -57,7 +74,8 @@ abstract contract Registrable is IRegistrable {
         return status[distributor] == Status.Active;
     }
 
-    // Internal function to revoke distributor's access.
+    /// @notice Internal function to revoke a distributor's access.
+    /// @param distributor The distributor contract address.
     function _revoke(
         IDistributor distributor
     ) internal virtual validContractOnly(distributor) {
@@ -66,7 +84,8 @@ abstract contract Registrable is IRegistrable {
         status[distributor] = Status.Blocked;
     }
 
-    // Internal function to approve distributor's access.
+    /// @notice Internal function to approve a distributor's access.
+    /// @param distributor The distributor contract address.
     function _approve(
         IDistributor distributor
     ) internal virtual validContractOnly(distributor) {
@@ -74,10 +93,11 @@ abstract contract Registrable is IRegistrable {
             revert DistributorAlreadyExists();
 
         status[distributor] = Status.Active; // active
-        emit DistributorRegistered(distributor);
+        emit DistributorApproved(distributor);
     }
 
-    // Internal function to quit distributor's enrollment.
+    /// @notice Internal function to quit a distributor's enrollment.
+    /// @param distributor The distributor contract address.
     function _quit(
         IDistributor distributor
     ) internal virtual validContractOnly(distributor) {
@@ -88,7 +108,8 @@ abstract contract Registrable is IRegistrable {
         emit DistributorQuit(distributor);
     }
     
-    // Internal function to start distributor's enrollment.
+    /// @notice Internal function to start a distributor's enrollment.
+    /// @param distributor The distributor contract address.
     function _register(
         IDistributor distributor
     ) internal virtual validContractOnly(distributor) {

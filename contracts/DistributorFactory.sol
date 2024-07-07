@@ -12,11 +12,13 @@ import "./Distributor.sol";
 contract DistributorFactory is Ownable, Pausable {
     /// @notice Array to store addresses of created distributor contracts.
     address[] public contracts;
+    /// @notice Mapping to keep track of registered distributor endpoints.
     mapping(string => address) public registry;
 
     /// @notice Event emitted when a new distributor is created.
     /// @param distributor The address of the newly created distributor contract.
     event DistributorCreated(address distributor);
+    /// @notice Error to be thrown when attempting to register an already registered distributor.
     error DistributorAlreadyRegistered();
 
     /// @notice Constructor to initialize the Ownable and Pausable contracts.

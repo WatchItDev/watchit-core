@@ -8,7 +8,7 @@ interface IDistributor {
     /// @param _endpoint The new distributor's endpoint.
     function updateEndpoint(string memory _endpoint) external;
 
-    /// @notice Function to retrieve the endpoint of the distributor.
+    /// @notice Retrieves the endpoint of the distributor.
     /// @dev This function allows users to view the current endpoint of the distributor.
     /// @return The current endpoint of the distributor.
     function getEndpoint() external view returns (string memory);
