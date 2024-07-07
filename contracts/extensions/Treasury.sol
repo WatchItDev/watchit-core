@@ -12,7 +12,7 @@ import "../interfaces/ITreasury.sol";
  * @dev Abstract contract for managing treasury funds.
  * It inherits from Ownable and ITreasury interfaces.
  */
-abstract contract Treasury is ITreasury, Ownable {
+abstract contract Treasury is ITreasury {
     using SafeERC20 for IERC20;
 
     /// @notice Internal mapping to store fees associated with different tokens.
@@ -37,7 +37,9 @@ abstract contract Treasury is ITreasury, Ownable {
     }
 
     /// @inheritdoc ITreasury
-    function getTreasuryFee(address token) public view override returns (uint256) {
+    function getTreasuryFee(
+        address token
+    ) public view override returns (uint256) {
         return tokenFees[token];
     }
 
@@ -49,7 +51,7 @@ abstract contract Treasury is ITreasury, Ownable {
     function _setTreasuryFee(
         uint256 newTreasuryFee,
         address token
-    ) internal virtual onlyOwner {
+    ) internal virtual {
         tokenFees[token] = newTreasuryFee;
     }
 
