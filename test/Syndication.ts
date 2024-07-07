@@ -60,4 +60,8 @@ describe("Syndication", function () {
 
   });
 
+  //should fail if status is pending during register
+  //should fail revoke if not registered governance
+  //is active
+
 });

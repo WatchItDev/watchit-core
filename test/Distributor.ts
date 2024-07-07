@@ -86,7 +86,7 @@ describe("Distributor", function () {
     })
 
 
-    it("Should should fail if domain is already registered.", async function () {
+    it("Should fail if domain is already registered.", async function () {
       const duplicatedDomain = 'watchit.movie'
       const factory = await loadFixture(deployDistributorFactory)
 
