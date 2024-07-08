@@ -68,6 +68,13 @@ contract Syndication is
         penaltyRate = newPenaltyRate;
     }
 
+    /// @inheritdoc ITreasury
+    /// @notice Sets a new treasury fee.
+    /// @param newTreasuryFee The new treasury fee to be set.
+    function setTreasuryFee(uint256 newTreasuryFee) public onlyGov {
+        _setTreasuryFee(newTreasuryFee, address(0));
+    }
+
     /// @inheritdoc IRegistrable
     /// @notice Registers a distributor by sending a payment to the contract.
     /// @param distributor The address of the distributor to register.
@@ -75,35 +82,31 @@ contract Syndication is
         if (msg.value < getTreasuryFee(address(0)))
             revert FailDuringEnrollment("Invalid fee amount");
 
+        // the contract manager
+        address manager = distributor.getManager();
         // Attempt to send the amount to the syndication contract
-        (bool sent, ) = payable(__self).call{value: msg.value}("");
-        if (!sent) revert FailDuringEnrollment("Fail sending payment");
-
-        // Persist the enrollment payment in case the distributor quits enrollment
-        enrollmentFees[address(distributor)] = msg.value;
+        _transfer(msg.value, __self, address(0));
+        // Persist the enrollment payment in case the distributor quits before approval
+        enrollmentFees[manager] = msg.value;
         _register(distributor); // Set the distributor as pending approval
     }
 
     /// @inheritdoc IRegistrable
     /// @notice Allows a distributor to quit and receive a penalized refund.
     /// @param distributor The address of the distributor to quit.
-    /// @param revertTo The address to which the refund will be sent.
     /// @dev The function reverts if the distributor has not enrolled or if the refund fails.
-    function quit(
-        IDistributor distributor,
-        address payable revertTo
-    ) public nonReentrant {
-        uint256 registeredAmount = enrollmentFees[address(distributor)]; // Wei
+    function quit(IDistributor distributor) public nonReentrant {
+        address manager = distributor.getManager(); // the contract manager
+        uint256 registeredAmount = enrollmentFees[manager]; // Wei
         if (registeredAmount == 0)
-            revert FailDuringQuit("No enrolled distributor.");
+            revert FailDuringQuit("Invalid distributor enrollment.");
 
         uint256 penal = registeredAmount.mulDiv(penaltyRate, PER_DENOMINATOR);
         (bool success, uint256 res) = registeredAmount.trySub(penal);
         if (!success) revert FailDuringQuit("Fail subtracting penalization");
 
-        enrollmentFees[address(distributor)] = 0;
-        (bool sent, ) = revertTo.call{value: res}("");
-        if (!sent) revert FailDuringQuit("Fail reverting payment");
+        enrollmentFees[manager] = 0;
+        _transfer(res, manager, address(0));
         _quit(distributor);
     }
 
@@ -118,23 +121,19 @@ contract Syndication is
     /// @notice Approves a distributor's registration.
     /// @param distributor The address of the distributor to approve.
     function approve(IDistributor distributor) public onlyGov {
-        enrollmentFees[address(distributor)] = 0;
+        enrollmentFees[distributor.getManager()] = 0;
         _approve(distributor);
-    }
-
-    /// @inheritdoc ITreasury
-    /// @notice Sets a new treasury fee.
-    /// @param newTreasuryFee The new treasury fee to be set.
-    function setTreasuryFee(uint256 newTreasuryFee) public onlyGov {
-        _setTreasuryFee(newTreasuryFee, address(0));
     }
 
     /// @inheritdoc ITreasury
     /// @notice Withdraws a specified amount of native currency from the contract.
     /// @param amount The amount to withdraw.
     function withdraw(uint256 amount) public onlyAdmin {
-        _withdraw(amount, _msgSender(), address(0));
+        _transfer(amount, _msgSender(), address(0));
     }
+
+    /// @inheritdoc ITreasury
+    function withdraw(uint256 amount, address token) public onlyAdmin {}
 
     /// @inheritdoc ITreasury
     /// @notice Sets a new treasury fee for a specific token.
@@ -144,13 +143,4 @@ contract Syndication is
         uint256 newTreasuryFee,
         address token
     ) public override onlyGov {}
-
-    /// @inheritdoc ITreasury
-    /// @notice Withdraws a specified amount of a specific token from the contract.
-    /// @param amount The amount to withdraw.
-    /// @param token The address of the token.
-    function withdraw(
-        uint256 amount,
-        address token
-    ) external override onlyGov {}
 }

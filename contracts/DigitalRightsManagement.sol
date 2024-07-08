@@ -85,6 +85,7 @@ contract DigitalRightsManager is
     /// @notice Modifier to check if the distributor is active and not blocked.
     /// @param distributor The distributor address to check.
     modifier activeOnly(IDistributor distributor) {
+                // TODO En el registro de película en drm el creador debe pasar los token con los desea pagar Y validar si el distribuidor los acepta
         if (!syndication.isActive(distributor))
             revert InvalidInactiveDistributor();
 

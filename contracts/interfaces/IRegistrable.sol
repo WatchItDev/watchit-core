@@ -15,9 +15,8 @@ interface IRegistrable {
 
     /// @notice Allows a distributor to quit and receive a penalized refund.
     /// @param distributor The address of the distributor to quit.
-    /// @param revertTo The address to which the refund will be sent.
     /// @dev The function reverts if the distributor has not enrolled or if the refund fails.
-    function quit(IDistributor distributor, address payable revertTo) external;
+    function quit(IDistributor distributor) external;
 
     /// @notice Revokes the registration of a distributor.
     /// @param distributor The address of the distributor to revoke.

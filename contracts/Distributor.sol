@@ -29,6 +29,11 @@ contract Distributor is Ownable, Treasury, ERC165, IDistributor {
     }
 
     /// @inheritdoc IDistributor
+    function getManager() public view returns (address) {
+        return owner();
+    }
+
+    /// @inheritdoc IDistributor
     function getEndpoint() external view returns (string memory) {
         return endpoint;
     }
@@ -57,15 +62,12 @@ contract Distributor is Ownable, Treasury, ERC165, IDistributor {
     /// @inheritdoc ITreasury
     function withdraw(uint256 amount) public override onlyOwner {
         // withdraw native token if supported
-        _withdraw(amount, owner(), address(0));
+        _transfer(amount, owner(), address(0));
     }
 
     /// @inheritdoc ITreasury
-    function withdraw(
-        uint256 amount,
-        address token
-    ) public onlyOwner onlySupportedToken(token) {
-        _withdraw(amount, owner(), token);
+    function withdraw(uint256 amount, address token) public onlyOwner {
+        _transfer(amount, owner(), token);
     }
 
     /// @inheritdoc IERC165

@@ -12,4 +12,9 @@ interface IDistributor {
     /// @dev This function allows users to view the current endpoint of the distributor.
     /// @return The current endpoint of the distributor.
     function getEndpoint() external view returns (string memory);
+
+    /// @notice Retrieves the manager of the distributor.
+    /// @dev This function allows users to view the current manager of the distributor.
+    /// @return The address of the current manager of the distributor.
+    function getManager() external view returns (address);
 }

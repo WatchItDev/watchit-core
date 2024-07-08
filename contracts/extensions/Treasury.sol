@@ -14,7 +14,7 @@ import "../interfaces/ITreasury.sol";
  */
 abstract contract Treasury is ITreasury {
     using SafeERC20 for IERC20;
-
+    
     /// @notice Internal mapping to store fees associated with different tokens.
     /// @dev The key is the token address and the value is the fee in wei.
     mapping(address => uint256) internal tokenFees;
@@ -25,7 +25,7 @@ abstract contract Treasury is ITreasury {
 
     /// @notice Error to be thrown when a withdrawal fails.
     /// @param reason The reason for the withdrawal failure.
-    error FailDuringWithdraw(string reason);
+    error FailDuringTransferWithdraw(string reason);
 
     /// @notice Modifier to ensure only supported tokens are used.
     /// @param token The address of the token to check.
@@ -55,24 +55,30 @@ abstract contract Treasury is ITreasury {
         tokenFees[token] = newTreasuryFee;
     }
 
-    /// @notice Withdraws tokens from the contract to the specified address.
+    function _nativeTransfer(uint256 amount, address to) internal virtual {
+        // Handle native coin transfer
+        if (address(this).balance < amount)
+            revert FailDuringTransferWithdraw("Insufficient balance");
+        (bool success, ) = payable(to).call{value: amount}("");
+        if (!success) revert FailDuringTransferWithdraw("Withdraw failed");
+    }
+
+    /// @notice Transfer tokens from the contract to the specified address.
     /// @dev Handles the withdrawal of native tokens and ERC20 tokens.
     /// @param amount The amount of tokens to withdraw.
     /// @param to The address to which the tokens will be sent.
     /// @param token The address of the ERC20 token to withdraw or address(0) for native token.
     /// @notice This function can only be called by the owner of the contract.
-    function _withdraw(
+    function _transfer(
         uint256 amount,
         address to,
         address token
-    ) internal virtual {
+    ) internal virtual onlySupportedToken(token) {
         if (token == address(0)) {
-            // Handle native coin withdrawal
-            if (address(this).balance < amount)
-                revert FailDuringWithdraw("Insufficient balance");
-            (bool success, ) = to.call{value: amount}("");
-            if (!success) revert FailDuringWithdraw("Withdraw failed");
+            _nativeTransfer(amount, to);
         } else {
+            if (IERC20(token).balanceOf(address(this)) < amount)
+                revert FailDuringTransferWithdraw("Insufficient balance");
             // Contract transfers tokens to the specified address
             IERC20(token).safeTransfer(to, amount);
         }
