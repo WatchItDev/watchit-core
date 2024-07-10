@@ -12,6 +12,7 @@ import "@openzeppelin/contracts/utils/Address.sol";
 import "./extensions/upgradeable/GovernableUpgradeable.sol";
 import "./extensions/upgradeable/RegistrableUpgradeable.sol";
 import "./extensions/Treasury.sol";
+
 import "./interfaces/IDistributor.sol";
 
 /// @title Content Syndication contract.
