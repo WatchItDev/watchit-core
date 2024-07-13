@@ -1,7 +1,8 @@
 import dotenv from 'dotenv'
+import fs from "node:fs"
 import type { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-chai-matchers";
-import "@nomicfoundation/hardhat-toolbox"; 
+import "@nomicfoundation/hardhat-toolbox";
 import '@typechain/hardhat'
 
 dotenv.config()
@@ -17,6 +18,14 @@ if (HARDHAT_AUTOMINE === 'true' && !process.env.CI) {
  * @type import('hardhat/config').HardhatUserConfig
  */
 
+function getRemappings() {
+  return fs
+    .readFileSync("remappings.txt", "utf8")
+    .split("\n")
+    .filter(Boolean) // remove empty lines
+    .map((line: string) => line.trim().split("="));
+}
+
 const config: HardhatUserConfig = {
   solidity: {
     version: '0.8.24',
@@ -26,6 +35,21 @@ const config: HardhatUserConfig = {
         runs: 200,
       },
     }
+  },
+  preprocess: {
+    eachLine: () => ({
+      transform: (line: string) => {
+        if (line.match(/".*.sol";$/)) { // match all lines with `"<any-import-path>.sol";`
+          for (const [from, to] of getRemappings()) {
+            if (line.includes(from)) {
+              line = line.replace(from, to);
+              break;
+            }
+          }
+        }
+        return line;
+      },
+    }),
   },
   gasReporter: {
     currency: 'USD',
