@@ -2,12 +2,14 @@
 // NatSpec format convention - https://docs.soliditylang.org/en/v0.5.10/natspec-format.html
 pragma solidity ^0.8.26;
 
-import "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
+import "@openzeppelin/contracts/interfaces/IERC165.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721EnumerableUpgradeable.sol";
 
 import "contracts/base/upgradeable/GovernableUpgradeable.sol";
+import "contracts/interfaces/IOwnership.sol";
 
 /// @title Ownership
 /// @notice This contract manages ownership of NFTs using ERC721 and AccessControlUpgradeable.
@@ -15,12 +17,12 @@ import "contracts/base/upgradeable/GovernableUpgradeable.sol";
 /// ERC2981
 contract Ownership is
     Initializable,
+    IOwnership,
     ERC721Upgradeable,
     ERC721EnumerableUpgradeable,
     GovernableUpgradeable,
     UUPSUpgradeable
 {
-
     /// @dev Constructor that disables initializers to prevent the implementation contract from being initialized.
     /// https://forum.openzeppelin.com/t/uupsupgradeable-vulnerability-post-mortem/15680
     /// https://forum.openzeppelin.com/t/what-does-disableinitializers-function-mean/28730/5
@@ -31,10 +33,10 @@ contract Ownership is
     /// @dev Initializes the contract on "proxy context" (storage, etc).
     /// @notice This function is called only once during the contract deployment.
     function initialize() public initializer {
+        __Governable_init();
         __ERC721_init("Watchit", "WOT");
         __ERC721Enumerable_init();
         __UUPSUpgradeable_init();
-        __Governable_init();
         _grantRole(DEFAULT_ADMIN_ROLE, _msgSender());
     }
 
@@ -77,7 +79,6 @@ contract Ownership is
     /// @param to The address to mint the NFT to.
     /// @param contentId The CID hash of the NFT. This should be a unique identifier for the NFT.
     function mint(address to, uint256 contentId) external {
-        // MAX supply
         _mint(to, contentId);
     }
 
@@ -85,7 +86,7 @@ contract Ownership is
     /// @dev This burn operation is generally delegated through governance.
     /// @param contentId The CID hash of the NFT to be burned.
     function burn(uint256 contentId) external onlyGov {
-        _update(address(0), contentId, address(0));
+        _update(address(0), contentId, _msgSender());
     }
 
     /// @notice Checks if the contract supports a specific interface.
@@ -97,6 +98,7 @@ contract Ownership is
         public
         view
         override(
+            IERC165,
             AccessControlUpgradeable,
             ERC721Upgradeable,
             ERC721EnumerableUpgradeable

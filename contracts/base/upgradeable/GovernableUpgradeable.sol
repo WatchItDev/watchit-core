@@ -13,8 +13,8 @@ import "contracts/interfaces/IGovernable.sol";
  */
 abstract contract GovernableUpgradeable is
     Initializable,
-    AccessControlUpgradeable,
-    IGovernable
+    IGovernable,
+    AccessControlUpgradeable
 {
     /// @custom:storage-location erc7201:governableupgradeable.governor
     struct GovernorStorage {

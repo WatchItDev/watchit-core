@@ -3,13 +3,13 @@
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 import "contracts/modules/base/LensModuleMetadata.sol";
 import "contracts/modules/base/LensModuleRegistrant.sol";
 import "contracts/modules/base/HubRestricted.sol";
 
 import "contracts/interfaces/IRepository.sol";
+import "contracts/interfaces/IOwnership.sol";
 import "contracts/modules/interfaces/IPublicationActionModule.sol";
 import "contracts/modules/libraries/Types.sol";
 
@@ -26,7 +26,7 @@ contract RentModule is
     LensModuleRegistrant,
     HubRestricted
 {
-    IERC721 private immutable ownership;
+    IOwnership private immutable ownership;
 
     constructor(
         address hub,
@@ -37,7 +37,7 @@ contract RentModule is
         HubRestricted(hub)
         LensModuleRegistrant(registrant)
     {
-        ownership = IERC721(
+        ownership = IOwnership(
             IRepository(repository).getContract(ContractTypes.OWNERSHIP)
         );
     }
@@ -75,6 +75,9 @@ contract RentModule is
         address transactionExecutor,
         bytes calldata data
     ) external override onlyHub returns (bytes memory) {
+        uint256 contentId = abi.decode(data, (uint256));
+        ownership.mint(transactionExecutor, contentId);
+
         // drm recibe los fees de las rentas.. que luego los duenos (creators, distriburos) pueden colectar por disburs en base a lo que tienen registrado
         // es treasury y es desburser
         // TODO: Mint nuestro NFT token aca?

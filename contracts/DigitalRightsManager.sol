@@ -3,14 +3,16 @@
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/utils/types/Time.sol";
-import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
-import "./watchit/interfaces/IDistributor.sol";
-import "./watchit/interfaces/ISyndicable.sol";
-import "./watchit/interfaces/IRepository.sol";
+import "contracts/base/upgradeable/QuorumUpgradeable.sol";
+import "contracts/base/upgradeable/GovernableUpgradeable.sol";
+import "contracts/interfaces/IDistributor.sol";
+import "contracts/interfaces/ISyndicatable.sol";
+import "contracts/interfaces/IOwnership.sol";
+import "contracts/interfaces/IRepository.sol";
 
 /// @title Digital Rights Manager
 /// @notice This contract manages digital rights, allowing content holders to set prices, rent content, and manage access.
@@ -18,30 +20,29 @@ import "./watchit/interfaces/IRepository.sol";
 contract DigitalRightsManager is
     Initializable,
     IRepositoryConsumer,
-    OwnableUpgradeable,
+    GovernableUpgradeable,
+    QuorumUpgradeable,
     UUPSUpgradeable
 {
-    // @notice Emitted when distribution rights are granted to a distributor.
-    /// @param hashCid The content hash identifier.
-    /// @param distributor The distributor contract address.
-    event RightsGranted(uint256 hashCid, IDistributor indexed distributor);
+    event RightsGranted(uint256 contentId, IDistributor indexed distributor);
+    event RegisteredContent(uint256 contentId);
+    event ApprovedContent(uint256 contentId);
+    event RevokedContent(uint256 contentId);
 
     // Mapping to store the private content ID for each registered content hash
-    mapping(uint256 cidHash => uint256 privateCid) private vault;
+    mapping(uint256 contentId => uint256 privateCid) private vault;
     /// mapping to record the current content custody contract.
     mapping(uint256 => IDistributor) private custodying;
     // Mapping to store the access control list for each watcher and content hash
-    mapping(address watcher => mapping(uint256 cidHash => uint256 timeframe))
+    mapping(address watcher => mapping(uint256 contentId => uint256 timeframe))
         private acl;
 
     IERC721 private ownership;
-    ISyndicable private syndication;
+    ISyndicatable private syndication;
 
     /// @dev Error that is thrown when a restricted access to the holder is attempted.
-    error ResitrictedAccessToHolder();
+    error RestrictedAccessToHolder();
     /// @dev Error that is thrown when a content hash is already registered.
-    error AlreadyRegisteredHash();
-    error MissingOrNotRegisteredHash();
     error InvalidInactiveDistributor();
 
     /// @dev Constructor that disables initializers to prevent the implementation contract from being initialized.
@@ -54,11 +55,14 @@ contract DigitalRightsManager is
     /// @notice Initializes the contract with the given dependencies.
     /// @param registry The contract registry to retrieved needed contracts instance.
     function initialize(IRepository registry) public initializer {
-        __Ownable_init(_msgSender());
+        __Governable_init();
         __UUPSUpgradeable_init();
 
-        ownership = IERC721(registry.getContract(ContractTypes.OWNERSHIP));
-        syndication = ISyndicable(registry.getContract(ContractTypes.SYNDICATION));
+        _grantRole(DEFAULT_ADMIN_ROLE, _msgSender());
+        ownership = IOwnership(registry.getContract(ContractTypes.OWNERSHIP));
+        syndication = ISyndicatable(
+            registry.getContract(ContractTypes.SYNDICATION)
+        );
     }
 
     /// @dev Upgrades the contract version.
@@ -66,19 +70,19 @@ contract DigitalRightsManager is
     /// @param newImplementation The address of the new implementation contract.
     function _authorizeUpgrade(
         address newImplementation
-    ) internal override onlyOwner {}
+    ) internal override onlyAdmin {}
 
     /// @notice Modifier to restrict access to the holder only.
     /// @param contentId The content hash to give distribution rights.
     modifier holderOnly(uint256 contentId) {
         if (ownership.ownerOf(contentId) != _msgSender())
-            revert ResitrictedAccessToHolder();
+            revert RestrictedAccessToHolder();
         _;
     }
 
     /// @notice Modifier to check if the distributor is active and not blocked.
     /// @param distributor The distributor address to check.
-    modifier activeOnly(IDistributor distributor) {
+    modifier activeOnly(address distributor) {
         if (!syndication.isActive(distributor))
             revert InvalidInactiveDistributor();
 
@@ -86,42 +90,62 @@ contract DigitalRightsManager is
     }
 
     /// @notice Modifier to restrict access to unregistered content only.
-    /// @param cidHash The content hash to check registration.
-    modifier notRegisteredOnly(uint256 cidHash) {
-        if (vault[cidHash] > 0) revert AlreadyRegisteredHash();
+    /// @param contentId The content hash to check registration.
+    modifier notRegisteredOnly(uint256 contentId) {
+        if (_status(contentId) != Status.Pending)
+            revert AlreadyPendingApproval();
         _;
     }
 
     /// @notice Modifier to restrict access to registered content only.
-    /// @param cidHash The content hash to check registration.
-    modifier registeredOnly(uint256 cidHash) {
-        if (vault[cidHash] != 0) revert MissingOrNotRegisteredHash();
+    /// @param contentId The content hash to check registration.
+    modifier registeredOnly(uint256 contentId) {
+        if (_status(contentId) != Status.Active) revert InvalidInactiveState();
         _;
     }
 
     // /// @notice Registers a new content with a private content id and hash.
-    // /// @param cidHash The content hash to register.
+    // /// @param contentId The content hash to register.
     // /// @param privateCid The private content ID to register.
     // function registerContent(
-    //     uint256 cidHash,
+    //     uint256 contentId,
     //     uint256 privateCid
-    // ) public notRegisteredOnly(cidHash) {
-    //     vault[cidHash] = privateCid;
+    // ) public holderOnly(contentId) notRegisteredOnly(contentId) {
+    //     vault[contentId] = privateCid;
+    //     _register(contentId);
+    //     emit RegisteredContent(contentId);
     // }
 
-    // // TODO
+    // /// @notice Registers a new content with a private content id and hash.
+    // /// @param contentId The content hash to register.
+    // function approveContent(
+    //     uint256 contentId
+    // ) public onlyGov registeredOnly(contentId) {
+    //     _approve(contentId);
+    //     emit ApprovedContent(contentId);
+    // }
+
+    // /// @notice Registers a new content with a private content id and hash.
+    // /// @param contentId The content hash to register.
+    // function revokeContent(
+    //     uint256 contentId
+    // ) public onlyGov registeredOnly(contentId) {
+    //     _revoke(contentId);
+    //     emit RevokedContent(contentId);
+    // }
+
     // function granContentAccess(
     //     address watcher,
-    //     uint256 cidHash,
+    //     uint256 contentId,
     //     uint256 timeframe
-    // ) public registeredOnly(cidHash) {
-    //     acl[watcher][cidHash] = block.timestamp + timeframe;
+    // ) public registeredOnly(contentId) {
+    //     acl[watcher][contentId] = block.timestamp + timeframe;
     // }
 
-    /// @notice Checks if access is allowed for a specific watcher and content.
-    /// @param watcher The address of the watcher.
-    /// @param cidHash The content hash to check access for.
-    /// @return True if access is allowed, false otherwise.
+    // /// @notice Checks if access is allowed for a specific watcher and content.
+    // /// @param watcher The address of the watcher.
+    // /// @param cidHash The content hash to check access for.
+    // /// @return True if access is allowed, false otherwise.
     // function hasContentAccess(
     //     address watcher,
     //     uint256 cidHash
@@ -129,30 +153,27 @@ contract DigitalRightsManager is
     //     return acl[watcher][cidHash] <= Time.timestamp();
     // }
 
-    // // this is where the fees are routed
+    // // // this is where the fees are routed
     // function getCustodial(
-    //     uint256 cidHash
-    // ) public view registeredOnly(cidHash) returns (IDistributor) {
-    //     return custodying[cidHash];
+    //     uint256 contentId
+    // ) public view registeredOnly(contentId) returns (IDistributor) {
+    //     return custodying[contentId];
     // }
 
-    // /// @notice Assigns distribution rights over the content.
-    // /// @dev The distributor must be active.
-    // /// @param distributor The distributor address to assign the content to.
-    // /// @param cidHash The content hash to give distribution rights.
     // function grantDistributionRights(
-    //     IDistributor distributor,
-    //     uint256 cidHash
+    //     address distributor,
+    //     uint256 contentId
     // )
     //     public
-    //     holderOnly(cidHash)
-    //     registeredOnly(cidHash)
+    //     holderOnly(contentId)
+    //     registeredOnly(contentId)
     //     activeOnly(distributor)
     // {
     //     // replace or create a new custodian
     //     // TODO un pure function que retorne el decripted text basado en el shared key y texto
     //     // TODO una pure function que calcule un shared key basado en los parametros
-    //     custodying[cidHash] = distributor;
-    //     emit RightsGranted(cidHash, distributor);
+    //     custodying[contentId] = IDistributor(distributor);
+    //     emit RightsGranted(contentId, custodying[contentId]);
     // }
+
 }
