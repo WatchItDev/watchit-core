@@ -9,11 +9,8 @@ import "contracts/modules/base/LensModuleRegistrant.sol";
 import "contracts/modules/base/HubRestricted.sol";
 import "contracts/modules/libraries/Types.sol";
 import "contracts/interfaces/IRepository.sol";
-import "contracts/interfaces/IOwnership.sol";
-import "contracts/interfaces/ITreasury.sol";
 import "contracts/interfaces/IDistributor.sol";
-import "contracts/interfaces/ICurrencyManager.sol";
-import "contracts/interfaces/IRightsCustodial.sol";
+import "contracts/interfaces/IRightsManager.sol";
 import "contracts/libraries/TreasuryHelper.sol";
 import "contracts/libraries/MathHelper.sol";
 
@@ -113,9 +110,10 @@ contract RentModule is
 
             // Validate price and currency support
             if (price <= 0) revert InvalidRentPrice();
-            bool isSupportedCurrencyByDistributor = ICurrencyManager(
+            bool isSupportedCurrencyByDistributor = IDistributor(
                 rent.distributor
             ).isCurrencySupported(currency);
+            
             if (
                 !isRegisteredErc20(currency) ||
                 !isSupportedCurrencyByDistributor
@@ -171,20 +169,16 @@ contract RentModule is
 
         // Store renting parameters
         _setPublicationRentSetting(rent, pubId);
-
         // Get the DRM and rights custodial interfaces
-        IOwnership drm = IOwnership(drmAddress);
-        IRightsCustodial distRights = IRightsCustodial(drmAddress);
-
+        IRightsManager drm = IRightsManager(drmAddress);
         // Ensure the content is not already owned
         if (drm.ownerOf(rent.contentId) != address(0))
             revert InvalidExistingContentPublication();
 
         // Mint the NFT for the content
         drm.mint(transactionExecutor, rent.contentId);
-
         // Grant initial custody to the distributor
-        distRights.grantCustodial(rent.distributor, rent.contentId);
+        drm.grantCustodial(rent.distributor, rent.contentId);
         contentRegistry[pubId] = rent.contentId;
     }
 
@@ -201,17 +195,15 @@ contract RentModule is
             (address, uint256)
         );
 
-        IOwnership drm = IOwnership(drmAddress);
-        ITreasury treasury = ITreasury(drmAddress);
-        IRightsCustodial rights = IRightsCustodial(drmAddress);
-        // Retrieve the content ID associated with the publication action
         uint256 contentId = contentRegistry[params.publicationActedId];
-
+        IRightsManager drm = IRightsManager(drmAddress);
         //!IMPORTANT if distributor does not support the currency, will revert..
-        address distributorAddress = rights.getCustodial(contentId);
+        address distributorAddress = drm.getCustodial(contentId);
         IDistributor distributor = IDistributor(distributorAddress);
+
+        // Get split % for distributor and treasury
+        uint256 treasurySplit = drm.getTreasuryFee(currency); // nominal % eg: 10, 20, 30
         uint256 distSplit = distributor.getTreasuryFee(currency); // nominal % eg: 10, 20, 30
-        uint256 treasurySplit = treasury.getTreasuryFee(currency); // nominal % eg: 10, 20, 30
 
         // Calculate the total fees based on the price per day and the number of days
         uint256 pricePerDay = prices[params.publicationActedId][currency];
@@ -231,6 +223,9 @@ contract RentModule is
         rentalWatcher.safeDeposit(owner, depositToOwner, currency);
         rentalWatcher.safeDeposit(drmAddress, treasuryFees, currency);
         rentalWatcher.safeDeposit(distributorAddress, distriFees, currency);
+
+        // TODO register in ACL account
+        //
     }
 
     /**

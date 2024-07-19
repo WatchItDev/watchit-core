@@ -4,13 +4,10 @@ pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
-
-import "contracts/interfaces/IDistributor.sol";
-import "contracts/interfaces/IDisburser.sol";
-
 import "contracts/base/CurrencyManager.sol";
 import "contracts/base/Treasury.sol";
-
+import "contracts/interfaces/IDistributor.sol";
+import "contracts/interfaces/IDisburser.sol";
 import "contracts/libraries/TreasuryHelper.sol";
 
 /// @title Content Distributor contract.

@@ -40,7 +40,7 @@ contract Syndication is
     uint256 private penaltyRate = 10; // 1000 bps = 100000000000000000
     address private immutable __self = address(this);
     mapping(address => uint256) private enrollmentFees;
-    
+
     bytes4 private constant INTERFACE_ID_IDISTRIBUTOR =
         type(IDistributor).interfaceId;
 
@@ -133,7 +133,7 @@ contract Syndication is
         // Attempt to send the amount to the syndication contract
         __self.deposit(msg.value);
         // Persist the enrollment payment in case the distributor quits before approval
-        enrollmentFees[manager] = msg.value;
+        _setEnrollment(manager, msg.value);
         // Set the distributor as pending approval
         _register(uint160(distributor));
     }
@@ -165,9 +165,13 @@ contract Syndication is
         uint256 penal = registeredAmount.perOf(penaltyRate.calcBps());
         uint256 res = registeredAmount - penal;
 
-        enrollmentFees[manager] = 0;
-        manager.disburst(res);
+        _setEnrollment(manager, 0);
         _quit(uint160(distributor));
+        manager.disburst(res);
+    }
+
+    function _setEnrollment(address manager, uint256 amount) private {
+        enrollmentFees[manager] = amount;
     }
 
     /// @inheritdoc IRegistrableRevokable
@@ -185,7 +189,7 @@ contract Syndication is
     function approve(
         address distributor
     ) public onlyGov validContractOnly(distributor) {
-        enrollmentFees[IDistributor(distributor).getManager()] = 0;
+        _setEnrollment(IDistributor(distributor).getManager(), 0);
         _approve(uint160(distributor));
     }
 

@@ -4,8 +4,9 @@ pragma solidity ^0.8.24;
 
 import "./IDisburser.sol";
 import "./ITreasury.sol";
+import "./ICurrencyManager.sol";
 
-interface IDistributor is ITreasury, IDisburser {
+interface IDistributor is ITreasury, IDisburser, ICurrencyManager {
     /// @notice Updates the endpoint of the current distributor.
     /// @dev This function can only be called by the owner of the contract.
     /// @param _endpoint The new distributor's endpoint.

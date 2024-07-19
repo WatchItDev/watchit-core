@@ -29,4 +29,27 @@ abstract contract RightsManagerContentAccessUpgradeable is Initializable {
     ) public view returns (bool) {
         return acl[watcher][contentId] <= Time.timestamp();
     }
+
+       // /// @notice Grants content access to a watcher for a specific timeframe.
+    // /// @param watcher The address of the watcher.
+    // /// @param contentId The content ID to grant access to.
+    // /// @param timeframe The timeframe for which access is granted.
+    // function granContentAccess(
+    //     address watcher,
+    //     uint256 contentId,
+    //     uint256 timeframe
+    // ) public registeredOnly(contentId) {
+    //     acl[watcher][contentId] = block.timestamp + timeframe;
+    // }
+
+    // /// @notice Checks if access is allowed for a specific watcher and content.
+    // /// @param watcher The address of the watcher.
+    // /// @param cidHash The content hash to check access for.
+    // /// @return True if access is allowed, false otherwise.
+    // function hasContentAccess(
+    //     address watcher,
+    //     uint256 cidHash
+    // ) public view returns (bool) {
+    //     return acl[watcher][cidHash] <= Time.timestamp();
+    // }
 }

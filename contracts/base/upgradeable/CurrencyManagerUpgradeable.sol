@@ -15,7 +15,7 @@ abstract contract CurrencyManagerUpgradeable is
         mapping(address => uint256) _supportedTokensMap;
         address[] _supportedTokens;
     }
-    
+
     error InvalidUnsupportedToken(address);
 
     // ERC-7201: Namespaced Storage Layout is another convention that can be used to avoid storage layout errors
@@ -37,8 +37,8 @@ abstract contract CurrencyManagerUpgradeable is
         }
     }
 
-    function __CurrencyBroker_init() internal onlyInitializing {}
-    function __CurrencyBroker_init_unchained() internal onlyInitializing {}
+    function __CurrencyManager_init() internal onlyInitializing {}
+    function __CurrencyManager_init_unchained() internal onlyInitializing {}
 
     function _addCurrency(address currency) internal {
         CurrencyManagerStorage storage $ = _getCurrencyManagerStorage();

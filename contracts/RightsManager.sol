@@ -6,14 +6,16 @@ import "@openzeppelin/contracts/utils/types/Time.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-
 import "contracts/base/upgradeable/QuorumUpgradeable.sol";
+import "contracts/base/upgradeable/TreasuryUpgradeable.sol";
+import "contracts/base/upgradeable/TreasurerUpgradeable.sol";
+import "contracts/base/upgradeable/CurrencyManagerUpgradeable.sol";
 import "contracts/base/upgradeable/GovernableUpgradeable.sol";
 import "contracts/base/upgradeable/extensions/RightsManagerERC721Upgradeable.sol";
 import "contracts/base/upgradeable/extensions/RightsManagerDistributionUpgradeable.sol";
-
 import "contracts/interfaces/IRegistrableVerifiable.sol";
 import "contracts/interfaces/IRepository.sol";
+import "contracts/libraries/TreasuryHelper.sol";
 
 /// @title Rights Manager
 /// @notice This contract manages digital rights, allowing content holders to set prices, rent content, and manage access.
@@ -23,9 +25,13 @@ contract RightsManager is
     IRepositoryConsumer,
     UUPSUpgradeable,
     GovernableUpgradeable,
+    TreasuryUpgradeable,
+    TreasurerUpgradeable,
+    CurrencyManagerUpgradeable,
     RightsManagerERC721Upgradeable,
     RightsManagerDistributionUpgradeable
 {
+    using TreasuryHelper for address;
     event RegisteredContent(uint256 contentId);
     event RevokedContent(uint256 contentId);
 
@@ -33,6 +39,7 @@ contract RightsManager is
     bytes32 private constant DELEGATED_ROLE = keccak256("DELEGATED_ROLE");
 
     address private syndication;
+    address private immutable __self = address(this);
 
     /// @dev Error that is thrown when a restricted access to the holder is attempted.
     error RestrictedAccessToHolder();
@@ -54,6 +61,7 @@ contract RightsManager is
         __ERC721_init("Watchit", "WOT");
         __ERC721Enumerable_init();
         __UUPSUpgradeable_init();
+        __CurrencyManager_init();
 
         IRepository repo = IRepository(_repository);
         syndication = repo.getContract(ContractTypes.SYNDICATION);
@@ -85,6 +93,51 @@ contract RightsManager is
         _;
     }
 
+    /// @inheritdoc ITreasury
+    /// @notice Sets a new treasury fee for a specific token.
+    /// @param newTreasuryFee The new fee amount to be set.
+    /// @param token The address of the token for which the fee is to be set.
+    function setTreasuryFee(
+        uint256 newTreasuryFee,
+        address token
+    ) public onlyGov {
+        _setTreasuryFee(newTreasuryFee, token);
+        _addCurrency(token);
+    }
+
+    /// @inheritdoc ITreasury
+    /// @notice Sets a new treasury fee for the native token.
+    /// @param newTreasuryFee The new fee amount to be set.
+    function setTreasuryFee(uint256 newTreasuryFee) public onlyGov {
+        _setTreasuryFee(newTreasuryFee, address(0));
+        _addCurrency(address(0));
+    }
+
+    /// @notice Sets the address of the treasury.
+    /// @param newTreasuryAddress The new treasury address to be set.
+    /// @dev Only callable by the governance role.
+    function setTreasuryAddress(address newTreasuryAddress) public onlyGov {
+        _setTreasuryAddress(newTreasuryAddress);
+    }
+
+    /// @notice Collects funds of a specific token from the contract and sends them to the treasury.
+    /// @param token The address of the token.
+    /// @dev Only callable by an admin.
+    function collectFunds(address token) public onlyAdmin {
+        // collect native token and send it to treasury
+        address treasure = getTreasuryAddress();
+        // TODO fix, aca debe ser ERC20.balanceOf()
+        treasure.disburst(__self.balance, token);
+    }
+
+    /// @notice Collects funds from the contract and sends them to the treasury.
+    /// @dev Only callable by an admin.
+    function collectFunds() public onlyAdmin {
+        // collect native token and send it to treasury
+        address treasure = getTreasuryAddress();
+        treasure.disburst(__self.balance);
+    }
+
     /// @notice Grants custodial rights for the content to a distributor.
     /// @param distributor The address of the distributor.
     /// @param contentId The content ID to grant custodial rights for.
@@ -99,31 +152,6 @@ contract RightsManager is
     {
         _grantCustodial(distributor, contentId);
     }
-
-    // /// @notice Grants content access to a watcher for a specific timeframe.
-    // /// @param watcher The address of the watcher.
-    // /// @param contentId The content ID to grant access to.
-    // /// @param timeframe The timeframe for which access is granted.
-    // function granContentAccess(
-    //     address watcher,
-    //     uint256 contentId,
-    //     uint256 timeframe
-    // ) public registeredOnly(contentId) {
-    //     acl[watcher][contentId] = block.timestamp + timeframe;
-    // }
-
-    // /// @notice Checks if access is allowed for a specific watcher and content.
-    // /// @param watcher The address of the watcher.
-    // /// @param cidHash The content hash to check access for.
-    // /// @return True if access is allowed, false otherwise.
-    // function hasContentAccess(
-    //     address watcher,
-    //     uint256 cidHash
-    // ) public view returns (bool) {
-    //     return acl[watcher][cidHash] <= Time.timestamp();
-    // }
-
-   
 
     /// @dev Authorizes the upgrade of the contract.
     /// @notice Only the owner can authorize the upgrade.
