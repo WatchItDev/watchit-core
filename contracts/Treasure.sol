@@ -1,3 +1,0 @@
-contract Treasure {
-    
-}
