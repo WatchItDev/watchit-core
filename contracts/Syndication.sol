@@ -170,6 +170,10 @@ contract Syndication is
         manager.disburst(res);
     }
 
+    /// @notice Private function to store the enrollment fees for distributors.
+    /// @param manager The address of the contract manager (distributor).
+    /// @param amount The amount of Wei enrolled by the distributor.
+    /// @dev This function is used to store the enrollment fees for distributors.
     function _setEnrollment(address manager, uint256 amount) private {
         enrollmentFees[manager] = amount;
     }
