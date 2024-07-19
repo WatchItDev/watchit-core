@@ -11,10 +11,10 @@ interface IRepositoryConsumer {
      * @notice Enum representing different contract types.
      */
     enum ContractTypes {
-        __,          // Undefined type
-        OWNERSHIP,   // Ownership contract
+        __, // Undefined type
         SYNDICATION, // Syndication contract
-        DRM          // Digital Rights Management contract
+        TREASURY, // Treasury contract
+        DRM // Digital Rights Management contract
     }
 }
 

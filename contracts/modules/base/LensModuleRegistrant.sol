@@ -33,6 +33,23 @@ abstract contract LensModuleRegistrant is ILensModuleRegistrant {
         return MODULE_REGISTRY.isModuleRegistered(address(this));
     }
 
+    function isRegisteredErc20(address currencyAddress) public view override returns (bool){
+        return MODULE_REGISTRY.isErc20CurrencyRegistered(currencyAddress);
+    }
+
+    function _registerErc20Currency(
+        address currencyAddress
+    ) internal returns (bool) {
+        if (isRegisteredErc20(currencyAddress)) {
+            return true;
+        }
+
+        bool registered = MODULE_REGISTRY.registerErc20Currency(
+            currencyAddress
+        );
+        return registered;
+    }
+
     /**
      * @notice Registers the module in the module registry.
      * @dev Internal function to register the module with the given type.

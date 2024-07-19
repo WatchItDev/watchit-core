@@ -44,6 +44,21 @@ library TreasuryHelper {
         _erc20(token, to, amount);
     }
 
+    /// @notice Deposits ERC20 tokens to the specified address using SafeERC20 transferFrom method.
+    /// @dev This function ensures that the transfer is executed safely, handling any potential reverts.
+    /// @param from The address from which the ERC20 tokens will be transferred.
+    /// @param to The address to which the ERC20 tokens will be deposited.
+    /// @param amount The amount of ERC20 tokens to deposit.
+    /// @param token The address of the ERC20 token to deposit.
+    function safeDeposit(
+        address from,
+        address to,
+        uint256 amount,
+        address token
+    ) internal {
+        IERC20(token).safeTransferFrom(from, to, amount);
+    }
+
     /// @notice Disburses native cryptocurrency from the contract to the specified address.
     /// @param to The address to which the native cryptocurrency will be disbursed.
     /// @param amount The amount of native cryptocurrency to disburse.

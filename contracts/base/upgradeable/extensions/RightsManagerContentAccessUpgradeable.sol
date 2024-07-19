@@ -6,12 +6,12 @@ import "@openzeppelin/contracts/utils/types/Time.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "contracts/interfaces/IDistributor.sol";
 
-abstract contract ContentAccessUpgradeable is Initializable {
+abstract contract RightsManagerContentAccessUpgradeable is Initializable {
     // Mapping to store the access control list for each watcher and content hash
     mapping(address watcher => mapping(uint256 contentId => uint256 timeframe))
         private acl;
 
-    function granContentAccess(
+    function _granAccess(
         address watcher,
         uint256 contentId,
         uint256 timeframe
@@ -23,7 +23,7 @@ abstract contract ContentAccessUpgradeable is Initializable {
     /// @param watcher The address of the watcher.
     /// @param contentId The content id to check access.
     /// @return True if access is allowed, false otherwise.
-    function hasContentAccess(
+    function hasAccess(
         address watcher,
         uint256 contentId
     ) public view returns (bool) {

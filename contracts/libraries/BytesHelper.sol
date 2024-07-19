@@ -13,9 +13,6 @@ library BytesHelper {
     function toAddress(
         bytes memory _bytes
     ) internal pure returns (address addr) {
-        // Ensure the bytes array has at least 20 bytes (not including length or padding)
-        if (_bytes.length != 20) revert InvalidBytesToAddressConversion();
-
         assembly {
             // Load the 32 bytes word from memory, skipping the first 32 bytes (length prefix)
             let data := mload(add(_bytes, 0x20))

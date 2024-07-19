@@ -2,7 +2,10 @@
 // NatSpec format convention - https://docs.soliditylang.org/en/v0.5.10/natspec-format.html
 pragma solidity ^0.8.24;
 
-interface IDistributor {
+import "./IDisburser.sol";
+import "./ITreasury.sol";
+
+interface IDistributor is ITreasury, IDisburser {
     /// @notice Updates the endpoint of the current distributor.
     /// @dev This function can only be called by the owner of the contract.
     /// @param _endpoint The new distributor's endpoint.

@@ -3,7 +3,6 @@
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "contracts/interfaces/IDistributor.sol";
 import "contracts/interfaces/ITreasury.sol";
 
 /**
@@ -19,12 +18,6 @@ abstract contract TreasuryUpgradeable is Initializable, ITreasury {
     /// @notice Error to be thrown when an unsupported token is used.
     /// @param token The address of the unsupported token.
     error InvalidUnsupportedToken(address token);
-
-    /// @notice Error to be thrown when a withdrawal fails.
-    /// @param reason The reason for the withdrawal failure.
-    error FailDuringTransferWithdraw(string reason);
-
-    bytes32 private constant GOB_ROLE = keccak256("GOB_ROLE");
     // ERC-7201: Namespaced Storage Layout is another convention that can be used to avoid storage layout errors
     // keccak256(abi.encode(uint256(keccak256("watchit.treasury.tokenfees")) - 1)) & ~bytes32(uint256(0xff))
     bytes32 private constant TREASURY_SLOT =
@@ -84,6 +77,7 @@ abstract contract TreasuryUpgradeable is Initializable, ITreasury {
         TreasuryStorage storage $ = _getTreasuryStorage();
         return $._tokenFees[token];
     }
+    
 
     /// @notice Sets a new treasury fee.
     /// @dev Sets the fee for a specific token or native currency.

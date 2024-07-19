@@ -5,9 +5,10 @@ pragma solidity ^0.8.24;
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";    
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Votes.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 
 // https://eips.ethereum.org/EIPS/eip-2612
-contract WVC is ERC20, ERC20Permit, ERC20Votes {
+contract WVC is ERC20, ERC20Permit, ERC20Burnable, ERC20Votes {
     constructor() ERC20("Watchit", "WVC") ERC20Permit("Watchit") {}
 
     /**

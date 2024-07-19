@@ -7,15 +7,24 @@ import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 
 import "contracts/interfaces/IDistributor.sol";
 import "contracts/interfaces/IDisburser.sol";
+
+import "contracts/base/CurrencyManager.sol";
 import "contracts/base/Treasury.sol";
+
 import "contracts/libraries/TreasuryHelper.sol";
 
 /// @title Content Distributor contract.
 /// @notice Use this contract to handle all needed logic for distributors.
 /// @dev This contract inherits from Ownable and ERC165, and implements the IDistributor interface.
-contract Distributor is Ownable, Treasury, ERC165, IDistributor, IDisburser {
+contract Distributor is
+    ERC165,
+    Ownable,
+    IDistributor,
+    CurrencyManager,
+    Treasury
+{
     using TreasuryHelper for address;
-    
+
     /// @notice The URL to the distribution.
     string private endpoint;
 
@@ -63,8 +72,12 @@ contract Distributor is Ownable, Treasury, ERC165, IDistributor, IDisburser {
     /// @notice Sets a new treasury fee for a specific token.
     /// @param newTreasuryFee The new fee amount to be set.
     /// @param token The address of the token for which the fee is to be set.
-    function setTreasuryFee(uint256 newTreasuryFee, address token) public onlyOwner {
+    function setTreasuryFee(
+        uint256 newTreasuryFee,
+        address token
+    ) public onlyOwner {
         _setTreasuryFee(newTreasuryFee, token);
+        _addCurrency(token);
     }
 
     /// @inheritdoc ITreasury
@@ -72,6 +85,7 @@ contract Distributor is Ownable, Treasury, ERC165, IDistributor, IDisburser {
     /// @param newTreasuryFee The new fee amount to be set.
     function setTreasuryFee(uint256 newTreasuryFee) public onlyOwner {
         _setTreasuryFee(newTreasuryFee, address(0));
+        _addCurrency(address(0));
     }
 
     /// @inheritdoc IDisburser
@@ -94,7 +108,9 @@ contract Distributor is Ownable, Treasury, ERC165, IDistributor, IDisburser {
     /// @notice Checks if the contract supports a specific interface.
     /// @param interfaceId The interface identifier to check.
     /// @return True if the interface is supported, otherwise false.
-    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+    function supportsInterface(
+        bytes4 interfaceId
+    ) public view virtual override returns (bool) {
         return
             interfaceId == type(IDistributor).interfaceId ||
             super.supportsInterface(interfaceId);

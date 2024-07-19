@@ -3,12 +3,12 @@
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "contracts/interfaces/IQuorum.sol";
+
 /**
  * @title QuorumUpgradeable
  * @dev Abstract contract for managing generic registration and status.
  */
-abstract contract QuorumUpgradeable is Initializable, IQuorum {
+abstract contract QuorumUpgradeable is Initializable {
     /// @notice Enum to represent the status of an entity.
     enum Status {
         Pending, // 0: The entity is pending approval

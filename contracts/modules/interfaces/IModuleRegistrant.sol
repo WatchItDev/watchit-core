@@ -13,10 +13,14 @@ interface ILensModuleRegistrant {
      * @return True if the module was registered, false otherwise.
      */
     function registerModule() external returns (bool);
+    function registerCurrency(address currencyAddress) external returns (bool);
 
     /**
      * @dev Checks if the module is registered in the module registry.
      * @return True if the module is registered, false otherwise.
      */
     function isRegistered() external view returns (bool);
+    function isRegisteredErc20(
+        address currencyAddress
+    ) external view returns (bool);
 }

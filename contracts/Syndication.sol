@@ -7,7 +7,6 @@ import "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
-import "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 
 import "contracts/base/upgradeable/GovernableUpgradeable.sol";
@@ -18,7 +17,7 @@ import "contracts/base/upgradeable/TreasuryUpgradeable.sol";
 import "contracts/interfaces/IDistributor.sol";
 import "contracts/interfaces/ISyndicatable.sol";
 import "contracts/libraries/TreasuryHelper.sol";
-import "contracts/libraries/Bytes32Helper.sol";
+import "contracts/libraries/MathHelper.sol";
 
 /// @title Content Syndication contract.
 /// @notice Use this contract to handle all distribution logic needed for creators and distributors.
@@ -33,25 +32,21 @@ contract Syndication is
     TreasurerUpgradeable,
     TreasuryUpgradeable
 {
-    using Math for uint256;
+    using MathHelper for uint256;
     using ERC165Checker for address;
     using TreasuryHelper for address;
-    using Bytes32Helper for bytes32;
 
-    address private treasury;
-    uint8 private constant PER_DENOMINATOR = 100;
-    // 0.1 * 1e18 = 10% initial quitting penalization rate
-    uint256 private penaltyRate = 1e17; // 100000000000000000
+    // 10% initial quitting penalization rate
+    uint256 private penaltyRate = 10; // 1000 bps = 100000000000000000
     address private immutable __self = address(this);
     mapping(address => uint256) private enrollmentFees;
-    /// @notice Mapping to record the status of distributors.
-    /// @dev Maps distributor addresses to their status.
+    
     bytes4 private constant INTERFACE_ID_IDISTRIBUTOR =
         type(IDistributor).interfaceId;
 
     /// @notice Error to be thrown when a distributor contract is invalid.
-    error InvalidDistributorContract();
     error InvalidPenaltyRate();
+    error InvalidDistributorContract();
     error FailDuringEnrollment(string reason);
     error FailDuringQuit(string reason);
 
@@ -63,9 +58,8 @@ contract Syndication is
     }
 
     /// @notice Modifier to ensure that the given distributor contract supports the IDistributor interface.
-    /// @param _distributor The distributor contract address.
-    modifier validContractOnly(bytes32 _distributor) {
-        address distributor = _distributor.toAddress(); // cast to address bytes32
+    /// @param distributor The distributor contract address.
+    modifier validContractOnly(address distributor) {
         if (!distributor.supportsInterface(INTERFACE_ID_IDISTRIBUTOR))
             revert InvalidDistributorContract();
         _;
@@ -127,15 +121,14 @@ contract Syndication is
 
     /// @inheritdoc IRegistrable
     /// @notice Registers a distributor by sending a payment to the contract.
-    /// @param _distributor The address of the distributor to register.
+    /// @param distributor The address of the distributor to register.
     function register(
-        bytes32 _distributor
-    ) public payable validContractOnly(_distributor) {
+        address distributor
+    ) public payable validContractOnly(distributor) {
         if (msg.value < getTreasuryFee(address(0)))
             revert FailDuringEnrollment("Invalid fee amount");
 
-        // the contract manager
-        address distributor = _distributor.toAddress();
+        // the contract manager;
         address manager = IDistributor(distributor).getManager();
         // Attempt to send the amount to the syndication contract
         __self.deposit(msg.value);
@@ -147,32 +140,30 @@ contract Syndication is
 
     /**
      * @notice Checks if the entity is active.
-     * @param _distributor The distributor's address.
+     * @param distributor The distributor's address.
      * @return bool True if the entity is active, false otherwise.
      */
     function isActive(
-        bytes32 _distributor
-    ) public view validContractOnly(_distributor) returns (bool) {
-        address distributor = _distributor.toAddress();
+        address distributor
+    ) public view validContractOnly(distributor) returns (bool) {
         return _status(uint160(distributor)) == Status.Active;
     }
 
     /// @inheritdoc IRegistrableRevokable
     /// @notice Allows a distributor to quit and receive a penalized refund.
-    /// @param _distributor The address of the distributor to quit.
+    /// @param distributor The address of the distributor to quit.
     /// @dev The function reverts if the distributor has not enrolled or if the refund fails.
     function quit(
-        bytes32 _distributor
-    ) public nonReentrant validContractOnly(_distributor) {
-        address distributor = _distributor.toAddress();
+        address distributor
+    ) public nonReentrant validContractOnly(distributor) {
         address manager = IDistributor(distributor).getManager(); // the contract manager
         uint256 registeredAmount = enrollmentFees[manager]; // Wei
         if (registeredAmount == 0)
             revert FailDuringQuit("Invalid distributor enrollment.");
 
-        uint256 penal = registeredAmount.mulDiv(penaltyRate, PER_DENOMINATOR);
-        (bool success, uint256 res) = registeredAmount.trySub(penal);
-        if (!success) revert FailDuringQuit("Fail subtracting penalization");
+        // eg: (100 * bps) / BPS_MAX
+        uint256 penal = registeredAmount.perOf(penaltyRate.calcBps());
+        uint256 res = registeredAmount - penal;
 
         enrollmentFees[manager] = 0;
         manager.disburst(res);
@@ -181,21 +172,19 @@ contract Syndication is
 
     /// @inheritdoc IRegistrableRevokable
     /// @notice Revokes the registration of a distributor.
-    /// @param _distributor The address of the distributor to revoke.
+    /// @param distributor The address of the distributor to revoke.
     function revoke(
-        bytes32 _distributor
-    ) public onlyGov validContractOnly(_distributor) {
-        address distributor = _distributor.toAddress();
+        address distributor
+    ) public onlyGov validContractOnly(distributor) {
         _revoke(uint160(distributor));
     }
 
     /// @inheritdoc IRegistrable
     /// @notice Approves a distributor's registration.
-    /// @param _distributor The address of the distributor to approve.
+    /// @param distributor The address of the distributor to approve.
     function approve(
-        bytes32 _distributor
-    ) public onlyGov validContractOnly(_distributor) {
-        address distributor = _distributor.toAddress();
+        address distributor
+    ) public onlyGov validContractOnly(distributor) {
         enrollmentFees[IDistributor(distributor).getManager()] = 0;
         _approve(uint160(distributor));
     }

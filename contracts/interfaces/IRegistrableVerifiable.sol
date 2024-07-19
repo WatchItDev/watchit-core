@@ -5,5 +5,5 @@ pragma solidity ^0.8.24;
 /// @notice This interface defines the method for checking if an entity is active.
 interface IRegistrableVerifiable {
     /// @notice Checks if the entity associated with the given identifier is active.
-    function isActive(bytes32) external returns (bool);
+    function isActive(address) external returns (bool);
 }
