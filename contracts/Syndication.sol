@@ -116,7 +116,7 @@ contract Syndication is
     function collectFunds() public onlyAdmin {
         // collect native token and send it to treasury
         address treasure = getTreasuryAddress();
-        treasure.disburst(__self.balance);
+        treasure.disburst(__self.balanceOf());
     }
 
     /// @inheritdoc IRegistrable

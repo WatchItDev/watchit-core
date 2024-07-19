@@ -126,8 +126,7 @@ contract RightsManager is
     function collectFunds(address token) public onlyAdmin {
         // collect native token and send it to treasury
         address treasure = getTreasuryAddress();
-        // TODO fix, aca debe ser ERC20.balanceOf()
-        treasure.disburst(__self.balance, token);
+        treasure.disburst(__self.balanceOf(token));
     }
 
     /// @notice Collects funds from the contract and sends them to the treasury.
@@ -135,7 +134,7 @@ contract RightsManager is
     function collectFunds() public onlyAdmin {
         // collect native token and send it to treasury
         address treasure = getTreasuryAddress();
-        treasure.disburst(__self.balance);
+        treasure.disburst(__self.balanceOf());
     }
 
     /// @notice Grants custodial rights for the content to a distributor.
