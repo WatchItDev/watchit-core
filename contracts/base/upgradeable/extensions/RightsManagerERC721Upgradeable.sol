@@ -47,6 +47,7 @@ abstract contract RightsManagerERC721Upgradeable is
     )
         public
         view
+        virtual
         override(
             IERC165,
             ERC721Upgradeable,
