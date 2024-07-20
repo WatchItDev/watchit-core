@@ -17,13 +17,14 @@ library Types {
     }
 
     struct RentPrice {
-        address currency; // the currency 
+        address currency; // the currency
         uint256 price; // price per day
     }
 
     struct RentParams {
-        uint256 contentId;
-        address distributor;
+        bytes secured; // secured content
+        uint256 contentId; // content id 2hash
+        address distributor; // initial distributor
         RentPrice[] rentPrices;
     }
 

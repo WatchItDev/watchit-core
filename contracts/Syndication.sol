@@ -52,7 +52,8 @@ contract Syndication is
 
     /// @dev Constructor that disables initializers to prevent the implementation contract from being initialized.
     /// @notice This constructor prevents the implementation contract from being initialized.
-    /// @dev See https://forum.openzeppelin.com/t/uupsupgradeable-vulnerability-post-mortem/15680 and https://forum.openzeppelin.com/t/what-does-disableinitializers-function-mean/28730/5
+    /// @dev See https://forum.openzeppelin.com/t/uupsupgradeable-vulnerability-post-mortem/15680
+    ///          https://forum.openzeppelin.com/t/what-does-disableinitializers-function-mean/28730/5
     constructor() {
         _disableInitializers();
     }
@@ -89,9 +90,11 @@ contract Syndication is
         address newImplementation
     ) internal override onlyAdmin {}
 
+    /// @inheritdoc ISyndicatable
     /// @notice Function to set the penalty rate for quitting enrollment.
-    /// @param newPenaltyRate The new penalty rate to be set. It should be a uint256 value representing a percentage (e.g., 100000000000000000 for 10%).
-    /// @dev The penalty rate is a percentage (expressed as a uint256) that will be applied to the enrollment fee when a distributor quits.
+    /// @param newPenaltyRate The new penalty rate to be set. It should be a value representing a nominal percentage.
+    /// @dev The penalty rate is a nominal percentage (expressed as a uint256) 
+    /// That will be applied to the enrollment fee when a distributor quits.
     function setPenaltyRate(uint256 newPenaltyRate) public onlyGov {
         if (newPenaltyRate == 0) revert InvalidPenaltyRate();
         penaltyRate = newPenaltyRate;
@@ -104,6 +107,7 @@ contract Syndication is
         _setTreasuryFee(newTreasuryFee, address(0));
     }
 
+    /// @inheritdoc ITreasurer
     /// @notice Sets the address of the treasury.
     /// @param newTreasuryAddress The new treasury address to be set.
     /// @dev Only callable by the governance role.
@@ -111,6 +115,7 @@ contract Syndication is
         _setTreasuryAddress(newTreasuryAddress);
     }
 
+    /// @inheritdoc ITreasurer
     /// @notice Collects funds from the contract and sends them to the treasury.
     /// @dev Only callable by an admin.
     function collectFunds() public onlyAdmin {
@@ -138,11 +143,10 @@ contract Syndication is
         _register(uint160(distributor));
     }
 
-    /**
-     * @notice Checks if the entity is active.
-     * @param distributor The distributor's address.
-     * @return bool True if the entity is active, false otherwise.
-     */
+    /// @inheritdoc  IRegistrableVerifiable
+    /// @notice Checks if the entity is active.
+    /// @param distributor The distributor's address.
+    /// @return bool True if the entity is active, false otherwise.
     function isActive(
         address distributor
     ) public view validContractOnly(distributor) returns (bool) {
@@ -206,6 +210,7 @@ contract Syndication is
         address token
     ) public override onlyGov {}
 
+    /// @inheritdoc ITreasurer
     /// @notice Collects funds of a specific token from the contract and sends them to the treasury.
     /// @param token The address of the token.
     /// @dev Only callable by an admin.

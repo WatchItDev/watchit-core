@@ -7,7 +7,7 @@ import "contracts/interfaces/ICurrencyManager.sol";
 
 /// @title Currency Manager Upgradeable
 /// @notice This contract manages supported currencies and allows for adding/removing supported currencies.
-/// @dev This contract uses the upgradeable pattern and stores currency data in a specific storage slot to prevent storage conflicts.
+/// @dev This contract uses the upgradeable pattern and stores currency data.
 abstract contract CurrencyManagerUpgradeable is
     Initializable,
     ICurrencyManager
@@ -15,8 +15,10 @@ abstract contract CurrencyManagerUpgradeable is
     /// @custom:storage-location erc7201:currencymanagarupgradeable.supportedtokensmap
     /// @custom:storage-location erc7201:currencymanagarupgradeable.supportedtokens
     struct CurrencyManagerStorage {
-        mapping(address => uint256) _supportedCurrencyMap; // Maps currency addresses to their index in the supported tokens array
-        address[] _supportedCurrencies; // Array of supported currency addresses
+        // Maps currency addresses to their index in the supported tokens array
+        mapping(address => uint256) _supportedCurrencyMap; 
+         // Array of supported currency addresses
+        address[] _supportedCurrencies;
     }
 
     /// @notice Error thrown when trying to remove an unsupported currency.

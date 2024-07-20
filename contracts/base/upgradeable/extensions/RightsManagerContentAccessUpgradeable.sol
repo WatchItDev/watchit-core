@@ -4,7 +4,6 @@ pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/utils/types/Time.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "contracts/interfaces/IDistributor.sol";
 
 abstract contract RightsManagerContentAccessUpgradeable is Initializable {
     // Mapping to store the access control list for each watcher and content hash

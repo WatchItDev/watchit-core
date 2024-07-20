@@ -13,12 +13,13 @@ import "contracts/base/upgradeable/CurrencyManagerUpgradeable.sol";
 import "contracts/base/upgradeable/GovernableUpgradeable.sol";
 import "contracts/base/upgradeable/extensions/RightsManagerERC721Upgradeable.sol";
 import "contracts/base/upgradeable/extensions/RightsManagerDistributionUpgradeable.sol";
+import "contracts/base/upgradeable/extensions/RightsManagerVaultUpgradeable.sol";
 import "contracts/interfaces/IRegistrableVerifiable.sol";
 import "contracts/interfaces/IRepository.sol";
 import "contracts/libraries/TreasuryHelper.sol";
 
 /// @title Rights Manager
-/// @notice This contract manages digital rights, allowing content holders to set prices, rent content, and manage access.
+/// @notice This contract manages digital rights, allowing content holders to set prices, rent content, etc.
 /// @dev This contract uses the UUPS upgradeable pattern and is initialized using the `initialize` function.
 contract RightsManager is
     Initializable,
@@ -28,6 +29,7 @@ contract RightsManager is
     TreasuryUpgradeable,
     TreasurerUpgradeable,
     CurrencyManagerUpgradeable,
+    RightsManagerVaultUpgradeable,
     RightsManagerERC721Upgradeable,
     RightsManagerDistributionUpgradeable
 {
@@ -113,6 +115,7 @@ contract RightsManager is
         _addCurrency(address(0));
     }
 
+    /// @inheritdoc ITreasurer
     /// @notice Sets the address of the treasury.
     /// @param newTreasuryAddress The new treasury address to be set.
     /// @dev Only callable by the governance role.
@@ -120,6 +123,7 @@ contract RightsManager is
         _setTreasuryAddress(newTreasuryAddress);
     }
 
+    /// @inheritdoc ITreasurer
     /// @notice Collects funds of a specific token from the contract and sends them to the treasury.
     /// @param token The address of the token.
     /// @dev Only callable by an admin.
@@ -129,6 +133,7 @@ contract RightsManager is
         treasure.disburst(__self.balanceOf(token));
     }
 
+    /// @inheritdoc ITreasurer
     /// @notice Collects funds from the contract and sends them to the treasury.
     /// @dev Only callable by an admin.
     function collectFunds() public onlyAdmin {
@@ -137,6 +142,15 @@ contract RightsManager is
         treasure.disburst(__self.balanceOf());
     }
 
+    /// @inheritdoc IContentVault
+    /// @notice Stores encrypted content in the vault.
+    /// @param contentId The identifier of the content.
+    /// @param encrypted The encrypted content to store.
+    function secureContent(uint256 contentId, bytes calldata encrypted) external onlyHolder(contentId) {
+        _secureContent(contentId, encrypted);
+    }
+
+    /// @inheritdoc IRightsCustodial
     /// @notice Grants custodial rights for the content to a distributor.
     /// @param distributor The address of the distributor.
     /// @param contentId The content ID to grant custodial rights for.
@@ -159,8 +173,9 @@ contract RightsManager is
         address newImplementation
     ) internal override onlyAdmin {}
 
+    /// @inheritdoc IOwnership
     /// @notice Mints a new NFT to the specified address.
-    /// @dev The minting is public. Our naive assumption is that only those who know the CID hash can mint the corresponding token.
+    /// @dev Our naive assumption is that only those who know the CID hash can mint the corresponding token.
     /// @param to The address to mint the NFT to.
     /// @param contentId The content id of the NFT. This should be a unique identifier for the NFT.
     function mint(address to, uint256 contentId) external {
@@ -168,6 +183,7 @@ contract RightsManager is
         emit RegisteredContent(contentId);
     }
 
+    /// @inheritdoc IOwnership
     /// @notice Burns a token based on the provided token ID.
     /// @dev This burn operation is generally delegated through governance.
     /// @param contentId The content id of the NFT to be burned.

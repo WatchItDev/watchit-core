@@ -175,8 +175,9 @@ contract RentModule is
         if (drm.ownerOf(rent.contentId) != address(0))
             revert InvalidExistingContentPublication();
 
-        // Mint the NFT for the content
+        // Mint the NFT for the content and secure it;
         drm.mint(transactionExecutor, rent.contentId);
+        drm.secureContent(rent.contentId, rent.secured);
         // Grant initial custody to the distributor
         drm.grantCustodial(rent.distributor, rent.contentId);
         contentRegistry[pubId] = rent.contentId;

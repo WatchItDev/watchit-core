@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /// @title TreasuryHelper
-/// @notice Library to assist with treasury operations, including transfers and deposits of native cryptocurrency and ERC20 tokens.
+/// @notice Library to assist with treasury operations.
 library TreasuryHelper {
     // Using OpenZeppelin's SafeERC20 library for safe ERC20 transfers
     using SafeERC20 for IERC20;
