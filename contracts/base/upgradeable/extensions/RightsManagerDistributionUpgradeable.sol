@@ -8,7 +8,7 @@ import "contracts/interfaces/IRightsCustodial.sol";
 abstract contract RightsManagerDistributionUpgradeable is
     Initializable,
     IRightsCustodial
-{
+{   
     /// @custom:storage-location erc7201:rightsmanagerdistributionupgradeable.governor
     struct DistributionRightsStorage {
         mapping(uint256 => address) _custodying;

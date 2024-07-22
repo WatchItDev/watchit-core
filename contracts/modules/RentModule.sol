@@ -22,11 +22,11 @@ import "contracts/libraries/MathHelper.sol";
  */
 contract RentModule is
     Ownable,
-    IRepositoryConsumer,
-    IPublicationActionModule,
     LensModuleMetadata,
     LensModuleRegistrant,
-    HubRestricted
+    HubRestricted,
+    IRepositoryConsumer,
+    IPublicationActionModule
 {
     using MathHelper for uint256;
     using TreasuryHelper for address;
@@ -41,6 +41,7 @@ contract RentModule is
     address private immutable drmAddress;
     // Mapping from publication ID to content ID
     mapping(uint256 => uint256) contentRegistry;
+    mapping(uint256 => uint256[]) profileRegistry;
     // Mapping from publication ID and currency to rent price
     mapping(uint256 => mapping(address => uint256)) private prices;
 
@@ -48,19 +49,19 @@ contract RentModule is
      * @dev Constructor that initializes the RentModule contract.
      * @param hub The address of the hub contract.
      * @param registrant The address of the registrant contract.
-     * @param _repository The address of the repository contract.
+     * @param repository The address of the repository contract.
      */
     constructor(
         address hub,
         address registrant,
-        address _repository
+        address repository
     )
         Ownable(_msgSender())
         HubRestricted(hub)
         LensModuleRegistrant(registrant)
     {
         // Get the registered DRM contract from the repository
-        IRepository repo = IRepository(_repository);
+        IRepository repo = IRepository(repository);
         drmAddress = repo.getContract(ContractTypes.DRM);
     }
 
@@ -113,13 +114,14 @@ contract RentModule is
             bool isSupportedCurrencyByDistributor = IDistributor(
                 rent.distributor
             ).isCurrencySupported(currency);
-            
+
             if (
                 !isRegisteredErc20(currency) ||
                 !isSupportedCurrencyByDistributor
             ) revert InvalidNotSupportedCurrency();
 
             // Set the rent price
+            // pub -> wvc -> 5
             prices[pubId][currency] = price;
 
             // Avoid overflow check and optimize gas
@@ -150,14 +152,12 @@ contract RentModule is
         return (distriFees, treasuryFees, depositToOwner);
     }
 
-    /**
-     * @dev Initializes a publication action for renting a publication.
-     * @param profileId The ID of the profile initiating the action.
-     * @param pubId The ID of the publication being rented.
-     * @param transactionExecutor The address of the executor of the transaction.
-     * @param data Additional data required for the action.
-     * @return bytes memory The result of the action.
-     */
+    // @dev Initializes a publication action for renting a publication.
+    // @param profileId The ID of the profile initiating the action.
+    // @param pubId The ID of the publication being rented.
+    // @param transactionExecutor The address of the executor of the transaction.
+    // @param data Additional data required for the action.
+    // @return bytes memory The result of the action.
     function initializePublicationAction(
         uint256 profileId,
         uint256 pubId,
@@ -166,7 +166,6 @@ contract RentModule is
     ) external override onlyHub returns (bytes memory) {
         // Decode the rent parameters
         Types.RentParams memory rent = abi.decode(data, (Types.RentParams));
-
         // Store renting parameters
         _setPublicationRentSetting(rent, pubId);
         // Get the DRM and rights custodial interfaces
@@ -181,13 +180,13 @@ contract RentModule is
         // Grant initial custody to the distributor
         drm.grantCustodial(rent.distributor, rent.contentId);
         contentRegistry[pubId] = rent.contentId;
+        profileRegistry[profileId].push(rent.contentId);
+        // TODO royalties NFT
     }
 
-    /**
-     * @dev Processes a publication action.
-     * @param params The parameters for processing the action.
-     * @return bytes memory The result of the action.
-     */
+    /// @dev Processes a publication action (rent).
+    /// @param params The parameters for processing the action.
+    /// @return bytes memory The result of the action.
     function processPublicationAction(
         Types.ProcessActionParams calldata params
     ) external override onlyHub returns (bytes memory) {
@@ -196,9 +195,9 @@ contract RentModule is
             (address, uint256)
         );
 
-        uint256 contentId = contentRegistry[params.publicationActedId];
         IRightsManager drm = IRightsManager(drmAddress);
         //!IMPORTANT if distributor does not support the currency, will revert..
+        uint256 contentId = contentRegistry[params.publicationActedId];
         address distributorAddress = drm.getCustodial(contentId);
         IDistributor distributor = IDistributor(distributorAddress);
 
@@ -224,9 +223,8 @@ contract RentModule is
         rentalWatcher.safeDeposit(owner, depositToOwner, currency);
         rentalWatcher.safeDeposit(drmAddress, treasuryFees, currency);
         rentalWatcher.safeDeposit(distributorAddress, distriFees, currency);
-
-        // TODO register in ACL account
-        //
+        // Add access to content for N days to renter..
+        drm.grantAccess(rentalWatcher, contentId, _days * 1 days);
     }
 
     /**

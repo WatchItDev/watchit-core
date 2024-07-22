@@ -11,9 +11,10 @@ import "contracts/base/upgradeable/TreasuryUpgradeable.sol";
 import "contracts/base/upgradeable/TreasurerUpgradeable.sol";
 import "contracts/base/upgradeable/CurrencyManagerUpgradeable.sol";
 import "contracts/base/upgradeable/GovernableUpgradeable.sol";
+import "contracts/base/upgradeable/ContentVaultUpgradeable.sol";
 import "contracts/base/upgradeable/extensions/RightsManagerERC721Upgradeable.sol";
+import "contracts/base/upgradeable/extensions/RightsManagerContentAccessUpgradeable.sol";
 import "contracts/base/upgradeable/extensions/RightsManagerDistributionUpgradeable.sol";
-import "contracts/base/upgradeable/extensions/RightsManagerVaultUpgradeable.sol";
 import "contracts/interfaces/IRegistrableVerifiable.sol";
 import "contracts/interfaces/IRepository.sol";
 import "contracts/libraries/TreasuryHelper.sol";
@@ -23,15 +24,16 @@ import "contracts/libraries/TreasuryHelper.sol";
 /// @dev This contract uses the UUPS upgradeable pattern and is initialized using the `initialize` function.
 contract RightsManager is
     Initializable,
-    IRepositoryConsumer,
     UUPSUpgradeable,
     GovernableUpgradeable,
     TreasuryUpgradeable,
     TreasurerUpgradeable,
+    ContentVaultUpgradeable,
     CurrencyManagerUpgradeable,
-    RightsManagerVaultUpgradeable,
     RightsManagerERC721Upgradeable,
-    RightsManagerDistributionUpgradeable
+    RightsManagerDistributionUpgradeable,
+    RightsManagerContentAccessUpgradeable,
+    IRepositoryConsumer
 {
     using TreasuryHelper for address;
     event RegisteredContent(uint256 contentId);
@@ -65,9 +67,9 @@ contract RightsManager is
         __UUPSUpgradeable_init();
         __CurrencyManager_init();
 
+        _grantRole(DEFAULT_ADMIN_ROLE, _msgSender());
         IRepository repo = IRepository(_repository);
         syndication = repo.getContract(ContractTypes.SYNDICATION);
-        _grantRole(DEFAULT_ADMIN_ROLE, _msgSender());
     }
 
     /// @notice Modifier to restrict access to the holder only or delegated.
@@ -146,8 +148,24 @@ contract RightsManager is
     /// @notice Stores encrypted content in the vault.
     /// @param contentId The identifier of the content.
     /// @param encrypted The encrypted content to store.
-    function secureContent(uint256 contentId, bytes calldata encrypted) external onlyHolder(contentId) {
+    function secureContent(
+        uint256 contentId,
+        bytes calldata encrypted
+    ) external onlyHolder(contentId) {
         _secureContent(contentId, encrypted);
+    }
+
+    /// @inheritdoc IRightsAccessController
+    /// @notice Grants access to a specific watcher for a certain content ID for a given timeframe.
+    /// @param account The address of the watcher.
+    /// @param contentId The content ID to grant access to.
+    /// @param timeframe The timeframe in seconds for which access is granted.
+    function grantAccess(
+        address account,
+        uint256 contentId,
+        uint256 timeframe
+    ) external onlyRegisteredContent(contentId) onlyHolder(contentId) {
+        _grantAccess(account, contentId, timeframe);
     }
 
     /// @inheritdoc IRightsCustodial
@@ -173,7 +191,7 @@ contract RightsManager is
         address newImplementation
     ) internal override onlyAdmin {}
 
-    /// @inheritdoc IOwnership
+    /// @inheritdoc IRightsOwnership
     /// @notice Mints a new NFT to the specified address.
     /// @dev Our naive assumption is that only those who know the CID hash can mint the corresponding token.
     /// @param to The address to mint the NFT to.
@@ -183,7 +201,7 @@ contract RightsManager is
         emit RegisteredContent(contentId);
     }
 
-    /// @inheritdoc IOwnership
+    /// @inheritdoc IRightsOwnership
     /// @notice Burns a token based on the provided token ID.
     /// @dev This burn operation is generally delegated through governance.
     /// @param contentId The content id of the NFT to be burned.

@@ -14,6 +14,7 @@ import "contracts/base/upgradeable/QuorumUpgradeable.sol";
 import "contracts/base/upgradeable/TreasurerUpgradeable.sol";
 import "contracts/base/upgradeable/TreasuryUpgradeable.sol";
 
+import "contracts/interfaces/IRepository.sol";
 import "contracts/interfaces/IDistributor.sol";
 import "contracts/interfaces/ISyndicatable.sol";
 import "contracts/libraries/TreasuryHelper.sol";
@@ -24,13 +25,14 @@ import "contracts/libraries/MathHelper.sol";
 /// @dev This contract uses the UUPS upgradeable pattern and AccessControl for role-based access control.
 contract Syndication is
     Initializable,
-    ISyndicatable,
     UUPSUpgradeable,
     GovernableUpgradeable,
     ReentrancyGuardUpgradeable,
     QuorumUpgradeable,
     TreasurerUpgradeable,
-    TreasuryUpgradeable
+    TreasuryUpgradeable,
+    IRepositoryConsumer,
+    ISyndicatable
 {
     using MathHelper for uint256;
     using ERC165Checker for address;
@@ -68,16 +70,21 @@ contract Syndication is
 
     /// @notice Initializes the contract with the given enrollment fee and treasury address.
     /// @param initialFee The initial fee for enrollment.
-    /// @param initialTreasuryAddress The initial address of the treasury.
+    /// @param repository The address of the repository contract.
     /// @dev This function is called only once during the contract deployment.
     function initialize(
         uint256 initialFee,
-        address initialTreasuryAddress
+        address repository
     ) public initializer {
         __Quorum_init();
         __Governable_init();
         __UUPSUpgradeable_init();
         __ReentrancyGuard_init();
+
+        // Get the registered treasury contract from the repository
+        IRepository repo = IRepository(repository);
+        address initialTreasuryAddress = repo.getContract(ContractTypes.TREASURY);
+
         __Treasurer_init(initialTreasuryAddress);
         __Treasury_init(initialFee, address(0));
         _grantRole(DEFAULT_ADMIN_ROLE, _msgSender());

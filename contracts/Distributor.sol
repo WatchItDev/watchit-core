@@ -16,9 +16,9 @@ import "contracts/libraries/TreasuryHelper.sol";
 contract Distributor is
     ERC165,
     Ownable,
-    IDistributor,
+    Treasury,
     CurrencyManager,
-    Treasury
+    IDistributor
 {
     using TreasuryHelper for address;
 

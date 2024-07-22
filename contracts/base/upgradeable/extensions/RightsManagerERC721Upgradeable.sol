@@ -4,11 +4,11 @@ pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721EnumerableUpgradeable.sol";
-import "contracts/interfaces/IOwnership.sol";
+import "contracts/interfaces/IRightsOwnership.sol";
 
 abstract contract RightsManagerERC721Upgradeable is
     Initializable,
-    IOwnership,
+    IRightsOwnership,
     ERC721Upgradeable,
     ERC721EnumerableUpgradeable
 {
