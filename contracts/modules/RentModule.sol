@@ -176,6 +176,8 @@ contract RentModule is
 
         // Mint the NFT for the content and secure it;
         drm.mint(transactionExecutor, rent.contentId);
+        // The secured content, could be any content to handly encryption schema..
+        // eg: LIT cypertext + hash, public key enceypted data, shared key encrypted data..
         drm.secureContent(rent.contentId, rent.secured);
         // Grant initial custody to the distributor
         drm.grantCustodial(rent.distributor, rent.contentId);

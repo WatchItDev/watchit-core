@@ -147,12 +147,12 @@ contract RightsManager is
     /// @inheritdoc IContentVault
     /// @notice Stores encrypted content in the vault.
     /// @param contentId The identifier of the content.
-    /// @param encrypted The encrypted content to store.
+    /// @param encryptedContent The encrypted content to store.
     function secureContent(
         uint256 contentId,
-        bytes calldata encrypted
+        bytes calldata encryptedContent
     ) external onlyHolder(contentId) {
-        _secureContent(contentId, encrypted);
+        _secureContent(contentId, encryptedContent);
     }
 
     /// @inheritdoc IRightsAccessController

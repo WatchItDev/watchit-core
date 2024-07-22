@@ -8,10 +8,7 @@ import "contracts/interfaces/IContentVault.sol";
 /// @title Content Vault Upgradeable
 /// @notice This contract manages encrypted content storage in a secure vault.
 /// @dev This contract uses an upgradeable pattern and a namespaced storage layout to avoid storage conflicts.
-abstract contract ContentVaultUpgradeable is
-    Initializable,
-    IContentVault
-{
+abstract contract ContentVaultUpgradeable is Initializable, IContentVault {
     /// @custom:storage-location erc7201:vaultupgradeable.encrypted
     struct VaultStorage {
         mapping(uint256 => bytes) _secured; // Mapping to store encrypted content by content ID
@@ -44,16 +41,14 @@ abstract contract ContentVaultUpgradeable is
         return $._secured[contentId];
     }
 
-    /**
-     * @notice Stores encrypted content in the vault.
-     * @param contentId The identifier of the content.
-     * @param encrypted The encrypted content to store.
-     */
+    /// @notice Stores encrypted content in the vault.
+    /// @param contentId The identifier of the content.
+    /// @param encryptedContent The encrypted content to store.
     function _secureContent(
         uint256 contentId,
-        bytes calldata encrypted
+        bytes calldata encryptedContent
     ) internal {
         VaultStorage storage $ = _getVaultStorage();
-        $._secured[contentId] = encrypted;
+        $._secured[contentId] = encryptedContent;
     }
 }
