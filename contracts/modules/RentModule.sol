@@ -110,7 +110,7 @@ contract RentModule is
             address currency = rent.rentPrices[i].currency;
 
             // Validate price and currency support
-            if (price <= 0) revert InvalidRentPrice();
+            if (price == 0) revert InvalidRentPrice();
             bool isSupportedCurrencyByDistributor = IDistributor(
                 rent.distributor
             ).isCurrencySupported(currency);
@@ -195,20 +195,21 @@ contract RentModule is
             (address, uint256)
         );
 
+        // if currency is not registered to get price, revert..
+        uint256 pricePerDay = prices[params.publicationActedId][currency];
+        if (pricePerDay == 0) revert InvalidNotSupportedCurrency();
+        // Calculate the total fees based on the price per day and the number of days
+        uint256 total = pricePerDay * _days;
+
         IRightsManager drm = IRightsManager(drmAddress);
-        //!IMPORTANT if distributor does not support the currency, will revert..
         uint256 contentId = contentRegistry[params.publicationActedId];
         address distributorAddress = drm.getCustodial(contentId);
         IDistributor distributor = IDistributor(distributorAddress);
 
         // Get split % for distributor and treasury
         uint256 treasurySplit = drm.getTreasuryFee(currency); // nominal % eg: 10, 20, 30
+        //!IMPORTANT if distributor does not support the currency, will revert..
         uint256 distSplit = distributor.getTreasuryFee(currency); // nominal % eg: 10, 20, 30
-
-        // Calculate the total fees based on the price per day and the number of days
-        uint256 pricePerDay = prices[params.publicationActedId][currency];
-        uint256 total = pricePerDay * _days;
-
         // Calculate the fees for the distributor, treasury and content owner
         (
             uint256 distriFees,

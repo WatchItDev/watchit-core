@@ -5,57 +5,6 @@ pragma solidity ^0.8.24;
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "contracts/interfaces/IContentVault.sol";
 
-// {
-//     conditionType: "evmBasic",
-//     contractAddress: "",
-//     standardContractType: "",
-//     chain: "ethereum",
-//     method: "eth_getBalance",
-//     parameters: [":userAddress", "latest"],
-//     returnValueTest: {
-//       comparator: ">=",
-//       value: "10000000000000", // equals 0.00001 ETH
-//     },
-//   },
-//   { operator: "or" },
-//   {
-//     conditionType: "evmContract",
-//     contractAddress: "0x7C7757a9675f06F3BE4618bB68732c4aB25D2e88",
-//     functionName: "hasAccess",
-//     functionParams: [":userAddress", "contentId"],
-//     functionAbi: {
-//       type: "function",
-//       stateMutability: "view",
-//       outputs: [
-//         {
-//           type: "bool",
-//           name: "",
-//           internalType: "bool",
-//         },
-//       ],
-//       name: "hasAccess,
-//       inputs: [
-//         {
-//           type: "address",
-//           name: "watcher",
-//           internalType: "address",
-//         },
-//         {
-//           type: "uint256",
-//           name: "contentId",
-//           internalType: "uint256",
-//         },
-//       ],
-//     },
-//     chain: "polygon",
-//     returnValueTest: {
-//       key: "",
-//       comparator: ">",
-//       value: "0",
-//     },
-//   },
-
-
 /// @title Content Vault Upgradeable
 /// @notice This contract manages encrypted content storage in a secure vault.
 /// @dev This contract uses an upgradeable pattern and a namespaced storage layout to avoid storage conflicts.
