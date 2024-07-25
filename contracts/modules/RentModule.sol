@@ -10,6 +10,7 @@ import "contracts/modules/base/LensModuleRegistrant.sol";
 import "contracts/modules/base/HubRestricted.sol";
 import "contracts/modules/libraries/Types.sol";
 import "contracts/interfaces/IRepository.sol";
+import "contracts/interfaces/IAccessWitness.sol";
 import "contracts/interfaces/IDistributor.sol";
 import "contracts/interfaces/IRightsManager.sol";
 import "contracts/libraries/TreasuryHelper.sol";
@@ -27,6 +28,7 @@ contract RentModule is
     LensModuleMetadata,
     LensModuleRegistrant,
     HubRestricted,
+    IAccessWitness,
     IRepositoryConsumer,
     IPublicationActionModule
 {
@@ -185,8 +187,11 @@ contract RentModule is
         drm.grantCustodial(rent.distributor, rent.contentId);
         contentRegistry[pubId] = rent.contentId;
         // TODO royalties NFT
+        // TODO mirror content
         // TODO review security concerns
         // TODO tests
+
+        return data;
     }
 
     /// @dev Processes a publication action (rent).
@@ -225,17 +230,26 @@ contract RentModule is
         address owner = drm.ownerOf(contentId);
         address rentalWatcher = params.transactionExecutor;
         // hold rent time in module to later validate it in access control...
-        rentRegistry[contentId][rentalWatcher] = Time.timestamp() + (_days * 1 days);
+        rentRegistry[contentId][rentalWatcher] =
+            Time.timestamp() +
+            (_days * 1 days);
+
         // Deposit the calculated amounts to the respective addresses
         rentalWatcher.safeDeposit(owner, depositToOwner, currency);
         rentalWatcher.safeDeposit(drmAddress, treasuryFees, currency);
         rentalWatcher.safeDeposit(distributorAddress, distriFees, currency);
-        // Add access to content for N days to renter..
-        drm.grantAccess(
-            rentalWatcher,
-            contentId,
-            T.AccessCondition(this.timeLockAccess)
+
+        // The access condition is established here..
+        T.AccessCondition memory cond = T.AccessCondition(
+            address(this),
+            // function(address, uint256) external view returns (bool);
+            this.approve.selector
         );
+
+        // Add access to content for N days to watcher..
+        drm.grantAccess(rentalWatcher, contentId, cond);
+        // return the resulting data, the deadline..
+        return abi.encode(rentRegistry[contentId][rentalWatcher], currency);
     }
 
     /**
@@ -244,7 +258,7 @@ contract RentModule is
      * @param contentId The ID of the content.
      * @return bool True if the rental period has expired, false otherwise.
      */
-    function timeLockAccess(
+    function approve(
         address account,
         uint256 contentId
     ) external view returns (bool) {
@@ -261,6 +275,7 @@ contract RentModule is
     ) public pure override returns (bool) {
         return
             interfaceID == type(IPublicationActionModule).interfaceId ||
+            interfaceID == type(IAccessWitness).interfaceId ||
             super.supportsInterface(interfaceID);
     }
 }
