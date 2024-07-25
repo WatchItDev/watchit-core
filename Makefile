@@ -49,7 +49,7 @@ lint:
 solformat:
 	@npx solhint 'contracts/**/*.sol' --fix
 
-.PHONY: solhint ## lint standard js
+.PHONY: solhint ## lint standard  solidity
 solhint: 
 	@npx solhint 'contracts/**/*.sol'
 

@@ -77,7 +77,6 @@ abstract contract RightsManagerContentAccessUpgradeable is
             revert InvalidAccessControlValidation(
                 condition.witnessContractAddress
             );
-
         // Decode the expected result and return it.
         return abi.decode(result, (bool));
     }
