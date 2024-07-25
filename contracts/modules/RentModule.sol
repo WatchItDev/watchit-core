@@ -2,6 +2,7 @@
 // NatSpec format convention - https://docs.soliditylang.org/en/v0.5.10/natspec-format.html
 pragma solidity ^0.8.24;
 
+import "@openzeppelin/contracts/utils/types/Time.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "contracts/modules/interfaces/IPublicationActionModule.sol";
 import "contracts/modules/base/LensModuleMetadata.sol";
@@ -13,6 +14,7 @@ import "contracts/interfaces/IDistributor.sol";
 import "contracts/interfaces/IRightsManager.sol";
 import "contracts/libraries/TreasuryHelper.sol";
 import "contracts/libraries/MathHelper.sol";
+import "contracts/libraries/Types.sol";
 
 /**
  * @title RentModule
@@ -41,7 +43,7 @@ contract RentModule is
     address private immutable drmAddress;
     // Mapping from publication ID to content ID
     mapping(uint256 => uint256) contentRegistry;
-    mapping(uint256 => uint256[]) profileRegistry;
+    mapping(uint256 => mapping(address => uint256)) rentRegistry;
     // Mapping from publication ID and currency to rent price
     mapping(uint256 => mapping(address => uint256)) private prices;
 
@@ -182,8 +184,9 @@ contract RentModule is
         // Grant initial custody to the distributor
         drm.grantCustodial(rent.distributor, rent.contentId);
         contentRegistry[pubId] = rent.contentId;
-        profileRegistry[profileId].push(rent.contentId);
         // TODO royalties NFT
+        // TODO review security concerns
+        // TODO tests
     }
 
     /// @dev Processes a publication action (rent).
@@ -221,13 +224,26 @@ contract RentModule is
 
         address owner = drm.ownerOf(contentId);
         address rentalWatcher = params.transactionExecutor;
-
+        
+        // hold rent time in module...
+        rentRegistry[contentId][rentalWatcher] = Time.timestamp() + (_days * 1 days);
         // Deposit the calculated amounts to the respective addresses
         rentalWatcher.safeDeposit(owner, depositToOwner, currency);
         rentalWatcher.safeDeposit(drmAddress, treasuryFees, currency);
         rentalWatcher.safeDeposit(distributorAddress, distriFees, currency);
         // Add access to content for N days to renter..
-        drm.grantAccess(rentalWatcher, contentId, _days * 1 days);
+        drm.grantAccess(
+            rentalWatcher,
+            contentId,
+            T.AccessCondition(this.timeLockAccess)
+        );
+    }
+
+    function timeLockAccess(
+        address account,
+        uint256 contentId
+    ) external view returns (bool) {
+        return Time.timestamp() > rentRegistry[contentId][account];
     }
 
     /**

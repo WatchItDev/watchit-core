@@ -8,7 +8,7 @@ import "contracts/interfaces/IRightsCustodial.sol";
 abstract contract RightsManagerDistributionUpgradeable is
     Initializable,
     IRightsCustodial
-{   
+{
     /// @custom:storage-location erc7201:rightsmanagerdistributionupgradeable.governor
     struct DistributionRightsStorage {
         mapping(uint256 => address) _custodying;
@@ -38,6 +38,15 @@ abstract contract RightsManagerDistributionUpgradeable is
         }
     }
 
+    /// @notice Assigns distribution rights over the content.
+    /// @dev The distributor must be active.
+    /// @param distributor The distributor address to assign the content to.
+    function _grantCustodial(address distributor, uint256 contentId) internal {
+        DistributionRightsStorage storage $ = _getRightsStorage();
+        $._custodying[contentId] = distributor;
+        emit RightsGranted(contentId, distributor);
+    }
+
     // this is where the fees are routed
     function getCustodial(uint256 contentId) public view returns (address) {
         DistributionRightsStorage storage $ = _getRightsStorage();
@@ -50,14 +59,5 @@ abstract contract RightsManagerDistributionUpgradeable is
     ) public view returns (bool) {
         DistributionRightsStorage storage $ = _getRightsStorage();
         return $._custodying[contentId] == distributor;
-    }
-
-    /// @notice Assigns distribution rights over the content.
-    /// @dev The distributor must be active.
-    /// @param distributor The distributor address to assign the content to.
-    function _grantCustodial(address distributor, uint256 contentId) internal {
-        DistributionRightsStorage storage $ = _getRightsStorage();
-        $._custodying[contentId] = distributor;
-        emit RightsGranted(contentId, distributor);
     }
 }

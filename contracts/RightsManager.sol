@@ -18,6 +18,7 @@ import "contracts/base/upgradeable/extensions/RightsManagerDistributionUpgradeab
 import "contracts/interfaces/IRegistrableVerifiable.sol";
 import "contracts/interfaces/IRepository.sol";
 import "contracts/libraries/TreasuryHelper.sol";
+import "contracts/libraries/Types.sol";
 
 /// @title Rights Manager
 /// @notice This contract manages digital rights, allowing content holders to set prices, rent content, etc.
@@ -159,13 +160,13 @@ contract RightsManager is
     /// @notice Grants access to a specific watcher for a certain content ID for a given timeframe.
     /// @param account The address of the watcher.
     /// @param contentId The content ID to grant access to.
-    /// @param timeframe The timeframe in seconds for which access is granted.
+    /// @param condition The conditional params to validate access.
     function grantAccess(
         address account,
         uint256 contentId,
-        uint256 timeframe
+        T.AccessCondition calldata condition
     ) external onlyRegisteredContent(contentId) onlyHolder(contentId) {
-        _grantAccess(account, contentId, timeframe);
+        _grantAccess(account, contentId, condition);
     }
 
     /// @inheritdoc IRightsCustodial
