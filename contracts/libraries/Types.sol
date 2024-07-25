@@ -6,7 +6,13 @@ pragma solidity ^0.8.24;
 /// @notice This library provides common type definitions for use in other contracts.
 /// @dev This library defines types and structures that can be imported and used in other contracts.
 library T {
-
+    enum ContractTypes {
+        __, // Undefined type
+        SYNDICATION, // Syndication contract
+        TREASURY, // Treasury contract
+        DRM // Digital Rights Management contract
+    }
+    
     /// @notice Structure to store an access condition.
     /// @dev The structure contains the address of a witness contract and the selector of the function to call.
     /// @param witnessContractAddress The address of the witness contract that provides testimony of the condition.

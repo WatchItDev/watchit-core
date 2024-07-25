@@ -29,7 +29,6 @@ contract RentModule is
     LensModuleRegistrant,
     HubRestricted,
     IAccessWitness,
-    IRepositoryConsumer,
     IPublicationActionModule
 {
     using MathHelper for uint256;
@@ -66,7 +65,7 @@ contract RentModule is
     {
         // Get the registered DRM contract from the repository
         IRepository repo = IRepository(repository);
-        drmAddress = repo.getContract(ContractTypes.DRM);
+        drmAddress = repo.getContract(T.ContractTypes.DRM);
     }
 
     /**

@@ -19,6 +19,7 @@ import "contracts/interfaces/IDistributor.sol";
 import "contracts/interfaces/ISyndicatable.sol";
 import "contracts/libraries/TreasuryHelper.sol";
 import "contracts/libraries/MathHelper.sol";
+import "contracts/libraries/Types.sol";
 
 /// @title Content Syndication contract.
 /// @notice Use this contract to handle all distribution logic needed for creators and distributors.
@@ -31,7 +32,6 @@ contract Syndication is
     QuorumUpgradeable,
     TreasurerUpgradeable,
     TreasuryUpgradeable,
-    IRepositoryConsumer,
     ISyndicatable
 {
     using MathHelper for uint256;
@@ -83,7 +83,7 @@ contract Syndication is
 
         // Get the registered treasury contract from the repository
         IRepository repo = IRepository(repository);
-        address initialTreasuryAddress = repo.getContract(ContractTypes.TREASURY);
+        address initialTreasuryAddress = repo.getContract(T.ContractTypes.TREASURY);
 
         __Treasurer_init(initialTreasuryAddress);
         __Treasury_init(initialFee, address(0));

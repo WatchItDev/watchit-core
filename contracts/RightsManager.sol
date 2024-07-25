@@ -33,8 +33,7 @@ contract RightsManager is
     CurrencyManagerUpgradeable,
     RightsManagerERC721Upgradeable,
     RightsManagerDistributionUpgradeable,
-    RightsManagerContentAccessUpgradeable,
-    IRepositoryConsumer
+    RightsManagerContentAccessUpgradeable
 {
     using TreasuryHelper for address;
     event GrantedCustodial(address distributor, uint256 contentId);
@@ -72,7 +71,7 @@ contract RightsManager is
 
         _grantRole(DEFAULT_ADMIN_ROLE, _msgSender());
         IRepository repo = IRepository(_repository);
-        syndication = repo.getContract(ContractTypes.SYNDICATION);
+        syndication = repo.getContract(T.ContractTypes.SYNDICATION);
     }
 
     /// @notice Modifier to restrict access to the holder only or delegated.
