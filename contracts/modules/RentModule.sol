@@ -224,8 +224,7 @@ contract RentModule is
 
         address owner = drm.ownerOf(contentId);
         address rentalWatcher = params.transactionExecutor;
-        
-        // hold rent time in module...
+        // hold rent time in module to later validate it in access control...
         rentRegistry[contentId][rentalWatcher] = Time.timestamp() + (_days * 1 days);
         // Deposit the calculated amounts to the respective addresses
         rentalWatcher.safeDeposit(owner, depositToOwner, currency);
@@ -239,6 +238,12 @@ contract RentModule is
         );
     }
 
+    /**
+     * @dev Checks if the rental period has expired.
+     * @param account The address of the account.
+     * @param contentId The ID of the content.
+     * @return bool True if the rental period has expired, false otherwise.
+     */
     function timeLockAccess(
         address account,
         uint256 contentId

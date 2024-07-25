@@ -37,6 +37,8 @@ contract RightsManager is
     IRepositoryConsumer
 {
     using TreasuryHelper for address;
+    event GrantedCustodial(address distributor, uint256 contentId);
+    event GrantedAccess(address account, uint256 contentId);
     event RegisteredContent(uint256 contentId);
     event RevokedContent(uint256 contentId);
 
@@ -167,6 +169,7 @@ contract RightsManager is
         T.AccessCondition calldata condition
     ) external onlyRegisteredContent(contentId) onlyHolder(contentId) {
         _grantAccess(account, contentId, condition);
+        emit GrantedAccess(account, contentId);
     }
 
     /// @inheritdoc IRightsCustodial
@@ -183,6 +186,7 @@ contract RightsManager is
         onlyHolder(contentId)
     {
         _grantCustodial(distributor, contentId);
+        emit GrantedCustodial(distributor, contentId);
     }
 
     /// @dev Authorizes the upgrade of the contract.

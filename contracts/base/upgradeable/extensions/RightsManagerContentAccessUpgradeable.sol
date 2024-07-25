@@ -3,6 +3,7 @@
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import "contracts/interfaces/IRightsAccessController.sol";
 import "contracts/libraries/Types.sol";
 
@@ -10,7 +11,8 @@ import "contracts/libraries/Types.sol";
 /// @notice This contract manages access control for content based on timeframes.
 abstract contract RightsManagerContentAccessUpgradeable is
     Initializable,
-    IRightsAccessController
+    IRightsAccessController,
+    ReentrancyGuardUpgradeable
 {
     /// @dev Mapping to store the access control list for each watcher and content hash.
     mapping(uint256 => mapping(address => T.AccessCondition)) private acl;
@@ -35,7 +37,8 @@ abstract contract RightsManagerContentAccessUpgradeable is
     function hasAccess(
         address account,
         uint256 contentId
-    ) public view returns (bool) {
+    ) public nonReentrant returns (bool) {
+        // The check is called and executed according to the signature..
         return acl[contentId][account].check(account, contentId);
     }
 }
