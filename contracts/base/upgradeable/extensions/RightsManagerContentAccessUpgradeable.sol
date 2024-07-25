@@ -60,11 +60,11 @@ abstract contract RightsManagerContentAccessUpgradeable is
         address account,
         uint256 contentId
     ) public nonReentrant returns (bool) {
-        // The check is called and executed according to the function selector signature.
-        // staticcall does not allow changing the state of the blockchain.
+        // The approve method is called and executed according to the IAccessWitness spec.
         T.AccessCondition memory condition = acl[contentId][account];
         (bool success, bytes memory result) = condition
             .witnessContractAddress
+            // staticcall does not allow changing the state of the blockchain.
             .staticcall(
                 abi.encodeWithSelector(
                     condition.functionSelector,
@@ -78,7 +78,7 @@ abstract contract RightsManagerContentAccessUpgradeable is
                 condition.witnessContractAddress
             );
 
-        // Decode the expected result and return.
+        // Decode the expected result and return it.
         return abi.decode(result, (bool));
     }
 }
