@@ -59,6 +59,18 @@ describe("Syndication", function () {
     const syndication = await loadFixture(deployInitializedSyndication)
     // const registeredDistributor = await distributorRegisteredWithLastEvent(syndication)
     await syndication.register(distributor, { value: fees })
+    await syndication.quit(distributor);
+    expect(await syndication.quit(distributor)).to.emit(syndication, 'Resigned')
+
+  });
+
+  it("Should retain the correct penalty amount after quit.", async function () {
+    const fees = hre.ethers.parseUnits('0.3', 'ether'); // expected fees paid in contract..
+
+    const distributor: string = await loadFixture(deployDistributor)
+    const syndication = await loadFixture(deployInitializedSyndication)
+    // const registeredDistributor = await distributorRegisteredWithLastEvent(syndication)
+    await syndication.register(distributor, { value: fees })
     const afterRegisterBalance = await hre.ethers.provider.getBalance(await syndication.getAddress())
 
     await syndication.quit(distributor);
@@ -70,9 +82,6 @@ describe("Syndication", function () {
     expect(afterRegisterBalance).to.be.equal(fees);
     // the contract keep the 10%
     expect(afterQuitBalance).to.be.equal(penal);
-
-
-
 
   });
 
