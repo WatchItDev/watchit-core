@@ -12,8 +12,7 @@ abstract contract CurrencyManagerUpgradeable is
     Initializable,
     ICurrencyManager
 {
-    /// @custom:storage-location erc7201:currencymanagarupgradeable.supportedtokensmap
-    /// @custom:storage-location erc7201:currencymanagarupgradeable.supportedtokens
+    /// @custom:storage-location erc7201:currencymanagarupgradeable
     struct CurrencyManagerStorage {
         // Maps currency addresses to their index in the supported tokens array
         mapping(address => uint256) _supportedCurrencyMap; 

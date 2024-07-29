@@ -162,7 +162,7 @@ contract RentModule is
     // @param data Additional data required for the action.
     // @return bytes memory The result of the action.
     function initializePublicationAction(
-        uint256 profileId,
+        uint256,
         uint256 pubId,
         address transactionExecutor,
         bytes calldata data
@@ -186,6 +186,7 @@ contract RentModule is
         drm.grantCustodial(rent.distributor, rent.contentId);
         contentRegistry[pubId] = rent.contentId;
         // TODO royalties NFT
+        // TODO fragmentable NFT
         // TODO mirror content
         // TODO review security concerns
         // TODO tests

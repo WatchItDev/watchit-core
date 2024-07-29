@@ -17,7 +17,7 @@ abstract contract QuorumUpgradeable is Initializable {
         Blocked // 3: The entity is blocked
     }
 
-    /// @custom:storage-location erc7201:quorumupgradeable.registry
+    /// @custom:storage-location erc7201:quorumupgradeable
     struct RegistryStorage {
         mapping(uint256 => Status) _status; // Mapping to store the status of entities
     }
@@ -33,16 +33,6 @@ abstract contract QuorumUpgradeable is Initializable {
     error AlreadyPendingApproval();
     /// @notice Error to be thrown when an entity is not waiting for approval.
     error NotWaitingApproval();
-
-    /// @notice Event emitted when an entity is registered.
-    /// @param entry The address of the registered entity.
-    event Registered(uint256 indexed entry);
-    /// @notice Event emitted when an entity is approved.
-    /// @param entry The address of the approved entity.
-    event Approved(uint256 indexed entry);
-    /// @notice Event emitted when an entity resigns.
-    /// @param entry The address of the resigned entity.
-    event Resigned(uint256 indexed entry);
 
     /**
      * @notice Initializer function for the contract.
@@ -98,7 +88,6 @@ abstract contract QuorumUpgradeable is Initializable {
         RegistryStorage storage $ = _getRegistryStorage();
         if (_status(entry) != Status.Waiting) revert NotWaitingApproval();
         $._status[entry] = Status.Active;
-        emit Approved(entry);
     }
 
     /**
@@ -109,7 +98,6 @@ abstract contract QuorumUpgradeable is Initializable {
         RegistryStorage storage $ = _getRegistryStorage();
         if (_status(entry) != Status.Waiting) revert NotWaitingApproval();
         $._status[entry] = Status.Pending;
-        emit Resigned(entry);
     }
 
     /**
@@ -120,6 +108,5 @@ abstract contract QuorumUpgradeable is Initializable {
         RegistryStorage storage $ = _getRegistryStorage();
         if (_status(entry) != Status.Pending) revert AlreadyPendingApproval();
         $._status[entry] = Status.Waiting;
-        emit Registered(entry);
     }
 }

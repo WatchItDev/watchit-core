@@ -9,7 +9,7 @@ abstract contract RightsManagerDistributionUpgradeable is
     Initializable,
     IRightsCustodial
 {
-    /// @custom:storage-location erc7201:rightsmanagerdistributionupgradeable.governor
+    /// @custom:storage-location erc7201:rightsmanagerdistributionupgradeable
     struct DistributionRightsStorage {
         mapping(uint256 => address) _custodying;
     }

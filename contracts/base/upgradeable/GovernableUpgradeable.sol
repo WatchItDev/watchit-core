@@ -16,7 +16,7 @@ abstract contract GovernableUpgradeable is
     IGovernable,
     AccessControlUpgradeable
 {
-    /// @custom:storage-location erc7201:governableupgradeable.governor
+    /// @custom:storage-location erc7201:governableupgradeable
     struct GovernorStorage {
         address _governor;
     }

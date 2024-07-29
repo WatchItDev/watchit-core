@@ -10,7 +10,7 @@ import "contracts/interfaces/ITreasurer.sol";
 /// @notice This contract is responsible for managing the address of the treasury in an upgradeable manner.
 /// @dev This is an abstract contract that implements the ITreasurer interface and supports upgradeable functionality.
 abstract contract TreasurerUpgradeable is Initializable, ITreasurer {
-    /// @custom:storage-location erc7201:treasurerupgradeable.treasurer
+    /// @custom:storage-location erc7201:treasurerupgradeable
     struct TreasurerStorage {
         address _treasure;
     }

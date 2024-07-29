@@ -10,9 +10,11 @@ import "contracts/interfaces/ITreasury.sol";
  * It inherits from Initializable and ITreasury interfaces.
  */
 abstract contract TreasuryUpgradeable is Initializable, ITreasury {
-    /// @custom:storage-location erc7201:treasurerupgradeable.treasurer
+    /// @custom:storage-location erc7201:treasuryupgradeable
     struct TreasuryStorage {
+        // one use cosa for token fee = 0 and supported = true could be the free content..
         mapping(address => uint256) _tokenFees;
+        mapping(address => bool) _tokenSupported;
     }
 
     /// @notice Error to be thrown when an unsupported token is used.
@@ -63,7 +65,7 @@ abstract contract TreasuryUpgradeable is Initializable, ITreasury {
         TreasuryStorage storage $ = _getTreasuryStorage();
         // fees == 0 is default for uint256.
         // address(0) is equivalent to native token if fees > 0
-        if ($._tokenFees[token] == 0) revert InvalidUnsupportedToken(token);
+        if (!$._tokenSupported[token]) revert InvalidUnsupportedToken(token);
         _;
     }
 
@@ -77,7 +79,6 @@ abstract contract TreasuryUpgradeable is Initializable, ITreasury {
         TreasuryStorage storage $ = _getTreasuryStorage();
         return $._tokenFees[token];
     }
-    
 
     /// @notice Sets a new treasury fee.
     /// @dev Sets the fee for a specific token or native currency.
@@ -90,5 +91,6 @@ abstract contract TreasuryUpgradeable is Initializable, ITreasury {
     ) internal virtual {
         TreasuryStorage storage $ = _getTreasuryStorage();
         $._tokenFees[token] = newTreasuryFee;
+        $._tokenSupported[token] = true;
     }
 }

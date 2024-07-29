@@ -4,12 +4,14 @@ pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721EnumerableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721RoyaltyUpgradeable.sol";
 import "contracts/interfaces/IRightsOwnership.sol";
 
 abstract contract RightsManagerERC721Upgradeable is
     Initializable,
     IRightsOwnership,
     ERC721Upgradeable,
+    ERC721RoyaltyUpgradeable,
     ERC721EnumerableUpgradeable
 {
     /// @dev Internal function to update the ownership of a token.
@@ -51,6 +53,7 @@ abstract contract RightsManagerERC721Upgradeable is
         override(
             IERC165,
             ERC721Upgradeable,
+            ERC721RoyaltyUpgradeable,
             ERC721EnumerableUpgradeable
         )
         returns (bool)

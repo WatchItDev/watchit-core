@@ -16,6 +16,7 @@ import "contracts/base/upgradeable/extensions/RightsManagerERC721Upgradeable.sol
 import "contracts/base/upgradeable/extensions/RightsManagerContentAccessUpgradeable.sol";
 import "contracts/base/upgradeable/extensions/RightsManagerDistributionUpgradeable.sol";
 import "contracts/interfaces/IRegistrableVerifiable.sol";
+import "contracts/interfaces/IReferendumVerifiable.sol";
 import "contracts/interfaces/IRepository.sol";
 import "contracts/libraries/TreasuryHelper.sol";
 import "contracts/libraries/Types.sol";
@@ -41,11 +42,13 @@ contract RightsManager is
     event RegisteredContent(uint256 contentId);
     event RevokedContent(uint256 contentId);
 
+    address private syndication;
+    address private referendum;
+    address private immutable __self = address(this);
     // This role is granted to any holder representant trusted module. eg: Lens, Farcaster, etc.
     bytes32 private constant DELEGATED_ROLE = keccak256("DELEGATED_ROLE");
-
-    address private syndication;
-    address private immutable __self = address(this);
+    // This role is granted to any representant trusted account. eg: Verified Accounts, etc.
+    bytes32 private constant VERIFIED_ROLE = keccak256("VERIFIED_ROLE");
 
     /// @dev Error that is thrown when a restricted access to the holder is attempted.
     error RestrictedAccessToHolder();
@@ -61,17 +64,26 @@ contract RightsManager is
     }
 
     /// @notice Initializes the contract with the given dependencies.
-    /// @param _repository The contract registry to retrieve needed contracts instance.
-    function initialize(address _repository) public initializer {
+    /// @param repository The contract registry to retrieve needed contracts instance.
+    function initialize(address repository) public initializer {
         __Governable_init();
         __ERC721_init("Watchit", "WOT");
         __ERC721Enumerable_init();
         __UUPSUpgradeable_init();
         __CurrencyManager_init();
-
         _grantRole(DEFAULT_ADMIN_ROLE, _msgSender());
-        IRepository repo = IRepository(_repository);
+
+        IRepository repo = IRepository(repository);
         syndication = repo.getContract(T.ContractTypes.SYNDICATION);
+        referendum = repo.getContract(T.ContractTypes.REFERENDUM);
+        // Get the registered treasury contract from the repository
+        address initialTreasuryAddress = repo.getContract(
+            T.ContractTypes.TREASURY
+        );
+
+        // initially support no fees native token
+        __Treasury_init(0, address(0));
+        __Treasurer_init(initialTreasuryAddress);
     }
 
     /// @notice Modifier to restrict access to the holder only or delegated.
@@ -87,7 +99,7 @@ contract RightsManager is
     /// @notice Modifier to check if the content is registered.
     /// @param contentId The content hash to check.
     modifier onlyRegisteredContent(uint256 contentId) {
-        if (ownerOf(contentId) != address(0)) revert InvalidUnknownContent();
+        if (ownerOf(contentId) == address(0)) revert InvalidUnknownContent();
         _;
     }
 
@@ -95,6 +107,20 @@ contract RightsManager is
     /// @param distributor The distributor address to check.
     modifier onlyActiveDistributor(address distributor) {
         if (!IRegistrableVerifiable(syndication).isActive(distributor))
+            revert InvalidInactiveDistributor();
+        _;
+    }
+
+    modifier onlyApprovedContent(address to, uint256 contentId) {
+        IReferendumVerifiable _referendum = IReferendumVerifiable(referendum);
+        // Who initially submitted the content to referendum?
+        address approvalFor = _referendum.approvedFor(contentId);
+        // if content is approved by referendum or the author has a verified role..
+        bool approved = _referendum.isApproved(contentId) ||
+            hasRole(VERIFIED_ROLE, to);
+
+        // if not approved or nor the submitter..
+        if (!approved || to != approvalFor) 
             revert InvalidInactiveDistributor();
         _;
     }
@@ -200,7 +226,10 @@ contract RightsManager is
     /// @dev Our naive assumption is that only those who know the CID hash can mint the corresponding token.
     /// @param to The address to mint the NFT to.
     /// @param contentId The content id of the NFT. This should be a unique identifier for the NFT.
-    function mint(address to, uint256 contentId) external {
+    function mint(
+        address to,
+        uint256 contentId
+    ) external onlyApprovedContent(to, contentId) {
         _mint(to, contentId);
         emit RegisteredContent(contentId);
     }

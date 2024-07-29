@@ -9,7 +9,7 @@ import "contracts/interfaces/IContentVault.sol";
 /// @notice This contract manages encrypted content storage in a secure vault.
 /// @dev This contract uses an upgradeable pattern and a namespaced storage layout to avoid storage conflicts.
 abstract contract ContentVaultUpgradeable is Initializable, IContentVault {
-    /// @custom:storage-location erc7201:vaultupgradeable.encrypted
+    /// @custom:storage-location erc7201:vaultupgradeable
     struct VaultStorage {
         mapping(uint256 => bytes) _secured; // Mapping to store encrypted content by content ID
     }

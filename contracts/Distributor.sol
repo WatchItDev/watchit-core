@@ -1,28 +1,35 @@
 // SPDX-License-Identifier: MIT
-// NatSpec format convention - https://docs.soliditylang.org/en/v0.8.24/natspec-format.html
 pragma solidity ^0.8.24;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
-import "contracts/base/CurrencyManager.sol";
-import "contracts/base/Treasury.sol";
-import "contracts/interfaces/IDistributor.sol";
-import "contracts/interfaces/IDisburser.sol";
+import "@openzeppelin/contracts-upgradeable/utils/introspection/ERC165Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+
+import "contracts/base/upgradeable/CurrencyManagerUpgradeable.sol";
+import "contracts/base/upgradeable/TreasuryUpgradeable.sol";
 import "contracts/libraries/TreasuryHelper.sol";
+import "contracts/interfaces/IDistributor.sol";
 
 /// @title Content Distributor contract.
 /// @notice Use this contract to handle all needed logic for distributors.
 /// @dev This contract inherits from Ownable and ERC165, and implements the IDistributor interface.
+/// Extending upgradeable contracts in a non-upgradeable contract to extend ERC-7201: Namespaced Storage Layout
+/// Same as below with __gap the issue could happen using this contract as implementation and receiving delegated calls.
+/// This contract can be deployed without needing to upgrade.
 contract Distributor is
-    ERC165,
-    Ownable,
-    Treasury,
-    CurrencyManager,
+    Initializable,
+    ERC165Upgradeable,
+    OwnableUpgradeable,
+    TreasuryUpgradeable,
+    CurrencyManagerUpgradeable,
     IDistributor
 {
     using TreasuryHelper for address;
-
+        
     /// @notice The URL to the distribution.
+    /// Since this is a contract considered as implementation for beacon proxy,
+    /// we need to reserve a gap for endpoint to avoid memory layout getting mixed up.
+    /// https://docs.openzeppelin.com/upgrades-plugins/1.x/writing-upgradeable
     string private endpoint;
 
     /// @notice Event emitted when the endpoint is updated.
@@ -34,8 +41,16 @@ contract Distributor is
     error InvalidEndpoint();
 
     /// @notice Constructor to initialize the Distributor contract.
-    /// @param _endpoint The distributor's endpoint.
-    constructor(string memory _endpoint) Ownable(_msgSender()) {
+    function initialize(
+        string memory _endpoint,
+        address _owner
+    ) public initializer {
+        __ERC165_init();
+        __Ownable_init(_owner);
+        __CurrencyManager_init();
+        __Treasury_init(0, address(0));
+        
+        if (bytes(_endpoint).length == 0) revert InvalidEndpoint();
         endpoint = _endpoint;
     }
 
@@ -112,4 +127,7 @@ contract Distributor is
             interfaceId == type(IDistributor).interfaceId ||
             super.supportsInterface(interfaceId);
     }
+
+    // Reserved space for future storage variables to prevent storage conflicts in upgrades
+    uint256[50] private __gap;
 }

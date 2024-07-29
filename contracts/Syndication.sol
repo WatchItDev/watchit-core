@@ -21,7 +21,7 @@ import "contracts/libraries/TreasuryHelper.sol";
 import "contracts/libraries/MathHelper.sol";
 import "contracts/libraries/Types.sol";
 
-/// @title Content Syndication contract.
+/// @title Distributors Syndication contract.
 /// @notice Use this contract to handle all distribution logic needed for creators and distributors.
 /// @dev This contract uses the UUPS upgradeable pattern and AccessControl for role-based access control.
 contract Syndication is
@@ -39,10 +39,11 @@ contract Syndication is
     using TreasuryHelper for address;
 
     // 10% initial quitting penalization rate
-    uint256 private penaltyRate = 10; // 1000 bps = 100000000000000000
-    address private immutable __self = address(this);
-    mapping(address => uint256) private enrollmentFees;
+    uint256 private penaltyRate;
+    uint256 private enrollmentsCount;
 
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
+    mapping(address => uint256) private enrollmentFees;
     bytes4 private constant INTERFACE_ID_IDISTRIBUTOR =
         type(IDistributor).interfaceId;
 
@@ -52,10 +53,25 @@ contract Syndication is
     error FailDuringEnrollment(string reason);
     error FailDuringQuit(string reason);
 
+    /// @notice Event emitted when an entity is registered.
+    /// @param distributor The address of the registered entity.
+    event Registered(address indexed distributor);
+    /// @notice Event emitted when an entity is approved.
+    /// @param distributor The address of the approved entity.
+    event Approved(address indexed distributor);
+    /// @notice Event emitted when an entity resigns.
+    /// @param distributor The address of the resigned entity.
+    event Resigned(address indexed distributor);
+     /// @notice Event emitted when an entity is revoked.
+    /// @param distributor The address of the revoked entity.
+    event Revoked(address indexed distributor);
+
+
     /// @dev Constructor that disables initializers to prevent the implementation contract from being initialized.
     /// @notice This constructor prevents the implementation contract from being initialized.
     /// @dev See https://forum.openzeppelin.com/t/uupsupgradeable-vulnerability-post-mortem/15680
     /// https://forum.openzeppelin.com/t/what-does-disableinitializers-function-mean/28730/5
+    /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
     }
@@ -69,24 +85,28 @@ contract Syndication is
     }
 
     /// @notice Initializes the contract with the given enrollment fee and treasury address.
-    /// @param initialFee The initial fee for enrollment.
     /// @param repository The address of the repository contract.
     /// @dev This function is called only once during the contract deployment.
     function initialize(
+        address repository,
         uint256 initialFee,
-        address repository
+        uint256 initialPenaltyRateBps
     ) public initializer {
         __Quorum_init();
         __Governable_init();
         __UUPSUpgradeable_init();
         __ReentrancyGuard_init();
 
+        penaltyRate = initialPenaltyRateBps; // bps
         // Get the registered treasury contract from the repository
         IRepository repo = IRepository(repository);
-        address initialTreasuryAddress = repo.getContract(T.ContractTypes.TREASURY);
+        address initialTreasuryAddress = repo.getContract(
+            T.ContractTypes.TREASURY
+        );
 
-        __Treasurer_init(initialTreasuryAddress);
+        // initially fees native coin
         __Treasury_init(initialFee, address(0));
+        __Treasurer_init(initialTreasuryAddress);
         _grantRole(DEFAULT_ADMIN_ROLE, _msgSender());
     }
 
@@ -100,7 +120,7 @@ contract Syndication is
     /// @inheritdoc ISyndicatable
     /// @notice Function to set the penalty rate for quitting enrollment.
     /// @param newPenaltyRate The new penalty rate to be set. It should be a value representing a nominal percentage.
-    /// @dev The penalty rate is a nominal percentage (expressed as a uint256) 
+    /// @dev The penalty rate is a nominal percentage (expressed as a uint256)
     /// That will be applied to the enrollment fee when a distributor quits.
     function setPenaltyRate(uint256 newPenaltyRate) public onlyGov {
         if (newPenaltyRate == 0) revert InvalidPenaltyRate();
@@ -128,7 +148,7 @@ contract Syndication is
     function collectFunds() public onlyAdmin {
         // collect native token and send it to treasury
         address treasure = getTreasuryAddress();
-        treasure.disburst(__self.balanceOf());
+        treasure.disburst(address(this).balanceOf());
     }
 
     /// @inheritdoc IRegistrable
@@ -142,12 +162,11 @@ contract Syndication is
 
         // the contract manager;
         address manager = IDistributor(distributor).getManager();
-        // Attempt to send the amount to the syndication contract
-        __self.deposit(msg.value);
         // Persist the enrollment payment in case the distributor quits before approval
         _setEnrollment(manager, msg.value);
         // Set the distributor as pending approval
         _register(uint160(distributor));
+        emit Registered(distributor);
     }
 
     /// @inheritdoc  IRegistrableVerifiable
@@ -178,7 +197,9 @@ contract Syndication is
 
         _setEnrollment(manager, 0);
         _quit(uint160(distributor));
+        // rollback partial payment..
         manager.disburst(res);
+        emit Resigned(distributor);
     }
 
     /// @notice Private function to store the enrollment fees for distributors.
@@ -196,6 +217,7 @@ contract Syndication is
         address distributor
     ) public onlyGov validContractOnly(distributor) {
         _revoke(uint160(distributor));
+        emit Revoked(distributor);
     }
 
     /// @inheritdoc IRegistrable
@@ -206,6 +228,8 @@ contract Syndication is
     ) public onlyGov validContractOnly(distributor) {
         _setEnrollment(IDistributor(distributor).getManager(), 0);
         _approve(uint160(distributor));
+        enrollmentsCount++;
+        emit Approved(distributor);
     }
 
     /// @inheritdoc ITreasury

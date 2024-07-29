@@ -10,6 +10,7 @@ library T {
         __, // Undefined type
         SYNDICATION, // Syndication contract
         TREASURY, // Treasury contract
+        REFERENDUM, // Content referendum
         DRM // Digital Rights Management contract
     }
     

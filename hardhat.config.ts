@@ -2,6 +2,7 @@ import dotenv from 'dotenv'
 import type { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-chai-matchers";
 import "@nomicfoundation/hardhat-toolbox";
+import "@openzeppelin/hardhat-upgrades"
 import '@typechain/hardhat'
 
 dotenv.config()

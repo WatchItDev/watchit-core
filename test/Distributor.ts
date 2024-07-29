@@ -1,124 +1,98 @@
 import hre from "hardhat";
 import { expect } from "chai";
-import type * as ethers from "ethers";
 import { loadFixture } from "@nomicfoundation/hardhat-toolbox/network-helpers";
-
 import { Distributor, DistributorFactory } from "@/typechain-types";
+import {
+  deployDistributorFactory,
+  getFilterLastEventArgs,
+  commitRegister,
+  deployAndInitializeDistributorContract
+} from './helpers/DistributorHelper';
 
-const DISTRIBUTOR_INTERFACE_ID = "0xf2d97449"
-
+const DISTRIBUTOR_INTERFACE_ID = "0x27d9e1cd"
 
 async function getAccounts() {
   return await hre.ethers.getSigners()
 }
 
-async function deployDistributorFactory() {
-  // Contracts are deployed using the first signer/account by default
-  const contractFactory = await hre.ethers.getContractFactory("DistributorFactory")
-  const factory = await contractFactory.deploy();
-  await factory.waitForDeployment();
-  return factory
-}
-
-async function deployDistributor() {
-  // Contracts are deployed using the first signer/account by default
-  const contractFactory = await hre.ethers.getContractFactory("Distributor")
-  const distributor = await contractFactory.deploy("watchit.movie");
-  await distributor.waitForDeployment();
-  return distributor
-}
-
-async function getFilterLastEventArgs(contract: DistributorFactory | Distributor, filter: any) {
-  // filter the emitted distributor created event
-  const events = await contract.queryFilter(filter)
-  const lastEvent = events.pop() as ethers.EventLog
-  return lastEvent?.args
-}
-
-async function commitRegister(factory: DistributorFactory, domain: string) {
-  // filter indexed event the emitted distributor created event
-  await (await factory.register(domain)).wait()
-  // Unfortunately, it's not possible to get the return value of a state-changing function outside the off-chain.
-  return distributorCreatedWithLastEvent(factory)
-}
-
-async function distributorCreatedWithLastEvent(factory: DistributorFactory) {
-  const distributorFilter = factory.filters.DistributorCreated()
-  const lastEvent = await getFilterLastEventArgs(factory, distributorFilter)
-  return lastEvent?.distributor.toString()
-}
-
 describe("Distributor", function () {
 
-  describe("Factory", function () {
+  describe("Beacon", function () {
 
     it("Should create a valid 'Distributor'.", async function () {
-      const factory = await loadFixture(deployDistributorFactory)
-      const registered = await commitRegister(factory, 'watchit.movie')
+      const beacon = await loadFixture(deployDistributorFactory)
+      const beaconProxy = await commitRegister(beacon, 'watchit.movie')
+      // attach to distributor beacon proxy
       const contractFactory = await hre.ethers.getContractFactory("Distributor")
+      const distributor = contractFactory.attach(beaconProxy) as Distributor
 
-      const distributor = contractFactory.attach(registered) as Distributor
       expect(await distributor.supportsInterface(DISTRIBUTOR_INTERFACE_ID)).to.be.true
       expect(await distributor.getEndpoint()).to.be.equal("watchit.movie")
     })
 
     it("Should add a new contract to 'contracts' list.", async function () {
-      const factory = (await loadFixture(deployDistributorFactory)) as DistributorFactory
-      const createdContractAddress = await commitRegister(factory, 'watchit.movie')
-      const createdContractAddress2 = await commitRegister(factory, 'watchit2.movie')
+      const beacon = (await loadFixture(deployDistributorFactory)) as DistributorFactory
+      const beaconProxy1 = await commitRegister(beacon, 'watchit.movie')
+      const beaconProxy2 = await commitRegister(beacon, 'watchit2.movie')
 
       // check if the first registered contract is the same as the last event
-      const contract1 = await factory.contracts(0)
-      const contract2 = await factory.contracts(1)
+      const contract1 = await beacon.contracts(0)
+      const contract2 = await beacon.contracts(1)
 
-      expect(contract1).to.equal(createdContractAddress)
-      expect(contract2).to.equal(createdContractAddress2)
+      expect(contract1).to.equal(beaconProxy1)
+      expect(contract2).to.equal(beaconProxy2)
     });
 
     it("Should add the distributor correctly in registry mapping.", async function () {
       const registeredDomain = 'watchit.movie'
-      const factory = await loadFixture(deployDistributorFactory)
+      const beacon = await loadFixture(deployDistributorFactory)
       const [owner,] = await hre.ethers.getSigners();
 
-      await commitRegister(factory, registeredDomain)
-      const registeredOwner = await factory.registry(registeredDomain)
+      await commitRegister(beacon, registeredDomain)
+      const registeredOwner = await beacon.registry(registeredDomain)
       expect(registeredOwner).to.be.equal(owner)
     })
 
 
     it("Should fail if domain is already registered.", async function () {
       const duplicatedDomain = 'watchit.movie'
-      const factory = await loadFixture(deployDistributorFactory)
+      const beacon = await loadFixture(deployDistributorFactory)
 
-      await commitRegister(factory, duplicatedDomain)
-      await expect(factory.register(duplicatedDomain)).to.be.revertedWithCustomError(
-        factory, "DistributorAlreadyRegistered"
+      await commitRegister(beacon, duplicatedDomain)
+      await expect(beacon.register(duplicatedDomain)).to.be.revertedWithCustomError(
+        beacon, "DistributorAlreadyRegistered"
       );
 
     })
 
     it("Should emit a valid 'DistributorCreated' after register distributor.", async function () {
-      const factory = await loadFixture(deployDistributorFactory)
-      expect(factory.register('watchit.movie')).to.emit(factory, 'DistributorCreated')
+      const beacon = await loadFixture(deployDistributorFactory)
+      expect(beacon.register('watchit.movie')).to.emit(beacon, 'DistributorCreated')
     })
 
     it("Should pause/unpause properly.", async function () {
-      const factory = await loadFixture(deployDistributorFactory)
-      const pause = await factory.pause()
+      const beacon = await loadFixture(deployDistributorFactory)
+      const pause = await beacon.pause()
       await pause.wait()
-      expect(await factory.paused()).to.be.true
+      expect(await beacon.paused()).to.be.true
 
-      const unpause = await factory.unpause()
+      const unpause = await beacon.unpause()
       await unpause.wait()
-      expect(await factory.paused()).to.be.false
+      expect(await beacon.paused()).to.be.false
     })
   });
 
-  describe("Distributor", function () {
+  describe("Implementation", function () {
+
+    it("Should implement a valid 'Distributor'.", async function () {
+      const distributor = await deployAndInitializeDistributorContract("watchit.com")
+      expect(await distributor.supportsInterface(DISTRIBUTOR_INTERFACE_ID)).to.be.true
+    })
 
     it("Should update a valid endpoint successfully.", async function () {
-      const newEndpoint = 'watchit2.movie';
-      const distributor = await loadFixture(deployDistributor)
+      const newEndpoint = 'watchit4.movie';
+      // initial endpoint set by beacon proxy initialization.
+      const distributor = await deployAndInitializeDistributorContract("watchit.com")
       const updater = await distributor.updateEndpoint(newEndpoint);
       await updater.wait();
 
@@ -129,7 +103,7 @@ describe("Distributor", function () {
 
     it("Should emit a valid EndpointUpdated after update endpoint.", async function () {
       const newEndpoint = 'watchit3.movie';
-      const distributor = await loadFixture(deployDistributor)
+      const distributor = await deployAndInitializeDistributorContract("watchit.movie")
       const updater = await distributor.updateEndpoint(newEndpoint);
       await updater.wait();
 
@@ -145,7 +119,7 @@ describe("Distributor", function () {
     });
 
     it("Should fail if `updateEndpoint` is called with invalid empty endpoint.", async function () {
-      const distributor = await loadFixture(deployDistributor)
+      const distributor = await deployAndInitializeDistributorContract("watchit.movie")
       await expect(distributor.updateEndpoint('')).to.be.revertedWithCustomError(
         distributor, "InvalidEndpoint"
       );
@@ -153,7 +127,7 @@ describe("Distributor", function () {
 
     it("Should fail if `updateEndpoint` is called with invalid owner.", async function () {
       const [, secondary] = await loadFixture(getAccounts)
-      const distributor = await loadFixture(deployDistributor)
+      const distributor = await deployAndInitializeDistributorContract("watchit.movie")
       await expect(distributor.connect(secondary).updateEndpoint('check.com')).to.be.revertedWithCustomError(
         distributor, "OwnableUnauthorizedAccount"
       );
