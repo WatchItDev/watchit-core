@@ -5,9 +5,7 @@ ifneq (,$(wildcard ./.env))
 endif
 
 .DEFAULT_GOAL := all
-stage=development
-region=us-west-2
-function=graphql
+network=hardhat
 
 .PHONY: bootstrap ## setup initial development environment
 bootstrap: install
@@ -17,7 +15,7 @@ bootstrap: install
 # https://jestjs.io/docs/cli#--coverageboolean
 .PHONY: test ## run tests
 test:
-	@npx hardhat test
+	@npx hardhat test --network $(network)
 
 .PHONY: testcov ## run tests coverage report
 testcov:
@@ -39,11 +37,11 @@ install:
 
 .PHONY: format ## auto-format js source files
 format:
-	@npx standard --fix
+	@npx ts-standard --fix
 
 .PHONY: lint ## lint standard js
 lint: 
-	@npx standard
+	@npx ts-standard
 
 .PHONY: solformat ## auto-format solidity source files
 solformat:
@@ -75,7 +73,7 @@ keysenv:
 
 .PHONY: amoydeploy ## deploy contract to amoy network
 amoydeploy: 
-	@npx harhat deploy
+	@npx harhat deploy --network $(network)
 
 rebuild: clean
 all: test lint
