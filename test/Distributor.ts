@@ -1,7 +1,7 @@
 import hre from 'hardhat'
 import { expect } from 'chai'
 import { switcher } from './helpers/CommonHelper'
-import { Distributor } from '@/typechain-types'
+import { Distributor, DistributorFactory } from '@/typechain-types'
 import {
   deployDistributorFactory,
   getFilterLastEventArgs,
@@ -11,7 +11,7 @@ import {
 
 const DISTRIBUTOR_INTERFACE_ID = '0x27d9e1cd'
 
-async function getAccounts (): Promise<hre.ethers.HardhatEthersSigner[]> {
+async function getAccounts () {
   return await hre.ethers.getSigners()
 }
 
