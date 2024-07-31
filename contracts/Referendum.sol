@@ -9,7 +9,7 @@ import "@openzeppelin/contracts/utils/Address.sol";
 import "contracts/base/upgradeable/GovernableUpgradeable.sol";
 import "contracts/base/upgradeable/QuorumUpgradeable.sol";
 import "contracts/interfaces/IContentReferendum.sol";
-import "contracts/libraries/constants/Types.sol";
+import "contracts/libraries/Types.sol";
 
 /// @title Content curation contract.
 /// @notice This contract allows for the submission, voting, and approval/rejection of content.

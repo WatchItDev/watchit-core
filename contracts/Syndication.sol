@@ -14,7 +14,7 @@ import "contracts/base/upgradeable/QuorumUpgradeable.sol";
 import "contracts/base/upgradeable/TreasurerUpgradeable.sol";
 import "contracts/base/upgradeable/TreasuryUpgradeable.sol";
 
-import "contracts/libraries/constants/Types.sol";
+import "contracts/libraries/Types.sol";
 import "contracts/interfaces/IRepository.sol";
 import "contracts/interfaces/IDistributor.sol";
 import "contracts/interfaces/ISyndicatable.sol";

@@ -19,7 +19,7 @@ import "contracts/interfaces/IRegistrableVerifiable.sol";
 import "contracts/interfaces/IReferendumVerifiable.sol";
 import "contracts/interfaces/IRepository.sol";
 import "contracts/libraries/TreasuryHelper.sol";
-import "contracts/libraries/constants/Types.sol";
+import "contracts/libraries/Types.sol";
 
 /// @title Rights Manager
 /// @notice This contract manages digital rights, allowing content holders to set prices, rent content, etc.

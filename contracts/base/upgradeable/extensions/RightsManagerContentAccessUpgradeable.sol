@@ -7,7 +7,7 @@ import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol
 import "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
 import "contracts/interfaces/IRightsAccessController.sol";
 import "contracts/interfaces/IAccessWitness.sol";
-import "contracts/libraries/constants/Types.sol";
+import "contracts/libraries/Types.sol";
 
 /// @title Rights Manager Content Access Upgradeable
 /// @notice This contract manages access control for content based on timeframes.

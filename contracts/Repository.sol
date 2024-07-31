@@ -8,7 +8,7 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 import "contracts/interfaces/IRepository.sol";
-import "contracts/libraries/constants/Types.sol";
+import "contracts/libraries/Types.sol";
 
 /// @title Repository Contract
 /// @notice Manages the addresses of different contract types and their versions.

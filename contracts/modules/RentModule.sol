@@ -15,7 +15,7 @@ import "contracts/interfaces/IRightsManager.sol";
 import "contracts/libraries/TreasuryHelper.sol";
 import "contracts/libraries/MathHelper.sol";
 import "contracts/modules/libraries/Types.sol";
-import "contracts/libraries/constants/Types.sol";
+import "contracts/libraries/Types.sol";
 
 /**
  * @title RentModule
@@ -183,7 +183,7 @@ contract RentModule is
         // Grant initial custody to the distributor
         drm.grantCustodial(rent.distributor, rent.contentId);
         contentRegistry[pubId] = rent.contentId;
-        
+
         // Store renting parameters
         _setPublicationRentSetting(rent, pubId);
         // TODO royalties NFT
