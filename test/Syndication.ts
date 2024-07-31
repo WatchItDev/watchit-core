@@ -63,7 +63,7 @@ describe('Syndication', function () {
       expect(await syndication.enrollmentFees(manager)).to.equal(fees)
     })
 
-    it('Should set valid active state during valid Distributor register.', async function () {
+    it('Should set waiting state during valid Distributor register.', async function () {
       const fees = hre.ethers.parseUnits('0.3', 'ether') // expected fees paid in contract..
       const [distributorAddress] = await switcher(deployDistributor)
       const [syndication] = await switcher(deployInitializedSyndication)
@@ -102,7 +102,7 @@ describe('Syndication', function () {
       const { gasPrice: quitGasPrice, gasUsed: quitGasUsed } = registerTx;
       const totalRegisterGasPrice = BigInt(quitGasPrice * quitGasUsed);
       const afterRegisterBalance = await hre.ethers.provider.getBalance(owner.address)
-      
+
       const netRegisterBalance = (initialRegisterBalance - totalRegisterGasPrice)
       const expectedAfterRegisterBalance = netRegisterBalance - fees;
       expect(afterRegisterBalance).to.equal(expectedAfterRegisterBalance);
@@ -151,15 +151,15 @@ describe('Syndication', function () {
     })
 
     it('Should revert the correct amount to manager after quit.', async function () {
-      const fees = hre.ethers.parseUnits('0.3', 'ether') // expected fees paid in contract..
       const [owner] = await getAccounts()
+      const fees = hre.ethers.parseUnits('0.3', 'ether') // expected fees paid in contract..
       const [distributorAddress] = await switcher(deployDistributor)
       const [syndication] = await switcher(deployInitializedSyndication)
 
       // the balance before register contract..
       await (await syndication.register(distributorAddress, { value: fees })).wait()
       const afterRegisterBalance = await hre.ethers.provider.getBalance(owner.address)
-      
+
       // // quit after enrollment after some time X.
       const quitTx = await (await syndication.quit(distributorAddress)).wait()
       const { gasPrice: quitGasPrice, gasUsed: quitGasUsed } = quitTx;
@@ -174,17 +174,58 @@ describe('Syndication', function () {
       const expectedAfterRegisterBalance = netQuitBalance + residue;
       expect(afterQuitBalance).to.equal(expectedAfterRegisterBalance);
     })
+
+    it('Should set zero enrollment fees after quit.', async function () {
+      const fees = hre.ethers.parseUnits('0.3', 'ether')
+      const [distributorAddress, distributorContract] = await switcher(deployDistributor)
+      const [syndication] = await switcher(deployInitializedSyndication)
+      await (await syndication.register(distributorAddress, { value: fees })).wait()
+      await (await syndication.quit(distributorAddress)).wait()
+
+      const manager = await distributorContract.getManager()
+      expect(await syndication.enrollmentFees(manager)).to.equal(0)
+    })
   })
 
-  it('Should set zero enrollment fees after quit.', async function () {
-    const fees = hre.ethers.parseUnits('0.3', 'ether') 
-    const [distributorAddress, distributorContract] = await switcher(deployDistributor)
-    const [syndication] = await switcher(deployInitializedSyndication)
-    await (await syndication.register(distributorAddress, { value: fees })).wait()
-    await (await syndication.quit(distributorAddress)).wait()
+  describe('Approve', function () {
 
-    const manager = await distributorContract.getManager()
-    expect(await syndication.enrollmentFees(manager)).to.equal(0)
+    // helper function to approve a distributor by "governance"
+    async function syndicationWithGovernance() {
+      const [owner] = await getAccounts()
+      const fees = hre.ethers.parseUnits('0.3', 'ether')
+      const [distributorAddress, distributorContract] = await switcher(deployDistributor)
+      const [syndication] = await switcher(deployInitializedSyndication)
+
+      // !IMPORTANT the approval is only allowed for governance
+      // A VALID GOVERNOR IS SET IN A REAL USE CASE..
+      // eg: https://docs.openzeppelin.com/contracts/4.x/api/governance#GovernorTimelockControl
+      // set the owner address as governor for test purposes..
+      await (await syndication.setGovernance(owner.address)).wait()
+      // register account and approve by "governance" 
+      await (await syndication.register(distributorAddress, { value: fees })).wait()
+      return [syndication, distributorContract, distributorAddress];
+    }
+
+    it('Should set zero enrollment fees after approval.', async function () {
+      const [syndication, distributorContract, distributorAddress] = await syndicationWithGovernance()
+      await (await syndication.approve(distributorAddress)).wait()
+      const manager = await distributorContract.getManager()
+      expect(await syndication.enrollmentFees(manager)).to.equal(0)
+    })
+
+    it('Should set valid active state after approval.', async function () {
+      const [syndication, , distributorAddress] = await syndicationWithGovernance()
+      await (await syndication.approve(distributorAddress)).wait()
+      expect(await syndication.isActive(distributorAddress)).to.be.true
+    })
+
+    it('Should increment the enrollment count successfully.', async function () {
+      const [syndication, , distributorAddress] = await syndicationWithGovernance()
+      
+      const prevCount = await syndication.enrollmentsCount()
+      await (await syndication.approve(distributorAddress)).wait()
+      expect(await syndication.enrollmentsCount()).to.be.equal(prevCount + BigInt(1))
+    })
   })
 
   // should fail if status is pending during register
