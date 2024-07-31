@@ -4,6 +4,7 @@ pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "contracts/interfaces/ITreasury.sol";
+import "contracts/libraries/MathHelper.sol";
 
 /**
  * @dev Abstract contract for managing treasury funds.
@@ -20,6 +21,11 @@ abstract contract TreasuryUpgradeable is Initializable, ITreasury {
     /// @notice Error to be thrown when an unsupported token is used.
     /// @param token The address of the unsupported token.
     error InvalidUnsupportedToken(address token);
+    /// @notice Error to be thrown when basis point fees are invalid.
+    error InvalidBasisPointRange();
+    /// @notice Error to be thrown when nominal fees are invalid.
+    error InvalidNominalRange();
+
     // ERC-7201: Namespaced Storage Layout is another convention that can be used to avoid storage layout errors
     // keccak256(abi.encode(uint256(keccak256("watchit.treasury.tokenfees")) - 1)) & ~bytes32(uint256(0xff))
     bytes32 private constant TREASURY_SLOT =
@@ -69,10 +75,29 @@ abstract contract TreasuryUpgradeable is Initializable, ITreasury {
         _;
     }
 
+    /// @notice Modifier to ensure only valid basis points are used.
+    /// @param fees The fee amount to check.
+    modifier onlyBasePointsAllowed(uint256 fees) {
+        // if fees < 1 = 0.01% || fees basis > 10_000 = 100%
+        if (fees < 1 || fees > MathHelper.BPS_MAX)
+            revert InvalidBasisPointRange();
+        _;
+    }
+    
+    /// @notice Modifier to ensure only valid nominal fees are used.
+    /// @param fees The fee amount to check.
+    modifier onlyNominalAllowed(uint256 fees) {
+        // if fees < 1% || fees > 100%
+        if (fees < 1 || fees > MathHelper.SCALE_FACTOR)
+            revert InvalidNominalRange();
+        _;
+    }
+
     /// @inheritdoc ITreasury
     /// @notice Gets the treasury fee for the specified token.
-    /// @param token The address of the token.
-    /// @return The treasury fee for the specified token.
+    /// @dev This method could return a basis points (bps) fee or a flat fee depending on the context of use.
+    /// @param token The address of the token for which to retrieve the treasury fee.
+    /// @return uint256 The treasury fee for the specified token.
     function getTreasuryFee(
         address token
     ) public view override onlySupportedToken(token) returns (uint256) {
@@ -82,8 +107,9 @@ abstract contract TreasuryUpgradeable is Initializable, ITreasury {
 
     /// @notice Sets a new treasury fee.
     /// @dev Sets the fee for a specific token or native currency.
-    /// @param newTreasuryFee The new treasury fee.
-    /// @param token The token to associate fees, could be address(0) for native token.
+    /// Depending on the context, the fee could be in basis points (bps) or a flat fee.
+    /// @param newTreasuryFee The new treasury fee to set.
+    /// @param token The token to associate fees with. Use address(0) for the native token.
     /// @notice Only the owner can call this function.
     function _setTreasuryFee(
         uint256 newTreasuryFee,

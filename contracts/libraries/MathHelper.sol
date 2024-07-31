@@ -7,9 +7,9 @@ library MathHelper {
     // https://en.wikipedia.org/wiki/Basis_point
     // 1 bps = 0.01, 10 bps = 0.1
     // ...
-    uint8 internal constant SCALE_FACTOR = 100;
-    uint16 internal constant BPS_MAX = 10_000;
-
+    uint8 public constant SCALE_FACTOR = 100;
+    uint16 public constant BPS_MAX = 10_000;
+    
      /// @dev Calculates the percentage of `amount` based on the given `bps` (basis points).
      /// @param amount The amount to calculate the percentage of.
      /// @param bps The basis points to use for the calculation.

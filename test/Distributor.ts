@@ -6,6 +6,7 @@ import {
   deployDistributorFactory,
   getFilterLastEventArgs,
   commitRegister,
+  attachBeaconDistributorContract,
   deployAndInitializeDistributorContract
 } from './helpers/DistributorHelper'
 
@@ -20,9 +21,7 @@ describe('Distributor', function () {
     it("Should create a valid 'Distributor'.", async function () {
       const beacon = await switcher(deployDistributorFactory)
       const beaconProxy = await commitRegister(beacon, 'watchit.movie')
-      // attach to distributor beacon proxy
-      const contractFactory = await hre.ethers.getContractFactory('Distributor')
-      const distributor = contractFactory.attach(beaconProxy) as Distributor
+      const distributor = await attachBeaconDistributorContract(beaconProxy)
 
       expect(await distributor.supportsInterface(DISTRIBUTOR_INTERFACE_ID)).to.be.true
       expect(await distributor.getEndpoint()).to.be.equal('watchit.movie')

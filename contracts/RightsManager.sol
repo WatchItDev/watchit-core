@@ -19,7 +19,7 @@ import "contracts/interfaces/IRegistrableVerifiable.sol";
 import "contracts/interfaces/IReferendumVerifiable.sol";
 import "contracts/interfaces/IRepository.sol";
 import "contracts/libraries/TreasuryHelper.sol";
-import "contracts/libraries/Types.sol";
+import "contracts/libraries/constants/Types.sol";
 
 /// @title Rights Manager
 /// @notice This contract manages digital rights, allowing content holders to set prices, rent content, etc.
@@ -55,6 +55,7 @@ contract RightsManager is
     /// @dev Error that is thrown when a content hash is already registered.
     error InvalidInactiveDistributor();
     error InvalidUnknownContent();
+    error InvalidNotApprovedContent();
 
     /// @dev Constructor that disables initializers to prevent the implementation contract from being initialized.
     /// https://forum.openzeppelin.com/t/uupsupgradeable-vulnerability-post-mortem/15680
@@ -65,7 +66,12 @@ contract RightsManager is
 
     /// @notice Initializes the contract with the given dependencies.
     /// @param repository The contract registry to retrieve needed contracts instance.
-    function initialize(address repository) public initializer {
+    /// @param initialFee The initial fee for the treasury in basis points (bps).
+    /// @dev This function is called only once during the contract deployment.
+    function initialize(
+        address repository,
+        uint256 initialFee
+    ) public initializer onlyBasePointsAllowed(initialFee) {
         __Governable_init();
         __ERC721_init("Watchit", "WOT");
         __ERC721Enumerable_init();
@@ -81,13 +87,15 @@ contract RightsManager is
             T.ContractTypes.TREASURY
         );
 
-        // initially support no fees native token
-        __Treasury_init(0, address(0));
+        __Treasury_init(initialFee, address(0));
         __Treasurer_init(initialTreasuryAddress);
     }
 
-    /// @notice Modifier to restrict access to the holder only or delegated.
+    /// @notice Modifier to restrict access to the holder only or their delegate.
     /// @param contentId The content hash to give distribution rights.
+    /// @dev Only the holder of the content and the delegated holder can pass this validation.
+    /// When could this happen? If we have a TRUSTED delegated holder, such as a module of Lens, etc,
+    /// we can add a delegated role to operate on behalf of the holder's account.
     modifier onlyHolder(uint256 contentId) {
         if (
             ownerOf(contentId) != _msgSender() &&
@@ -111,17 +119,22 @@ contract RightsManager is
         _;
     }
 
+    /// @notice Modifier to ensure content is approved before distribution.
+    /// @param to The address attempting to distribute the content.
+    /// @param contentId The ID of the content to be distributed.
+    /// @dev The content must be approved by referendum or the recipient must have a verified role.
+    /// This modifier checks if the content is approved by referendum or if the recipient has a verified role.
+    /// It also ensures that the recipient is the one who initially submitted the content for approval.
     modifier onlyApprovedContent(address to, uint256 contentId) {
         IReferendumVerifiable _referendum = IReferendumVerifiable(referendum);
-        // Who initially submitted the content to referendum?
+        // Retrieve the address that initially submitted the content for referendum approval
         address approvalFor = _referendum.approvedFor(contentId);
-        // if content is approved by referendum or the author has a verified role..
+        // Check if the content is approved by referendum or if the recipient has a verified role
         bool approved = _referendum.isApproved(contentId) ||
             hasRole(VERIFIED_ROLE, to);
 
-        // if not approved or nor the submitter..
-        if (!approved || to != approvalFor) 
-            revert InvalidInactiveDistributor();
+        // Revert if the content is not approved or if the recipient is not the original submitter
+        if (!approved || to != approvalFor) revert InvalidNotApprovedContent();
         _;
     }
 
@@ -132,7 +145,7 @@ contract RightsManager is
     function setTreasuryFee(
         uint256 newTreasuryFee,
         address token
-    ) public onlyGov {
+    ) public onlyGov onlyBasePointsAllowed(newTreasuryFee) {
         _setTreasuryFee(newTreasuryFee, token);
         _addCurrency(token);
     }
@@ -140,7 +153,9 @@ contract RightsManager is
     /// @inheritdoc ITreasury
     /// @notice Sets a new treasury fee for the native token.
     /// @param newTreasuryFee The new fee amount to be set.
-    function setTreasuryFee(uint256 newTreasuryFee) public onlyGov {
+    function setTreasuryFee(
+        uint256 newTreasuryFee
+    ) public onlyGov onlyBasePointsAllowed(newTreasuryFee) {
         _setTreasuryFee(newTreasuryFee, address(0));
         _addCurrency(address(0));
     }

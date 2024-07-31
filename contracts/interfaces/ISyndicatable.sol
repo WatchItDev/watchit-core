@@ -19,8 +19,8 @@ interface ISyndicatable is
     IRegistrableVerifiable
 {
     /// @notice Function to set the penalty rate for quitting enrollment.
-    /// @param newPenaltyRate The new penalty rate to be set. It should be a value representing a nominal percentage.
-    /// @dev The penalty rate is a nominal percentage (expressed as a uint256) 
+    /// @param newPenaltyRate The new penalty rate to be set. It should be a value representing base points (bps).
+    /// @dev The penalty rate is represented as base points (expressed as a uint256) 
     /// That will be applied to the enrollment fee when a distributor quits.
     function setPenaltyRate(uint256 newPenaltyRate) external;
 }

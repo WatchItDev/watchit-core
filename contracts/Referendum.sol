@@ -9,6 +9,7 @@ import "@openzeppelin/contracts/utils/Address.sol";
 import "contracts/base/upgradeable/GovernableUpgradeable.sol";
 import "contracts/base/upgradeable/QuorumUpgradeable.sol";
 import "contracts/interfaces/IContentReferendum.sol";
+import "contracts/libraries/constants/Types.sol";
 
 /// @title Content curation contract.
 /// @notice This contract allows for the submission, voting, and approval/rejection of content.
@@ -26,7 +27,10 @@ contract Referendum is
     /// @dev Event emitted when a content is submitted for referendum.
     /// @param contentId The ID of the content submitted.
     /// @param initiator The address of the initiator who submitted the content.
-    event ContentSubmitted(uint256 indexed contentId, address indexed initiator);
+    event ContentSubmitted(
+        uint256 indexed contentId,
+        address indexed initiator
+    );
 
     /// @dev Event emitted when a content is approved.
     /// @param contentId The ID of the content approved.
@@ -55,7 +59,9 @@ contract Referendum is
     /// @notice Function that should revert when msg.sender is not authorized to upgrade the contract.
     /// @param newImplementation The address of the new implementation contract.
     /// @dev See https://docs.openzeppelin.com/contracts/4.x/api/proxy#UUPSUpgradeable-_authorizeUpgrade-address-
-    function _authorizeUpgrade(address newImplementation) internal override onlyAdmin {}
+    function _authorizeUpgrade(
+        address newImplementation
+    ) internal override onlyAdmin {}
 
     /// @notice Returns the address that submitted the content proposition.
     /// @param contentId The ID of the content.
@@ -63,7 +69,7 @@ contract Referendum is
     function approvedFor(uint256 contentId) public view returns (address) {
         return propositions[contentId];
     }
-    
+
     /// @notice Checks if the content is approved.
     /// @param contentId The ID of the content.
     /// @return True if the content is approved, false otherwise.
@@ -74,10 +80,37 @@ contract Referendum is
     /// @notice Submits a content proposition for referendum.
     /// @param contentId The ID of the content to be submitted.
     /// @param initiator The address of the initiator submitting the content.
-    /// @dev The content ID is verified by a hash and reviewed by a set number of people before voting.
+    /// @dev The content ID is reviewed by a set number of people before voting.
     function submit(uint256 contentId, address initiator) public {
-        if(initiator == address(0))
-            revert InvalidSubmissionInitiator();
+        if (initiator == address(0)) revert InvalidSubmissionInitiator();
+
+        _register(contentId);
+        propositions[contentId] = initiator;
+        referendumCount++;
+        emit ContentSubmitted(contentId, initiator);
+    }
+
+    /// @notice Submits a content proposition for referendum.
+    /// @param contentId The ID of the content to be submitted.
+    /// @param initiator The address of the initiator submitting the content.
+    /// @dev The content ID is reviewed by a set number of people before voting.
+    function submitWithSig(
+        uint256 contentId,
+        address initiator,
+        T.EIP712Signature calldata signature
+    ) public {
+        if (initiator == address(0)) revert InvalidSubmissionInitiator();
+
+        // TODO finish this..
+        // bytes32 structHash = keccak256(abi.encode(PERMIT_TYPEHASH, 
+        // owner, spender, value, _useNonce(owner), deadline));
+
+        // bytes32 hash = _hashTypedDataV4(structHash);
+
+        // address signer = ECDSA.recover(hash, v, r, s);
+        // if (signer != initiator) {
+        //     revert ERC2612InvalidSigner(signer, owner);
+        // }
 
         _register(contentId);
         propositions[contentId] = initiator;

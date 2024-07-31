@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
-import "contracts/libraries/Types.sol";
+import "contracts/libraries/constants/Types.sol";
 
 interface IRightsAccessController {
     /// @notice Grants access to a specific watcher for a certain content ID for a given timeframe.

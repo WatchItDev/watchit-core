@@ -8,14 +8,14 @@ import "contracts/modules/interfaces/IPublicationActionModule.sol";
 import "contracts/modules/base/LensModuleMetadata.sol";
 import "contracts/modules/base/LensModuleRegistrant.sol";
 import "contracts/modules/base/HubRestricted.sol";
-import "contracts/modules/libraries/Types.sol";
 import "contracts/interfaces/IRepository.sol";
 import "contracts/interfaces/IAccessWitness.sol";
 import "contracts/interfaces/IDistributor.sol";
 import "contracts/interfaces/IRightsManager.sol";
 import "contracts/libraries/TreasuryHelper.sol";
 import "contracts/libraries/MathHelper.sol";
-import "contracts/libraries/Types.sol";
+import "contracts/modules/libraries/Types.sol";
+import "contracts/libraries/constants/Types.sol";
 
 /**
  * @title RentModule
@@ -149,8 +149,8 @@ contract RentModule is
         uint256 treasurySplit
     ) internal pure returns (uint256, uint256, uint256) {
         // Calculate the fees for the distributor and treasury
-        uint256 distriFees = total.perOf(distSplit.calcBps()); // eg: (amount * (% * 100)) / BPS_MAX
-        uint256 treasuryFees = total.perOf(treasurySplit.calcBps());
+        uint256 distriFees = total.perOf(distSplit); // eg: (amount * (% * 100)) / BPS_MAX
+        uint256 treasuryFees = total.perOf(treasurySplit);
         uint256 depositToOwner = total - (distriFees + treasuryFees);
         return (distriFees, treasuryFees, depositToOwner);
     }
@@ -169,8 +169,6 @@ contract RentModule is
     ) external override onlyHub returns (bytes memory) {
         // Decode the rent parameters
         Types.RentParams memory rent = abi.decode(data, (Types.RentParams));
-        // Store renting parameters
-        _setPublicationRentSetting(rent, pubId);
         // Get the DRM and rights custodial interfaces
         IRightsManager drm = IRightsManager(drmAddress);
         // Ensure the content is not already owned
@@ -185,6 +183,9 @@ contract RentModule is
         // Grant initial custody to the distributor
         drm.grantCustodial(rent.distributor, rent.contentId);
         contentRegistry[pubId] = rent.contentId;
+        
+        // Store renting parameters
+        _setPublicationRentSetting(rent, pubId);
         // TODO royalties NFT
         // TODO fragmentable NFT
         // TODO mirror content
@@ -217,9 +218,9 @@ contract RentModule is
         IDistributor distributor = IDistributor(distributorAddress);
 
         // Get split % for distributor and treasury
-        uint256 treasurySplit = drm.getTreasuryFee(currency); // nominal % eg: 10, 20, 30
+        uint256 treasurySplit = drm.getTreasuryFee(currency); // bps
         //!IMPORTANT if distributor does not support the currency, will revert..
-        uint256 distSplit = distributor.getTreasuryFee(currency); // nominal % eg: 10, 20, 30
+        uint256 distSplit = distributor.getTreasuryFee(currency); // bps 
         // Calculate the fees for the distributor, treasury and content owner
         (
             uint256 distriFees,

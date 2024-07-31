@@ -14,12 +14,12 @@ import "contracts/base/upgradeable/QuorumUpgradeable.sol";
 import "contracts/base/upgradeable/TreasurerUpgradeable.sol";
 import "contracts/base/upgradeable/TreasuryUpgradeable.sol";
 
+import "contracts/libraries/constants/Types.sol";
 import "contracts/interfaces/IRepository.sol";
 import "contracts/interfaces/IDistributor.sol";
 import "contracts/interfaces/ISyndicatable.sol";
 import "contracts/libraries/TreasuryHelper.sol";
 import "contracts/libraries/MathHelper.sol";
-import "contracts/libraries/Types.sol";
 
 /// @title Distributors Syndication contract.
 /// @notice Use this contract to handle all distribution logic needed for creators and distributors.
@@ -39,11 +39,11 @@ contract Syndication is
     using TreasuryHelper for address;
 
     // 10% initial quitting penalization rate
-    uint256 private penaltyRate;
-    uint256 private enrollmentsCount;
+    uint256 public penaltyRate;
+    uint256 public enrollmentsCount;
 
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-    mapping(address => uint256) private enrollmentFees;
+    mapping(address => uint256) public enrollmentFees;
     bytes4 private constant INTERFACE_ID_IDISTRIBUTOR =
         type(IDistributor).interfaceId;
 
@@ -62,10 +62,9 @@ contract Syndication is
     /// @notice Event emitted when an entity resigns.
     /// @param distributor The address of the resigned entity.
     event Resigned(address indexed distributor);
-     /// @notice Event emitted when an entity is revoked.
+    /// @notice Event emitted when an entity is revoked.
     /// @param distributor The address of the revoked entity.
     event Revoked(address indexed distributor);
-
 
     /// @dev Constructor that disables initializers to prevent the implementation contract from being initialized.
     /// @notice This constructor prevents the implementation contract from being initialized.
@@ -84,14 +83,16 @@ contract Syndication is
         _;
     }
 
-    /// @notice Initializes the contract with the given enrollment fee and treasury address.
+    /// @notice Initializes the contract with the given repository, enrollment fee, and initial penalty rate.
     /// @param repository The address of the repository contract.
+    /// @param initialFee The initial flat fee for the treasury in native currency.
+    /// @param initialPenaltyRateBps The initial penalty rate in basis points (bps).
     /// @dev This function is called only once during the contract deployment.
     function initialize(
         address repository,
         uint256 initialFee,
         uint256 initialPenaltyRateBps
-    ) public initializer {
+    ) public initializer onlyBasePointsAllowed(initialPenaltyRateBps) {
         __Quorum_init();
         __Governable_init();
         __UUPSUpgradeable_init();
@@ -104,7 +105,7 @@ contract Syndication is
             T.ContractTypes.TREASURY
         );
 
-        // initially fees native coin
+        // initially flat fees in native coin
         __Treasury_init(initialFee, address(0));
         __Treasurer_init(initialTreasuryAddress);
         _grantRole(DEFAULT_ADMIN_ROLE, _msgSender());
@@ -117,19 +118,29 @@ contract Syndication is
         address newImplementation
     ) internal override onlyAdmin {}
 
+    /// @notice Private function to store the enrollment fees for distributors.
+    /// @param manager The address of the contract manager (distributor).
+    /// @param amount The amount of Wei enrolled by the distributor.
+    /// @dev This function is used to store the enrollment fees for distributors.
+    function _setEnrollment(address manager, uint256 amount) private {
+        enrollmentFees[manager] = amount;
+    }
+
     /// @inheritdoc ISyndicatable
     /// @notice Function to set the penalty rate for quitting enrollment.
-    /// @param newPenaltyRate The new penalty rate to be set. It should be a value representing a nominal percentage.
-    /// @dev The penalty rate is a nominal percentage (expressed as a uint256)
+    /// @param newPenaltyRate The new penalty rate to be set. It should be a value representin base points (bps).
+    /// @dev The penalty rate is represented as base points (expressed as a uint256)
     /// That will be applied to the enrollment fee when a distributor quits.
-    function setPenaltyRate(uint256 newPenaltyRate) public onlyGov {
+    function setPenaltyRate(
+        uint256 newPenaltyRate
+    ) public onlyGov onlyBasePointsAllowed(newPenaltyRate) {
         if (newPenaltyRate == 0) revert InvalidPenaltyRate();
         penaltyRate = newPenaltyRate;
     }
 
     /// @inheritdoc ITreasury
     /// @notice Sets a new treasury fee.
-    /// @param newTreasuryFee The new treasury fee to be set.
+    /// @param newTreasuryFee The new treasury flat fee to be set.
     function setTreasuryFee(uint256 newTreasuryFee) public onlyGov {
         _setTreasuryFee(newTreasuryFee, address(0));
     }
@@ -150,6 +161,38 @@ contract Syndication is
         address treasure = getTreasuryAddress();
         treasure.disburst(address(this).balanceOf());
     }
+    /// @inheritdoc IRegistrableVerifiable
+    /// @notice Checks if the entity is active.
+    /// @dev This function verifies the active status of the distributor.
+    /// @param distributor The distributor's address to check.
+    /// @return bool True if the distributor is active, false otherwise.
+    function isActive(
+        address distributor
+    ) public view validContractOnly(distributor) returns (bool) {
+        return _status(uint160(distributor)) == Status.Active;
+    }
+
+    /// @inheritdoc IRegistrableVerifiable
+    /// @notice Checks if the entity is waiting.
+    /// @dev This function verifies the waiting status of the distributor.
+    /// @param distributor The distributor's address to check.
+    /// @return bool True if the distributor is waiting, false otherwise.
+    function isWaiting(
+        address distributor
+    ) public view validContractOnly(distributor) returns (bool) {
+        return _status(uint160(distributor)) == Status.Waiting;
+    }
+
+    /// @inheritdoc IRegistrableVerifiable
+    /// @notice Checks if the entity is blocked.
+    /// @dev This function verifies the blocked status of the distributor.
+    /// @param distributor The distributor's address to check.
+    /// @return bool True if the distributor is blocked, false otherwise.
+    function isBlocked(
+        address distributor
+    ) public view validContractOnly(distributor) returns (bool) {
+        return _status(uint160(distributor)) == Status.Blocked;
+    }
 
     /// @inheritdoc IRegistrable
     /// @notice Registers a distributor by sending a payment to the contract.
@@ -169,16 +212,6 @@ contract Syndication is
         emit Registered(distributor);
     }
 
-    /// @inheritdoc  IRegistrableVerifiable
-    /// @notice Checks if the entity is active.
-    /// @param distributor The distributor's address.
-    /// @return bool True if the entity is active, false otherwise.
-    function isActive(
-        address distributor
-    ) public view validContractOnly(distributor) returns (bool) {
-        return _status(uint160(distributor)) == Status.Active;
-    }
-
     /// @inheritdoc IRegistrableRevokable
     /// @notice Allows a distributor to quit and receive a penalized refund.
     /// @param distributor The address of the distributor to quit.
@@ -192,7 +225,7 @@ contract Syndication is
             revert FailDuringQuit("Invalid distributor enrollment.");
 
         // eg: (100 * bps) / BPS_MAX
-        uint256 penal = registeredAmount.perOf(penaltyRate.calcBps());
+        uint256 penal = registeredAmount.perOf(penaltyRate);
         uint256 res = registeredAmount - penal;
 
         _setEnrollment(manager, 0);
@@ -200,14 +233,6 @@ contract Syndication is
         // rollback partial payment..
         manager.disburst(res);
         emit Resigned(distributor);
-    }
-
-    /// @notice Private function to store the enrollment fees for distributors.
-    /// @param manager The address of the contract manager (distributor).
-    /// @param amount The amount of Wei enrolled by the distributor.
-    /// @dev This function is used to store the enrollment fees for distributors.
-    function _setEnrollment(address manager, uint256 amount) private {
-        enrollmentFees[manager] = amount;
     }
 
     /// @inheritdoc IRegistrableRevokable

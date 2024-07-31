@@ -6,8 +6,9 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+
 import "contracts/interfaces/IRepository.sol";
-import "contracts/libraries/Types.sol";
+import "contracts/libraries/constants/Types.sol";
 
 /// @title Repository Contract
 /// @notice Manages the addresses of different contract types and their versions.
@@ -69,7 +70,7 @@ contract Repository is
         address contractAddress
     ) public onlyRole(DEFAULT_ADMIN_ROLE) {
         contracts[key] = contractAddress;
-        ++versions[key];
+        versions[key]++;
     }
 
     /// @notice Populates the repository with multiple contract addresses.

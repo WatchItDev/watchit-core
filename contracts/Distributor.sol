@@ -25,7 +25,7 @@ contract Distributor is
     IDistributor
 {
     using TreasuryHelper for address;
-        
+
     /// @notice The URL to the distribution.
     /// Since this is a contract considered as implementation for beacon proxy,
     /// we need to reserve a gap for endpoint to avoid memory layout getting mixed up.
@@ -48,8 +48,8 @@ contract Distributor is
         __ERC165_init();
         __Ownable_init(_owner);
         __CurrencyManager_init();
-        __Treasury_init(0, address(0));
-        
+        __Treasury_init(1, address(0));
+
         if (bytes(_endpoint).length == 0) revert InvalidEndpoint();
         endpoint = _endpoint;
     }
@@ -82,20 +82,22 @@ contract Distributor is
 
     /// @inheritdoc ITreasury
     /// @notice Sets a new treasury fee for a specific token.
-    /// @param newTreasuryFee The new fee amount to be set.
+    /// @param newTreasuryFee The new fee expresed as base points to be set.
     /// @param token The address of the token for which the fee is to be set.
     function setTreasuryFee(
         uint256 newTreasuryFee,
         address token
-    ) public onlyOwner {
+    ) public onlyOwner onlyBasePointsAllowed(newTreasuryFee) {
         _setTreasuryFee(newTreasuryFee, token);
         _addCurrency(token);
     }
 
     /// @inheritdoc ITreasury
     /// @notice Sets a new treasury fee for the native token.
-    /// @param newTreasuryFee The new fee amount to be set.
-    function setTreasuryFee(uint256 newTreasuryFee) public onlyOwner {
+    /// @param newTreasuryFee The new fee expresed as base points to be set.
+    function setTreasuryFee(
+        uint256 newTreasuryFee
+    ) public onlyOwner onlyBasePointsAllowed(newTreasuryFee) {
         _setTreasuryFee(newTreasuryFee, address(0));
         _addCurrency(address(0));
     }

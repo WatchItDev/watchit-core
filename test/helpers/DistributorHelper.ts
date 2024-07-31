@@ -30,6 +30,12 @@ export async function getFilterLastEventArgs (contract: DistributorFactory | Dis
   return lastEvent?.args
 }
 
+export async function attachBeaconDistributorContract (beaconProxy: string) {
+  const contractFactory = await hre.ethers.getContractFactory('Distributor')
+  const distributor = contractFactory.attach(beaconProxy) as Distributor
+  return distributor
+}
+
 export async function deployAndInitializeDistributorContract (endpoint: string) {
   const [owner] = await hre.ethers.getSigners()
   // initial endpoint set by beacon proxy initialization.

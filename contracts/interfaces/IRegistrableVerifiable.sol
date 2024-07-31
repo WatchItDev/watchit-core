@@ -6,4 +6,8 @@ pragma solidity ^0.8.24;
 interface IRegistrableVerifiable {
     /// @notice Checks if the entity associated with the given identifier is active.
     function isActive(address) external returns (bool);
+    /// @notice Checks if the entity associated with the given identifier is waiting approval.
+    function isWaiting(address) external returns (bool);
+        /// @notice Checks if the entity associated with the given identifier is blocked approval.
+    function isBlocked(address) external returns (bool);
 }
