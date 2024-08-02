@@ -1,7 +1,7 @@
 import hre from 'hardhat'
 import { expect } from 'chai'
 import { switcher } from './helpers/CommonHelper'
-import { Distributor, DistributorFactory } from '@/typechain-types'
+import { DistributorFactory } from '@/typechain-types'
 import {
   deployDistributorFactory,
   getFilterLastEventArgs,

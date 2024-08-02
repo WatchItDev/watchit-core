@@ -17,6 +17,11 @@ bootstrap: install
 test:
 	@npx hardhat test --network $(network)
 
+# https://jestjs.io/docs/cli#--coverageboolean
+.PHONY: testfy ## run tests
+testfy:
+	@forge test --via-ir --gas-report -vv
+
 .PHONY: testcov ## run tests coverage report
 testcov:
 	@npx hardhat coverage
@@ -30,6 +35,7 @@ clean:
 	@rm -rf cache
 	@rm -rf artifacts
 	@rm -rf node_modules
+	@rm -rf cache_forge
 
 .PHONY: install ## install dependencies
 install: 

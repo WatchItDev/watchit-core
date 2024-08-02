@@ -1,12 +1,14 @@
 import dotenv from 'dotenv'
 import type { HardhatUserConfig } from 'hardhat/config'
 import '@nomicfoundation/hardhat-chai-matchers'
+import "@nomicfoundation/hardhat-foundry";
 import '@nomicfoundation/hardhat-toolbox'
 import '@openzeppelin/hardhat-upgrades'
 import '@typechain/hardhat'
 
 dotenv.config()
-const OWNER_KEY = process.env.PK ?? ''
+const OWNER_KEY = process.env.PRIVATE_KEY ?? ''
+const AMOY_ENDPOINT = process.env.AMOY_ENDPOINT ?? ''
 const ALCHEMY_API_KEY = process.env.ALCHEMY_API_KEY ?? ''
 
 const config: HardhatUserConfig = {
@@ -37,7 +39,7 @@ const config: HardhatUserConfig = {
       throwOnCallFailures: true
     },
     polygon: {
-      url: `https://polygon-amoy.g.alchemy.com/v2/${ALCHEMY_API_KEY}`,
+      url: `${AMOY_ENDPOINT}${ALCHEMY_API_KEY}`,
       accounts: [`${OWNER_KEY}`]
     }
   },

@@ -40,4 +40,18 @@ library T {
         uint256 deadline;
     }
 
+    // This struct provides critical parameters that will be used during the referendum process 
+    // to give voters context about the content and help distributors determine where the content 
+    // can be appropriately projected. These parameters ensure the content meets local regulations, 
+    // aligns with audience expectations, and is suitable for distribution.
+    // Define a struct for ContentParams
+    struct ContentParams {
+        string geofencing;              // Expected geographic restriction for content distribution.
+        string rating;                  // Content rating (e.g., G, PG, PG-13, R).
+        string language;                // Language of the content.
+        string license;                 // Distribution license information.
+        string contentWarnings;         // Content warnings (e.g., violence, strong language).
+        string targetAudience;          // Target audience of the content.
+    }
+
 }

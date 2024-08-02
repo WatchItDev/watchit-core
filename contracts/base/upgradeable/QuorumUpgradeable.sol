@@ -27,8 +27,6 @@ abstract contract QuorumUpgradeable is Initializable {
     bytes32 private constant REGISTRY_SLOT =
         0x78a5d34d6f19765a8d11b74cebcafd0494288384b72923088bc4746147d1ae00;
 
-    /// @notice Error to be thrown when an entity is inactive.
-    error InvalidInactiveState();
     /// @notice Error to be thrown when an entity is already pending approval.
     error AlreadyPendingApproval();
     /// @notice Error to be thrown when an entity is not waiting for approval.
@@ -76,7 +74,7 @@ abstract contract QuorumUpgradeable is Initializable {
      */
     function _revoke(uint256 entry) internal virtual {
         RegistryStorage storage $ = _getRegistryStorage();
-        if (_status(entry) != Status.Active) revert InvalidInactiveState();
+        if (_status(entry) != Status.Waiting) revert NotWaitingApproval();
         $._status[entry] = Status.Blocked;
     }
 

@@ -20,16 +20,17 @@ contract Referendum is
     QuorumUpgradeable,
     IContentReferendum
 {
-    uint256 public referendumCount;
-    mapping(uint256 => address) public propositions;
+    uint256 public count;
+    mapping(uint256 => address) public submissions;
     error InvalidSubmissionInitiator();
 
     /// @dev Event emitted when a content is submitted for referendum.
     /// @param contentId The ID of the content submitted.
     /// @param initiator The address of the initiator who submitted the content.
     event ContentSubmitted(
+        address initiator,
         uint256 indexed contentId,
-        address indexed initiator
+        T.ContentParams conditions
     );
 
     /// @dev Event emitted when a content is approved.
@@ -67,7 +68,7 @@ contract Referendum is
     /// @param contentId The ID of the content.
     /// @return The address of the initiator who submitted the content.
     function approvedFor(uint256 contentId) public view returns (address) {
-        return propositions[contentId];
+        return submissions[contentId];
     }
 
     /// @notice Checks if the content is approved.
@@ -81,13 +82,18 @@ contract Referendum is
     /// @param contentId The ID of the content to be submitted.
     /// @param initiator The address of the initiator submitting the content.
     /// @dev The content ID is reviewed by a set number of people before voting.
-    function submit(uint256 contentId, address initiator) public {
+    function submit(
+        uint256 contentId,
+        address initiator,
+        T.ContentParams calldata params
+    ) public {
         if (initiator == address(0)) revert InvalidSubmissionInitiator();
 
+        count++;
+        submissions[contentId] = initiator;
         _register(contentId);
-        propositions[contentId] = initiator;
-        referendumCount++;
-        emit ContentSubmitted(contentId, initiator);
+
+        emit ContentSubmitted(initiator, contentId, params);
     }
 
     /// @notice Submits a content proposition for referendum.
@@ -97,12 +103,13 @@ contract Referendum is
     function submitWithSig(
         uint256 contentId,
         address initiator,
+        T.ContentParams calldata params,
         T.EIP712Signature calldata signature
     ) public {
         if (initiator == address(0)) revert InvalidSubmissionInitiator();
 
         // TODO finish this..
-        // bytes32 structHash = keccak256(abi.encode(PERMIT_TYPEHASH, 
+        // bytes32 structHash = keccak256(abi.encode(PERMIT_TYPEHASH,
         // owner, spender, value, _useNonce(owner), deadline));
 
         // bytes32 hash = _hashTypedDataV4(structHash);
@@ -113,9 +120,9 @@ contract Referendum is
         // }
 
         _register(contentId);
-        propositions[contentId] = initiator;
-        referendumCount++;
-        emit ContentSubmitted(contentId, initiator);
+        submissions[contentId] = initiator;
+        count++;
+        emit ContentSubmitted(initiator, contentId, params);
     }
 
     /// @notice Reject a content proposition.
@@ -131,4 +138,6 @@ contract Referendum is
         _approve(contentId);
         emit ContentApproved(contentId);
     }
+
+    function submit(uint256 contentId, address initiator) external override {}
 }
