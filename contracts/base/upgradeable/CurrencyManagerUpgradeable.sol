@@ -15,8 +15,8 @@ abstract contract CurrencyManagerUpgradeable is
     /// @custom:storage-location erc7201:currencymanagarupgradeable
     struct CurrencyManagerStorage {
         // Maps currency addresses to their index in the supported tokens array
-        mapping(address => uint256) _supportedCurrencyMap; 
-         // Array of supported currency addresses
+        mapping(address => uint256) _supportedCurrencyMap;
+        // Array of supported currency addresses
         address[] _supportedCurrencies;
     }
 
@@ -45,16 +45,15 @@ abstract contract CurrencyManagerUpgradeable is
 
     /// @notice Initializes the currency manager. To be called during contract initialization.
     function __CurrencyManager_init() internal onlyInitializing {}
+
     function __CurrencyManager_init_unchained() internal onlyInitializing {}
 
     /// @notice Adds a currency to the list of supported currencies.
     /// @param currency The address of the currency to add.
     function _addCurrency(address currency) internal {
         CurrencyManagerStorage storage $ = _getCurrencyManagerStorage();
-        // TODO avoid duplicate currencies...
-        // if ($._supportedCurrencyMap[currency] != 0)
-
-
+        // avoid duplicate currencies...
+        if (isCurrencySupported(currency)) return;
         $._supportedCurrencies.push(currency);
         // Add the last index for the current stored currency as value for mapping
         $._supportedCurrencyMap[currency] = $._supportedCurrencies.length;

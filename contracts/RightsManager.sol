@@ -105,6 +105,38 @@ contract RightsManager is
         address newImplementation
     ) internal override onlyAdmin {}
 
+    /// @notice Checks if the given distributor is active and not blocked.
+    /// @param distributor The address of the distributor to check.
+    /// @return True if the distributor is active, false otherwise.
+    function _checkActiveDistributor(
+        address distributor
+    ) internal returns (bool) {
+        IRegistrableVerifiable _v = IRegistrableVerifiable(syndication);
+        return _v.isActive(distributor); // is active status in syndication
+    }
+
+    /// @notice Checks if the given content is active and not blocked.
+    /// @param contentId The ID of the content to check.
+    /// @return True if the content is active, false otherwise.
+    function _checkActiveContent(
+        uint256 contentId
+    ) internal view returns (bool) {
+        IReferendumVerifiable _v = IReferendumVerifiable(referendum);
+        return _v.isActive(contentId); // is active in referendum
+    }
+
+    /// @notice Checks if the given content is approved for distribution.
+    /// @param to The address attempting to distribute the content.
+    /// @param contentId The ID of the content to be distributed.
+    /// @return True if the content is approved, false otherwise.
+    function _checkApprovedContent(
+        address to,
+        uint256 contentId
+    ) internal view returns (bool) {
+        IReferendumVerifiable _v = IReferendumVerifiable(referendum);
+        return _v.isApproved(to, contentId); // is approved by referendu,
+    }
+
     /// @notice Modifier to restrict access to the holder only or their delegate.
     /// @param contentId The content hash to give distribution rights.
     /// @dev Only the holder of the content and the delegated holder can pass this validation.
@@ -144,35 +176,6 @@ contract RightsManager is
         if (!_checkApprovedContent(to, contentId))
             revert InvalidNotApprovedContent();
         _;
-    }
-
-    /// @notice Checks if the given distributor is active and not blocked.
-    /// @param distributor The address of the distributor to check.
-    /// @return True if the distributor is active, false otherwise.
-    function _checkActiveDistributor(
-        address distributor
-    ) internal returns (bool) {
-        return IRegistrableVerifiable(syndication).isActive(distributor);
-    }
-
-    /// @notice Checks if the given content is active and not blocked.
-    /// @param contentId The ID of the content to check.
-    /// @return True if the content is active, false otherwise.
-    function _checkActiveContent(
-        uint256 contentId
-    ) internal view returns (bool) {
-        return IReferendumVerifiable(referendum).isActive(contentId);
-    }
-
-    /// @notice Checks if the given content is approved for distribution.
-    /// @param to The address attempting to distribute the content.
-    /// @param contentId The ID of the content to be distributed.
-    /// @return True if the content is approved, false otherwise.
-    function _checkApprovedContent(
-        address to,
-        uint256 contentId
-    ) internal view returns (bool) {
-        return IReferendumVerifiable(referendum).isApproved(to, contentId);
     }
 
     /// @inheritdoc ITreasury

@@ -205,7 +205,6 @@ contract RentModule is
 
         // Add access to content for N days to account..
         IRightsManager(drmAddress).grantAccess(rentalWatcher, contentId, cond);
-        // return the resulting data, the deadline..
         return abi.encode(rentRegistry[contentId][rentalWatcher], currency);
     }
 

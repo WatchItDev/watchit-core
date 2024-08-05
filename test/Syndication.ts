@@ -38,6 +38,23 @@ async function getSyndicatableFakeGovernor() {
 }
 
 
+// helper function to approve a distributor by "governance"
+async function syndicationWithGovernance() {
+  const [owner] = await getAccounts()
+  const fees = hre.ethers.parseUnits('0.3', 'ether')
+  const [distributorAddress, distributorContract] = await switcher(deployDistributor)
+  const [syndication] = await switcher(deployInitializedSyndication)
+
+  // !IMPORTANT the approval is only allowed for governance
+  // A VALID GOVERNOR IS SET IN A REAL USE CASE..
+  // eg: https://docs.openzeppelin.com/contracts/4.x/api/governance#GovernorTimelockControl
+  // set the owner address as governor for test purposes..
+  await (await syndication.setGovernance(owner.address)).wait()
+  // register account and approve by "governance" 
+  await (await syndication.register(distributorAddress, { value: fees })).wait()
+  return [syndication, distributorContract, distributorAddress];
+}
+
 describe('Syndication', function () {
   describe("Initialization", async () => {
     it('Should have been initialized with the right penalty rate.', async function () {
@@ -200,6 +217,19 @@ describe('Syndication', function () {
       expect(afterQuitBalance).to.be.equal(penal)
     })
 
+    it('Should fail with InvalidDistributorContract.', async function () {
+      const fees = hre.ethers.parseUnits('0.3', 'ether') // expected fees paid in contract..
+      const invalidDistributor = hre.ethers.ZeroAddress // invalid contract
+      const [distributorAddress] = await switcher(deployDistributor)
+      const [syndication] = await switcher(deployInitializedSyndication)
+
+      // register a valid distributor then attemp quit with an invalid one.
+      await (await syndication.register(distributorAddress, { value: fees })).wait()
+      await expect(syndication.quit(invalidDistributor)).to.be.revertedWithCustomError(
+        syndication, 'InvalidDistributorContract'
+      )
+    })
+
     it('Should revert the correct amount to manager after quit.', async function () {
       const [owner] = await getAccounts()
       const fees = hre.ethers.parseUnits('0.3', 'ether') // expected fees paid in contract..
@@ -239,23 +269,6 @@ describe('Syndication', function () {
 
   describe('Approve', function () {
 
-    // helper function to approve a distributor by "governance"
-    async function syndicationWithGovernance() {
-      const [owner] = await getAccounts()
-      const fees = hre.ethers.parseUnits('0.3', 'ether')
-      const [distributorAddress, distributorContract] = await switcher(deployDistributor)
-      const [syndication] = await switcher(deployInitializedSyndication)
-
-      // !IMPORTANT the approval is only allowed for governance
-      // A VALID GOVERNOR IS SET IN A REAL USE CASE..
-      // eg: https://docs.openzeppelin.com/contracts/4.x/api/governance#GovernorTimelockControl
-      // set the owner address as governor for test purposes..
-      await (await syndication.setGovernance(owner.address)).wait()
-      // register account and approve by "governance" 
-      await (await syndication.register(distributorAddress, { value: fees })).wait()
-      return [syndication, distributorContract, distributorAddress];
-    }
-
     it('Should emit Approved event after approve successfully.', async function () {
       const [syndication, , distributorAddress] = await syndicationWithGovernance()
       expect(await syndication.approve(distributorAddress)).to.emit(syndication, 'Approved')
@@ -284,32 +297,15 @@ describe('Syndication', function () {
   })
 
   describe('Revoke', function () {
-
-    // helper function to approve a distributor by "governance"
-    async function syndicationWithGovernance() {
-      const [owner] = await getAccounts()
-      const fees = hre.ethers.parseUnits('0.3', 'ether')
-      const [distributorAddress, distributorContract] = await switcher(deployDistributor)
-      const [syndication] = await switcher(deployInitializedSyndication)
-
-      // !IMPORTANT the approval is only allowed for governance
-      // A VALID GOVERNOR IS SET IN A REAL USE CASE..
-      // eg: https://docs.openzeppelin.com/contracts/4.x/api/governance#GovernorTimelockControl
-      // set the owner address as governor for test purposes..
-      await (await syndication.setGovernance(owner.address)).wait()
-      // register account and approve by "governance" 
-      await (await syndication.register(distributorAddress, { value: fees })).wait()
-      return [syndication, distributorContract, distributorAddress];
-    }
-
     it('Should emit Revoked event after revoked successfully.', async function () {
       const [syndication, , distributorAddress] = await syndicationWithGovernance()
-      // after being active can be blocked again..
+      await (await syndication.approve(distributorAddress)).wait()
       expect(await syndication.revoke(distributorAddress)).to.emit(syndication, 'Revoked')
     })
 
     it('Should set valid revoked state after approval.', async function () {
       const [syndication, , distributorAddress] = await syndicationWithGovernance()
+      await (await syndication.approve(distributorAddress)).wait()
       await (await syndication.revoke(distributorAddress)).wait()
       expect(await syndication.isBlocked(distributorAddress)).to.be.true
     })
