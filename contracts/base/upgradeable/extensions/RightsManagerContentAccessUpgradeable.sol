@@ -14,8 +14,7 @@ import "contracts/libraries/Types.sol";
 /// @dev This contract is upgradeable and uses ReentrancyGuard to prevent reentrant calls.
 abstract contract RightsManagerContentAccessUpgradeable is
     Initializable,
-    IRightsAccessController,
-    ReentrancyGuardUpgradeable
+    IRightsAccessController
 {
     using ERC165Checker for address;
     bytes4 private constant INTERFACE_WITNESS_ACCESS =
@@ -28,46 +27,46 @@ abstract contract RightsManagerContentAccessUpgradeable is
     /// @dev Error thrown when the witness contract does not implement the correct interface.
     error InvalidWitnessContract();
 
-    /// @dev Mapping to store the access control list for each watcher and content hash.
+    /// @dev Mapping to store the access control list for each account and content hash.
     mapping(uint256 => mapping(address => T.AccessCondition)) private acl;
 
     /// @dev Modifier to check that the witness contract implements the IAccessWitness interface.
-    /// @param witnessAddress The address of the witness contract.
-    modifier validWitnessOnly(address witnessAddress) {
-        if (!witnessAddress.supportsInterface(INTERFACE_WITNESS_ACCESS))
+    /// @param witness The address of the witness contract.
+    modifier validWitnessOnly(address witness) {
+        if (!witness.supportsInterface(INTERFACE_WITNESS_ACCESS))
             revert InvalidWitnessContract();
         _;
     }
 
-    /// @notice Grants access to a specific watcher for a certain content ID for a given timeframe.
-    /// @param account The address of the watcher.
+    /// @notice Grants access to a specific account for a certain content ID for a given timeframe.
+    /// @param account The address of the account.
     /// @param contentId The content ID to grant access to.
     /// @param condition The conditional access control.
     function _grantAccess(
         address account,
         uint256 contentId,
         T.AccessCondition calldata condition
-    ) internal validWitnessOnly(condition.witnessContractAddress) {
+    ) internal validWitnessOnly(condition.witnessAddress) {
         // Register the condition to validate access.
         acl[contentId][account] = condition;
     }
 
-    /// @notice Checks if access is allowed for a specific watcher and content.
-    /// @param account The address of the watcher.
+    /// @notice Checks if access is allowed for a specific account and content.
+    /// @param account The address of the account.
     /// @param contentId The content ID to check access for.
     /// @return bool True if access is allowed, false otherwise.
-    function hasAccess(
+    function _isAccessGranted(
         address account,
         uint256 contentId
-    ) public nonReentrant returns (bool) {
+    ) internal view returns (bool) {
         // The approve method is called and executed according to the IAccessWitness spec.
         T.AccessCondition memory condition = acl[contentId][account];
         (bool success, bytes memory result) = condition
-            .witnessContractAddress
+            .witnessAddress
             // staticcall does not allow changing the state of the blockchain.
             .staticcall(
                 abi.encodeWithSelector(
-                    condition.functionSelector,
+                    condition.witnessSelector,
                     account,
                     contentId
                 )
@@ -75,7 +74,7 @@ abstract contract RightsManagerContentAccessUpgradeable is
 
         if (!success)
             revert InvalidAccessControlValidation(
-                condition.witnessContractAddress
+                condition.witnessAddress
             );
         // Decode the expected result and return it.
         return abi.decode(result, (bool));

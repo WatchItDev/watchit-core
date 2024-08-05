@@ -51,6 +51,10 @@ abstract contract CurrencyManagerUpgradeable is
     /// @param currency The address of the currency to add.
     function _addCurrency(address currency) internal {
         CurrencyManagerStorage storage $ = _getCurrencyManagerStorage();
+        // TODO avoid duplicate currencies...
+        // if ($._supportedCurrencyMap[currency] != 0)
+
+
         $._supportedCurrencies.push(currency);
         // Add the last index for the current stored currency as value for mapping
         $._supportedCurrencyMap[currency] = $._supportedCurrencies.length;

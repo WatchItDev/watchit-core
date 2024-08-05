@@ -47,17 +47,11 @@ abstract contract RightsManagerDistributionUpgradeable is
         emit RightsGranted(contentId, distributor);
     }
 
-    // this is where the fees are routed
+    /// @notice Retrieves the custodial address for the given content ID and ensures it is active.
+    /// @param contentId The ID of the content.
+    /// @return The address of the active custodial.
     function getCustodial(uint256 contentId) public view returns (address) {
         DistributionRightsStorage storage $ = _getRightsStorage();
         return $._custodying[contentId];
-    }
-
-    function hasCustodial(
-        address distributor,
-        uint256 contentId
-    ) public view returns (bool) {
-        DistributionRightsStorage storage $ = _getRightsStorage();
-        return $._custodying[contentId] == distributor;
     }
 }

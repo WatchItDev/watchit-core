@@ -7,6 +7,9 @@ endif
 .DEFAULT_GOAL := all
 network=hardhat
 
+# https://github.com/crytic/slither?tab=readme-ov-file#detectors
+# https://book.getfoundry.sh/getting-started/installation
+# https://github.com/Cyfrin/aderyn?tab=readme-ov-file
 .PHONY: bootstrap ## setup initial development environment
 bootstrap: install
 	@npx husky install
@@ -41,13 +44,14 @@ clean:
 install: 
 	@npm ci
 
-.PHONY: format ## auto-format js source files
-format:
-	@npx ts-standard --fix
+.PHONY: secreport ## generate a security analysis report using aderyn
+secreport:
+	@aderyn
 
-.PHONY: lint ## lint standard js
-lint: 
-	@npx ts-standard
+.PHONY: sectest ## run secutiry tests using slither
+sectest:
+	@export PATH=$HOME/.local/bin:$PATH	
+	@slither . 
 
 .PHONY: solformat ## auto-format solidity source files
 solformat:

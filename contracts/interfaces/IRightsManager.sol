@@ -15,4 +15,9 @@ interface IRightsManager is
     IRightsOwnership,
     IRightsCustodial,
     IRightsAccessController
-{}
+{
+    /// @notice Checks if the content is eligible for distribution.
+    /// @param contentId The ID of the content.
+    /// @return True if the content can be distributed, false otherwise.
+    function isEligibleForDistribution(uint256 contentId) external returns (bool);
+}

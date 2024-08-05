@@ -8,7 +8,7 @@ import "@openzeppelin/contracts/utils/Address.sol";
 
 import "contracts/base/upgradeable/GovernableUpgradeable.sol";
 import "contracts/base/upgradeable/QuorumUpgradeable.sol";
-import "contracts/interfaces/IContentReferendum.sol";
+import "contracts/interfaces/ICurationReferendum.sol";
 import "contracts/libraries/Types.sol";
 
 /// @title Content curation contract.
@@ -18,10 +18,14 @@ contract Referendum is
     UUPSUpgradeable,
     GovernableUpgradeable,
     QuorumUpgradeable,
-    IContentReferendum
+    ICurationReferendum
 {
     uint256 public count;
     mapping(uint256 => address) public submissions;
+    // This role is granted to any representant trusted account. eg: Verified Accounts, etc.
+    bytes32 private constant VERIFIED_ROLE = keccak256("VERIFIED_ROLE");
+
+    // Error to be thrown when the submission initiator is invalid.
     error InvalidSubmissionInitiator();
 
     /// @dev Event emitted when a content is submitted for referendum.
@@ -64,18 +68,40 @@ contract Referendum is
         address newImplementation
     ) internal override onlyAdmin {}
 
-    /// @notice Returns the address that submitted the content proposition.
+    /// @notice Checks if the content is active nor blocked.
     /// @param contentId The ID of the content.
-    /// @return The address of the initiator who submitted the content.
-    function approvedFor(uint256 contentId) public view returns (address) {
-        return submissions[contentId];
+    /// @return True if the content is active, false otherwise.
+    function isActive(uint256 contentId) public view returns (bool) {
+        return _status(contentId) == Status.Active;
     }
 
     /// @notice Checks if the content is approved.
+    /// @param initiator The submission account address .
     /// @param contentId The ID of the content.
     /// @return True if the content is approved, false otherwise.
-    function isApproved(uint256 contentId) public view returns (bool) {
-        return _status(contentId) == Status.Active;
+    function isApproved(
+        address initiator,
+        uint256 contentId
+    ) public view returns (bool) {
+        bool approved = isActive(contentId);
+        bool validAccount = submissions[contentId] == initiator;
+        bool verifiedRole = hasRole(VERIFIED_ROLE, initiator);
+        // is approved with a valid submission account or is verified account..
+        return (approved && validAccount) || verifiedRole;
+    }
+
+    /// @notice Grants the verified role to a specific account.
+    /// @param account The address of the account to verify.
+    /// @dev Only governance is allowed to grant the role.
+    function grantVerified(address account) external onlyGov {
+        _grantRole(VERIFIED_ROLE, account);
+    }
+
+    /// @notice Revoke the verified role to a specific account.
+    /// @param account The address of the account to revoke.
+    /// @dev Only governance is allowed to revoke the role.
+    function revokeVerified(address account) external onlyGov {
+        _revokeRole(VERIFIED_ROLE, account);
     }
 
     /// @notice Submits a content proposition for referendum.
@@ -85,6 +111,7 @@ contract Referendum is
     function submit(
         uint256 contentId,
         address initiator,
+        // TODO aca en lugar de ser un tipo, podria ser bytes, para permitir enviar datos escalables..
         T.ContentParams calldata params
     ) public {
         if (initiator == address(0)) revert InvalidSubmissionInitiator();
@@ -96,10 +123,11 @@ contract Referendum is
         emit ContentSubmitted(initiator, contentId, params);
     }
 
-    /// @notice Submits a content proposition for referendum.
+    /// @notice Submits a content proposition for referendum with a signature.
     /// @param contentId The ID of the content to be submitted.
     /// @param initiator The address of the initiator submitting the content.
-    /// @dev The content ID is reviewed by a set number of people before voting.
+    /// @param params The content parameters being submitted.
+    /// @param signature The EIP712 signature for the submission.
     function submitWithSig(
         uint256 contentId,
         address initiator,

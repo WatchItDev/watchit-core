@@ -13,14 +13,4 @@ interface IContentVault {
         uint256 contentId
     ) external view returns (bytes memory);
 
-    /// @notice Secures content in the vault.
-    /// @dev Stores the encrypted content associated with the given content ID. 
-    /// The secured content could be any content that utilizes an off-chain encryption schema, 
-    /// e.g., LIT ciphertext + cypherhash, public key encrypted data, shared key encrypted data.
-    /// @param contentId The ID of the content to secure.
-    /// @param encryptedContent The encrypted content to store.
-    function secureContent(
-        uint256 contentId,
-        bytes calldata encryptedContent
-    ) external;
 }

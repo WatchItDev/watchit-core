@@ -13,17 +13,15 @@ library T {
         REFERENDUM, // Content referendum
         DRM // Digital Rights Management contract
     }
-    
-    /// @notice Structure to store an access condition.
-    /// @dev The structure contains the address of a witness contract and the selector of the function to call.
-    /// @param witnessContractAddress The address of the witness contract that provides testimony of the condition.
-    /// @param functionSelector The selector of the function that verifies the access condition.
+
     struct AccessCondition {
-        address witnessContractAddress;
-        bytes4 functionSelector;
+        address witnessAddress;
+        bytes4 witnessSelector;
+        address txCurrency; // currency transaction
+        uint256 txAmount; // amount of transaction
     }
 
-     /**
+    /**
      * @notice A struct containing the necessary information to reconstruct an EIP-712 typed data signature.
      * @dev We could use this information to handle signature logic with delegated actions from the account owner.
      * @param signer The address of the signer. Specially needed as a parameter to support EIP-1271.
@@ -40,18 +38,18 @@ library T {
         uint256 deadline;
     }
 
-    // This struct provides critical parameters that will be used during the referendum process 
-    // to give voters context about the content and help distributors determine where the content 
-    // can be appropriately projected. These parameters ensure the content meets local regulations, 
+    // This struct provides critical parameters that will be used during the referendum process
+    // to give voters context about the content and help distributors determine where the content
+    // can be appropriately projected. These parameters ensure the content meets local regulations,
     // aligns with audience expectations, and is suitable for distribution.
     // Define a struct for ContentParams
     struct ContentParams {
-        string geofencing;              // Expected geographic restriction for content distribution.
-        string rating;                  // Content rating (e.g., G, PG, PG-13, R).
-        string language;                // Language of the content.
-        string license;                 // Distribution license information.
-        string contentWarnings;         // Content warnings (e.g., violence, strong language).
-        string targetAudience;          // Target audience of the content.
+        string trailer;
+        string geofencing; // Expected geographic restriction for content distribution.
+        string rating; // Content rating (e.g., G, PG, PG-13, R).
+        string language; // Language of the content.
+        string license; // Distribution license information.
+        string contentWarnings; // Content warnings (e.g., violence, strong language).
+        string targetAudience; // Target audience of the content.
     }
-
 }

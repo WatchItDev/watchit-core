@@ -37,7 +37,6 @@ contract RentModule is
     // Custom errors for specific failure cases
     error InvalidExistingContentPublication();
     error InvalidNotSupportedCurrency();
-    error InvalidDistributor();
     error InvalidRentPrice();
 
     // Address of the Digital Rights Management (DRM) contract
@@ -134,27 +133,6 @@ contract RentModule is
         }
     }
 
-    /**
-     * @dev Calculates the fees for the distributor and treasury.
-     * @param total The total amount.
-     * @param distSplit The distributor split in basis points.
-     * @param treasurySplit The treasury split in basis points.
-     * @return uint256 The distributor fees.
-     * @return uint256 The treasury fees.
-     * @return uint256 The amount to be deposited to the content owner.
-     */
-    function _calculateFees(
-        uint256 total,
-        uint256 distSplit,
-        uint256 treasurySplit
-    ) internal pure returns (uint256, uint256, uint256) {
-        // Calculate the fees for the distributor and treasury
-        uint256 distriFees = total.perOf(distSplit); // eg: (amount * (% * 100)) / BPS_MAX
-        uint256 treasuryFees = total.perOf(treasurySplit);
-        uint256 depositToOwner = total - (distriFees + treasuryFees);
-        return (distriFees, treasuryFees, depositToOwner);
-    }
-
     // @dev Initializes a publication action for renting a publication.
     // @param profileId The ID of the profile initiating the action.
     // @param pubId The ID of the publication being rented.
@@ -175,15 +153,13 @@ contract RentModule is
         if (drm.ownerOf(rent.contentId) != address(0))
             revert InvalidExistingContentPublication();
 
+        contentRegistry[pubId] = rent.contentId;
         // Mint the NFT for the content and secure it;
         drm.mint(transactionExecutor, rent.contentId);
         // The secured content, could be any content to handly encryption schema..
         // eg: LIT cypertext + hash, public key enceypted data, shared key encrypted data..
-        drm.secureContent(rent.contentId, rent.secured);
         // Grant initial custody to the distributor
-        drm.grantCustodial(rent.distributor, rent.contentId);
-        contentRegistry[pubId] = rent.contentId;
-
+        drm.grantCustodial(rent.contentId, rent.distributor, rent.secured);
         // Store renting parameters
         _setPublicationRentSetting(rent, pubId);
         // TODO royalties NFT
@@ -211,44 +187,24 @@ contract RentModule is
         if (pricePerDay == 0) revert InvalidNotSupportedCurrency();
         // Calculate the total fees based on the price per day and the number of days
         uint256 total = pricePerDay * _days;
-
-        IRightsManager drm = IRightsManager(drmAddress);
         uint256 contentId = contentRegistry[params.publicationActedId];
-        address distributorAddress = drm.getCustodial(contentId);
-        IDistributor distributor = IDistributor(distributorAddress);
-
-        // Get split % for distributor and treasury
-        uint256 treasurySplit = drm.getTreasuryFee(currency); // bps
-        //!IMPORTANT if distributor does not support the currency, will revert..
-        uint256 distSplit = distributor.getTreasuryFee(currency); // bps 
-        // Calculate the fees for the distributor, treasury and content owner
-        (
-            uint256 distriFees,
-            uint256 treasuryFees,
-            uint256 depositToOwner
-        ) = _calculateFees(total, distSplit, treasurySplit);
-
-        address owner = drm.ownerOf(contentId);
         address rentalWatcher = params.transactionExecutor;
+
         // hold rent time in module to later validate it in access control...
         rentRegistry[contentId][rentalWatcher] =
             Time.timestamp() +
             (_days * 1 days);
 
-        // Deposit the calculated amounts to the respective addresses
-        rentalWatcher.safeDeposit(owner, depositToOwner, currency);
-        rentalWatcher.safeDeposit(drmAddress, treasuryFees, currency);
-        rentalWatcher.safeDeposit(distributorAddress, distriFees, currency);
-
-        // The access condition is established here..
+        // The access proof is established here..
         T.AccessCondition memory cond = T.AccessCondition(
-            address(this),
-            // function(address, uint256) external view returns (bool);
-            this.approve.selector
+            address(this), // the witness who validates the access
+            this.approve.selector, // the function in the witness contract
+            currency, // the transaction currency
+            total // the transaction amount
         );
 
-        // Add access to content for N days to watcher..
-        drm.grantAccess(rentalWatcher, contentId, cond);
+        // Add access to content for N days to account..
+        IRightsManager(drmAddress).grantAccess(rentalWatcher, contentId, cond);
         // return the resulting data, the deadline..
         return abi.encode(rentRegistry[contentId][rentalWatcher], currency);
     }

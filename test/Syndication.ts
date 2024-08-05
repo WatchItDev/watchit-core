@@ -84,7 +84,6 @@ describe('Syndication', function () {
     })
   })
 
-
   describe("Treasury Impl", () => {
 
   })
