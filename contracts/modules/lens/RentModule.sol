@@ -4,17 +4,17 @@ pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/utils/types/Time.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "contracts/modules/interfaces/IPublicationActionModule.sol";
-import "contracts/modules/base/LensModuleMetadata.sol";
-import "contracts/modules/base/LensModuleRegistrant.sol";
-import "contracts/modules/base/HubRestricted.sol";
+import "contracts/modules/lens/interfaces/IPublicationActionModule.sol";
+import "contracts/modules/lens/base/LensModuleMetadata.sol";
+import "contracts/modules/lens/base/LensModuleRegistrant.sol";
+import "contracts/modules/lens/base/HubRestricted.sol";
+import "contracts/modules/lens/libraries/Types.sol";
 import "contracts/interfaces/IRepository.sol";
 import "contracts/interfaces/IAccessWitness.sol";
 import "contracts/interfaces/IDistributor.sol";
 import "contracts/interfaces/IRightsManager.sol";
 import "contracts/libraries/TreasuryHelper.sol";
 import "contracts/libraries/MathHelper.sol";
-import "contracts/modules/libraries/Types.sol";
 import "contracts/libraries/Types.sol";
 
 /**
@@ -203,6 +203,13 @@ contract RentModule is
             total // the transaction amount
         );
 
+        // TODO aqui se podria agregar un hook?
+        // quizas tener hooks para que se pueda
+        // establecer acciones sobre las operaciones
+        // sobre el contenido, como "rewards for rent in X token"
+        // rewardsType = module(feeDistribution, token) o un metodo en library
+
+        //TODO emit event here
         // Add access to content for N days to account..
         IRightsManager(drmAddress).grantAccess(rentalWatcher, contentId, cond);
         return abi.encode(rentRegistry[contentId][rentalWatcher], currency);

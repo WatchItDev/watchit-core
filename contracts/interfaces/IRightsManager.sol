@@ -1,16 +1,18 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import "./ITreasury.sol";
 import "./ITreasurer.sol";
+import "./IDisburser.sol";
+import "./IFeesManager.sol";
 import "./IRightsOwnership.sol";
 import "./IRightsCustodial.sol";
 import "./IRightsAccessController.sol";
 import "./IContentVault.sol";
 
 interface IRightsManager is
-    ITreasury,
     ITreasurer,
+    IFeesManager,
+    IDisburser,
     IContentVault,
     IRightsOwnership,
     IRightsCustodial,

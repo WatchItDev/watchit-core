@@ -12,7 +12,7 @@ import "contracts/interfaces/ITreasurer.sol";
 abstract contract TreasurerUpgradeable is Initializable, ITreasurer {
     /// @custom:storage-location erc7201:treasurerupgradeable
     struct TreasurerStorage {
-        address _treasure;
+        address _treasury;
     }
 
     bytes32 private constant GOB_ROLE = keccak256("GOB_ROLE");
@@ -35,6 +35,9 @@ abstract contract TreasurerUpgradeable is Initializable, ITreasurer {
         }
     }
 
+    /// @notice Function to receive native coin.
+    receive() external payable {}
+
     /// @notice Initializes the treasurer with the given address.
     /// @param treasureAddress The address of the treasury.
     function __Treasurer_init(
@@ -55,7 +58,7 @@ abstract contract TreasurerUpgradeable is Initializable, ITreasurer {
     /// @param newTreasuryAddress The new address of the treasury.
     function _setTreasuryAddress(address newTreasuryAddress) internal {
         TreasurerStorage storage $ = _getTreasurerStorage();
-        $._treasure = newTreasuryAddress;
+        $._treasury = newTreasuryAddress;
     }
 
     /// @inheritdoc ITreasurer
@@ -63,6 +66,6 @@ abstract contract TreasurerUpgradeable is Initializable, ITreasurer {
     /// @return The address of the treasury.
     function getTreasuryAddress() public view returns (address) {
         TreasurerStorage storage $ = _getTreasurerStorage();
-        return $._treasure;
+        return $._treasury;
     }
 }

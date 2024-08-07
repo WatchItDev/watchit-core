@@ -11,14 +11,21 @@ library T {
         SYNDICATION, // Syndication contract
         TREASURY, // Treasury contract
         REFERENDUM, // Content referendum
-        DRM // Digital Rights Management contract
+        DRM, // Digital Rights Management contract
+        WVC
     }
 
+    /// @notice Represents the conditions required for accessing specific content.
+    /// @dev This struct holds various parameters that define the access conditions.
+    /// @param witnessAddress The address of the witness contract that validates the access.
+    /// @param witnessSelector The function selector to call on the witness contract for validation.
+    /// @param txCurrency The address of the token or currency used for the transaction.
+    /// @param txAmount The amount of the transaction required to satisfy the access condition.
     struct AccessCondition {
         address witnessAddress;
         bytes4 witnessSelector;
-        address txCurrency; // currency transaction
-        uint256 txAmount; // amount of transaction
+        address txCurrency; 
+        uint256 txAmount;
     }
 
     /**

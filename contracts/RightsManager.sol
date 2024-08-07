@@ -9,7 +9,7 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import "contracts/base/upgradeable/QuorumUpgradeable.sol";
-import "contracts/base/upgradeable/TreasuryUpgradeable.sol";
+import "contracts/base/upgradeable/FeesManagerUpgradeable.sol";
 import "contracts/base/upgradeable/TreasurerUpgradeable.sol";
 import "contracts/base/upgradeable/CurrencyManagerUpgradeable.sol";
 import "contracts/base/upgradeable/GovernableUpgradeable.sol";
@@ -31,8 +31,8 @@ import "contracts/libraries/Types.sol";
 contract RightsManager is
     Initializable,
     UUPSUpgradeable,
+    FeesManagerUpgradeable,
     GovernableUpgradeable,
-    TreasuryUpgradeable,
     TreasurerUpgradeable,
     ContentVaultUpgradeable,
     ReentrancyGuardUpgradeable,
@@ -52,7 +52,6 @@ contract RightsManager is
 
     address private syndication;
     address private referendum;
-    address private immutable __self = address(this);
     // This role is granted to any holder representant trusted module. eg: Lens, Farcaster, etc.
     bytes32 private constant OP_ROLE = keccak256("OP_ROLE");
 
@@ -94,7 +93,7 @@ contract RightsManager is
             T.ContractTypes.TREASURY
         );
 
-        __Treasury_init(initialFee, address(0));
+        __Fees_init(initialFee, address(0));
         __Treasurer_init(initialTreasuryAddress);
     }
 
@@ -178,25 +177,25 @@ contract RightsManager is
         _;
     }
 
-    /// @inheritdoc ITreasury
+    /// @inheritdoc IFeesManager
     /// @notice Sets a new treasury fee for a specific token.
     /// @param newTreasuryFee The new fee amount to be set.
     /// @param token The address of the token for which the fee is to be set.
-    function setTreasuryFee(
+    function setFees(
         uint256 newTreasuryFee,
         address token
     ) public onlyGov onlyBasePointsAllowed(newTreasuryFee) {
-        _setTreasuryFee(newTreasuryFee, token);
+        _setFees(newTreasuryFee, token);
         _addCurrency(token);
     }
 
-    /// @inheritdoc ITreasury
+    /// @inheritdoc IFeesManager
     /// @notice Sets a new treasury fee for the native token.
     /// @param newTreasuryFee The new fee amount to be set.
-    function setTreasuryFee(
+    function setFees(
         uint256 newTreasuryFee
     ) public onlyGov onlyBasePointsAllowed(newTreasuryFee) {
-        _setTreasuryFee(newTreasuryFee, address(0));
+        _setFees(newTreasuryFee, address(0));
         _addCurrency(address(0));
     }
 
@@ -208,23 +207,25 @@ contract RightsManager is
         _setTreasuryAddress(newTreasuryAddress);
     }
 
-    /// @inheritdoc ITreasurer
-    /// @notice Collects funds of a specific token from the contract and sends them to the treasury.
+    /// @inheritdoc IDisburser
+    /// @notice Withdraw funds of a specific token from the contract and sends them to the treasury.
     /// @param token The address of the token.
-    /// @dev Only callable by an admin.
-    function collectFunds(address token) public onlyAdmin {
+    /// @param amount The amount of tokens to withdraw.
+    /// @dev Only callable by governance.
+    function withdraw(uint256 amount, address token) public onlyGov {
         // collect native token and send it to treasury
-        address treasure = getTreasuryAddress();
-        treasure.disburst(__self.balanceOf(token));
+        address treasury = getTreasuryAddress();
+        treasury.disburst(amount, token);
     }
 
-    /// @inheritdoc ITreasurer
-    /// @notice Collects funds from the contract and sends them to the treasury.
-    /// @dev Only callable by an admin.
-    function collectFunds() public onlyAdmin {
+    /// @inheritdoc IDisburser
+    /// @notice Withdraw funds from the contract and sends them to the treasury.
+    /// @param amount The amount of coins to withdraw.
+    /// @dev Only callable by governance.
+    function withdraw(uint256 amount) public onlyGov {
         // collect native token and send it to treasury
         address treasure = getTreasuryAddress();
-        treasure.disburst(__self.balanceOf());
+        treasure.disburst(amount);
     }
 
     /// @inheritdoc IRightsManager
@@ -292,10 +293,8 @@ contract RightsManager is
         address owner = ownerOf(contentId);
         address custodial = getCustodial(contentId);
         //!IMPORTANT if distributor or trasury does not support the currency, will revert..
-        uint256 treasurySplit = getTreasuryFee(condition.txCurrency); // bps
-        uint256 distSplit = ITreasury(custodial).getTreasuryFee(
-            condition.txCurrency
-        ); // bps
+        uint256 treasurySplit = getFees(condition.txCurrency); // bps
+        uint256 distSplit = IFeesManager(custodial).getFees(condition.txCurrency); // bps
 
         // get treasure fees and subtract from transaction amount
         uint256 treasuryFees = condition.txAmount.perOf(treasurySplit);

@@ -2,17 +2,15 @@
 // NatSpec format convention - https://docs.soliditylang.org/en/v0.5.10/natspec-format.html
 pragma solidity ^0.8.24;
 
-import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
-import "@openzeppelin/contracts/utils/Address.sol";
 
 import "contracts/base/upgradeable/GovernableUpgradeable.sol";
 import "contracts/base/upgradeable/QuorumUpgradeable.sol";
 import "contracts/base/upgradeable/TreasurerUpgradeable.sol";
-import "contracts/base/upgradeable/TreasuryUpgradeable.sol";
+import "contracts/base/upgradeable/FeesManagerUpgradeable.sol";
 
 import "contracts/libraries/Types.sol";
 import "contracts/interfaces/IRepository.sol";
@@ -31,7 +29,7 @@ contract Syndication is
     ReentrancyGuardUpgradeable,
     QuorumUpgradeable,
     TreasurerUpgradeable,
-    TreasuryUpgradeable,
+    FeesManagerUpgradeable,
     ISyndicatable
 {
     using MathHelper for uint256;
@@ -65,6 +63,7 @@ contract Syndication is
     /// @notice Event emitted when an entity is revoked.
     /// @param distributor The address of the revoked entity.
     event Revoked(address indexed distributor);
+    event FeesDisbursed(address indexed treasury, uint256 amount);
 
     /// @dev Constructor that disables initializers to prevent the implementation contract from being initialized.
     /// @notice This constructor prevents the implementation contract from being initialized.
@@ -106,7 +105,7 @@ contract Syndication is
         );
 
         // initially flat fees in native coin
-        __Treasury_init(initialFee, address(0));
+        __Fees_init(initialFee, address(0));
         __Treasurer_init(initialTreasuryAddress);
         _grantRole(DEFAULT_ADMIN_ROLE, _msgSender());
     }
@@ -138,11 +137,11 @@ contract Syndication is
         penaltyRate = newPenaltyRate;
     }
 
-    /// @inheritdoc ITreasury
+    /// @inheritdoc IFeesManager
     /// @notice Sets a new treasury fee.
     /// @param newTreasuryFee The new treasury flat fee to be set.
-    function setTreasuryFee(uint256 newTreasuryFee) public onlyGov {
-        _setTreasuryFee(newTreasuryFee, address(0));
+    function setFees(uint256 newTreasuryFee) public onlyGov {
+        _setFees(newTreasuryFee, address(0));
     }
 
     /// @inheritdoc ITreasurer
@@ -153,14 +152,17 @@ contract Syndication is
         _setTreasuryAddress(newTreasuryAddress);
     }
 
-    /// @inheritdoc ITreasurer
-    /// @notice Collects funds from the contract and sends them to the treasury.
-    /// @dev Only callable by an admin.
-    function collectFunds() public onlyAdmin {
+    /// @inheritdoc IDisburser
+    /// @notice Withdraw funds from the contract and sends them to the treasury.
+    /// @param amount The amount of coins to withdraw.
+    /// @dev Only callable by governance.
+    function withdraw(uint256 amount) public onlyGov {
         // collect native token and send it to treasury
-        address treasure = getTreasuryAddress();
-        treasure.disburst(address(this).balanceOf());
+        address treasury = getTreasuryAddress();
+        treasury.disburst(amount); // sent..
+        emit FeesDisbursed(treasury, amount);
     }
+
     /// @inheritdoc IRegistrableVerifiable
     /// @notice Checks if the entity is active.
     /// @dev This function verifies the active status of the distributor.
@@ -200,7 +202,7 @@ contract Syndication is
     function register(
         address distributor
     ) public payable validContractOnly(distributor) {
-        if (msg.value < getTreasuryFee(address(0)))
+        if (msg.value < getFees(address(0)))
             revert FailDuringEnrollment("Invalid fee amount");
 
         // the contract manager;
@@ -257,18 +259,19 @@ contract Syndication is
         emit Approved(distributor);
     }
 
-    /// @inheritdoc ITreasury
+    /// @inheritdoc IFeesManager
     /// @notice Sets a new treasury fee for a specific token.
     /// @param newTreasuryFee The new treasury fee to be set.
     /// @param token The address of the token.
-    function setTreasuryFee(
+    function setFees(
         uint256 newTreasuryFee,
         address token
     ) public override onlyGov {}
 
-    /// @inheritdoc ITreasurer
-    /// @notice Collects funds of a specific token from the contract and sends them to the treasury.
+    /// @inheritdoc IDisburser
+    /// @notice Withdraw funds of a specific token from the contract and sends them to the treasury.
     /// @param token The address of the token.
+    /// @param amount The amount of tokens to withdraw.
     /// @dev Only callable by an admin.
-    function collectFunds(address token) public onlyAdmin {}
+    function withdraw(uint256 amount, address token) public onlyAdmin {}
 }

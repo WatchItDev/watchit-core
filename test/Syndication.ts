@@ -1,5 +1,6 @@
 import hre from 'hardhat'
 import { expect } from 'chai'
+import type * as ethers from 'ethers'
 
 import { deployDistributorFactory, commitRegister, attachBeaconDistributorContract } from './helpers/DistributorHelper'
 import { deployPopulatedRepository } from './helpers/RepositoryHelper'
@@ -25,7 +26,7 @@ async function deployDistributor() {
   return [beaconProxyAddress, beaconProxyDistributorContract]
 }
 
-async function getSyndicatableFakeGovernor() {
+async function deploySyndicationWithFakeGovernor() {
   const [owner] = await getAccounts()
   const [syndication] = await switcher(deployInitializedSyndication)
 
@@ -39,17 +40,10 @@ async function getSyndicatableFakeGovernor() {
 
 
 // helper function to approve a distributor by "governance"
-async function syndicationWithGovernance() {
-  const [owner] = await getAccounts()
+async function deploySyndicationWithRegisteredDistributor() {
   const fees = hre.ethers.parseUnits('0.3', 'ether')
   const [distributorAddress, distributorContract] = await switcher(deployDistributor)
-  const [syndication] = await switcher(deployInitializedSyndication)
-
-  // !IMPORTANT the approval is only allowed for governance
-  // A VALID GOVERNOR IS SET IN A REAL USE CASE..
-  // eg: https://docs.openzeppelin.com/contracts/4.x/api/governance#GovernorTimelockControl
-  // set the owner address as governor for test purposes..
-  await (await syndication.setGovernance(owner.address)).wait()
+  const syndication = await deploySyndicationWithFakeGovernor();
   // register account and approve by "governance" 
   await (await syndication.register(distributorAddress, { value: fees })).wait()
   return [syndication, distributorContract, distributorAddress];
@@ -72,7 +66,7 @@ describe('Syndication', function () {
       const expectedFees = hre.ethers.parseUnits('0.3', 'ether')
       const [syndication] = await switcher(deployInitializedSyndication)
       // hre.ethers.ZeroAddress means native coin..
-      const initialFees = await syndication.getTreasuryFee(hre.ethers.ZeroAddress)
+      const initialFees = await syndication.getFees(hre.ethers.ZeroAddress)
       expect(initialFees).to.be.equal(expectedFees)
     })
   })
@@ -81,13 +75,13 @@ describe('Syndication', function () {
   describe('Penalty Rate', function () {
 
     it('Should set the penalty rate successfully', async () => {
-      const syndication = await getSyndicatableFakeGovernor()
+      const syndication = await deploySyndicationWithFakeGovernor()
       await syndication.setPenaltyRate(1500) // 15% nominal = 1500 bps
       expect(await syndication.penaltyRate()).to.be.equal(1500) // 15% nominal = 1500 bps
     })
 
     it('Should fail setting penalty rate if is not a base points', async () => {
-      const syndication = await getSyndicatableFakeGovernor()
+      const syndication = await deploySyndicationWithFakeGovernor()
       // min = 1 = 0.01; max = 10_000 = 100%
       await expect(syndication.setPenaltyRate(10_001)).to.revertedWithCustomError(syndication, 'InvalidBasisPointRange')
       await expect(syndication.setPenaltyRate(0)).to.revertedWithCustomError(syndication, 'InvalidBasisPointRange')
@@ -102,11 +96,52 @@ describe('Syndication', function () {
   })
 
   describe("Treasury Impl", () => {
+    it('Should set the native token treasury fee successfully.', async function () {
+      const nativeToken = hre.ethers.ZeroAddress // zero address means native
+      const fees = hre.ethers.parseUnits('0.3', 'ether') // expected fees paid in contract..
+      const syndication = await deploySyndicationWithFakeGovernor()
+      await(await syndication.setFees(fees)).wait()
+      expect(await syndication.getFees(nativeToken)).to.be.equal(fees);
+    })
 
+    it('Should not support additional token in treasury fees.', async function () {
+      const [sampleTestAddress,] = await getAccounts()
+      const fees = hre.ethers.parseUnits('0.3', 'ether') // expected fees paid in contract..
+      const syndication = await deploySyndicationWithFakeGovernor()
+      // https://github.com/ethers-io/ethers.js/issues/407
+      // here is not expected to use an "EOA" address, but we don't expect ERC20 tokens for syndication treasury..
+      await(await syndication["setFees(uint256, address)"](fees, sampleTestAddress)).wait()
+      await expect(syndication.getFees(sampleTestAddress)).to.revertedWithCustomError(
+        syndication, 'InvalidUnsupportedToken'
+      )
+    })
   })
 
   describe("Treasurer Impl", () => {
+    it('Should set the treasury address successfully.', async function () {
+      const [sampleTestAddress,] = await getAccounts()
+      // only governance can do this..
+      const syndication = await deploySyndicationWithFakeGovernor()
+      await(await syndication.setTreasuryAddress(sampleTestAddress)).wait()
+      expect(await syndication.getTreasuryAddress()).to.be.equal(sampleTestAddress);
+    })
 
+    it('Should collect funds and send them to treasury address successfully.', async function () {
+      // the fees paid during registration. 
+      // check in deploySyndicationWithRegisteredDistributor for more..
+      const fees = hre.ethers.parseUnits('0.3', 'ether')
+      const [syndication,] = await deploySyndicationWithRegisteredDistributor()
+      // only governance can do this..
+      await(await syndication.withdraw(fees)).wait()
+
+      const treasuryAddress = await syndication.getTreasuryAddress()
+      const filter = syndication.filters.FeesDisbursed()
+      const events = await syndication.queryFilter(filter)
+      const lastEvent = events.pop() as ethers.EventLog
+
+      expect(lastEvent.args[0]).to.be.equal(treasuryAddress);
+      expect(lastEvent.args[1]).to.be.equal(fees);
+    })
   })
 
   describe('Register', function () {
@@ -270,25 +305,25 @@ describe('Syndication', function () {
   describe('Approve', function () {
 
     it('Should emit Approved event after approve successfully.', async function () {
-      const [syndication, , distributorAddress] = await syndicationWithGovernance()
+      const [syndication, , distributorAddress] = await deploySyndicationWithRegisteredDistributor()
       expect(await syndication.approve(distributorAddress)).to.emit(syndication, 'Approved')
     })
 
     it('Should set zero enrollment fees after approval.', async function () {
-      const [syndication, distributorContract, distributorAddress] = await syndicationWithGovernance()
+      const [syndication, distributorContract, distributorAddress] = await deploySyndicationWithRegisteredDistributor()
       await (await syndication.approve(distributorAddress)).wait()
       const manager = await distributorContract.getManager()
       expect(await syndication.enrollmentFees(manager)).to.equal(0)
     })
 
     it('Should set valid active state after approval.', async function () {
-      const [syndication, , distributorAddress] = await syndicationWithGovernance()
+      const [syndication, , distributorAddress] = await deploySyndicationWithRegisteredDistributor()
       await (await syndication.approve(distributorAddress)).wait()
       expect(await syndication.isActive(distributorAddress)).to.be.true
     })
 
     it('Should increment the enrollment count successfully.', async function () {
-      const [syndication, , distributorAddress] = await syndicationWithGovernance()
+      const [syndication, , distributorAddress] = await deploySyndicationWithRegisteredDistributor()
 
       const prevCount = await syndication.enrollmentsCount()
       await (await syndication.approve(distributorAddress)).wait()
@@ -298,13 +333,13 @@ describe('Syndication', function () {
 
   describe('Revoke', function () {
     it('Should emit Revoked event after revoked successfully.', async function () {
-      const [syndication, , distributorAddress] = await syndicationWithGovernance()
+      const [syndication, , distributorAddress] = await deploySyndicationWithRegisteredDistributor()
       await (await syndication.approve(distributorAddress)).wait()
       expect(await syndication.revoke(distributorAddress)).to.emit(syndication, 'Revoked')
     })
 
     it('Should set valid revoked state after approval.', async function () {
-      const [syndication, , distributorAddress] = await syndicationWithGovernance()
+      const [syndication, , distributorAddress] = await deploySyndicationWithRegisteredDistributor()
       await (await syndication.approve(distributorAddress)).wait()
       await (await syndication.revoke(distributorAddress)).wait()
       expect(await syndication.isBlocked(distributorAddress)).to.be.true

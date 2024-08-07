@@ -3,17 +3,16 @@
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "contracts/interfaces/ITreasury.sol";
+import "contracts/interfaces/IFeesManager.sol";
 import "contracts/libraries/MathHelper.sol";
 
 /**
- * @dev Abstract contract for managing treasury funds.
- * It inherits from Initializable and ITreasury interfaces.
+ * @dev Abstract contract for managing fee funds.
+ * It inherits from Initializable and IFeesManager interfaces.
  */
-abstract contract TreasuryUpgradeable is Initializable, ITreasury {
-    /// @custom:storage-location erc7201:treasuryupgradeable
-    struct TreasuryStorage {
-        // one use cosa for token fee = 0 and supported = true could be the free content..
+abstract contract FeesManagerUpgradeable is Initializable, IFeesManager {
+    /// @custom:storage-location erc7201:feesupgradeable
+    struct FeesStorage {
         mapping(address => uint256) _tokenFees;
         mapping(address => bool) _tokenSupported;
     }
@@ -27,48 +26,48 @@ abstract contract TreasuryUpgradeable is Initializable, ITreasury {
     error InvalidNominalRange();
 
     // ERC-7201: Namespaced Storage Layout is another convention that can be used to avoid storage layout errors
-    // keccak256(abi.encode(uint256(keccak256("watchit.treasury.tokenfees")) - 1)) & ~bytes32(uint256(0xff))
-    bytes32 private constant TREASURY_SLOT =
+    // keccak256(abi.encode(uint256(keccak256("watchit.fees.tokenfees")) - 1)) & ~bytes32(uint256(0xff))
+    bytes32 private constant FEES_SLOT =
         0x87da7b105ee6d8640c69f620aa1ac0a4cea27ca8bc07f4213d3776b156a65a00;
 
     /**
-     * @notice Internal function to get the treasury storage.
-     * @return $ The treasury storage.
+     * @notice Internal function to get the fees storage.
+     * @return $ The fees storage.
      */
-    function _getTreasuryStorage()
+    function _getFeesStorage()
         private
         pure
-        returns (TreasuryStorage storage $)
+        returns (FeesStorage storage $)
     {
         assembly {
-            $.slot := TREASURY_SLOT
+            $.slot := FEES_SLOT
         }
     }
 
-    /// @notice Initializes the treasury with the given initial fee and token.
-    /// @param initialFee The initial fee for the treasury.
+    /// @notice Initializes the fees with the given initial fee and token.
+    /// @param initialFee The initial fee for the fees.
     /// @param token The address of the token.
-    function __Treasury_init(
+    function __Fees_init(
         uint256 initialFee,
         address token
     ) internal onlyInitializing {
-        __Treasury_init_unchained(initialFee, token);
+        __Fees_init_unchained(initialFee, token);
     }
 
-    /// @notice Unchained initializer for the treasury with the given initial fee and token.
-    /// @param initialFee The initial fee for the treasury.
+    /// @notice Unchained initializer for the fees with the given initial fee and token.
+    /// @param initialFee The initial fee for the fees.
     /// @param token The address of the token.
-    function __Treasury_init_unchained(
+    function __Fees_init_unchained(
         uint256 initialFee,
         address token
     ) internal onlyInitializing {
-        _setTreasuryFee(initialFee, token);
+        _setFees(initialFee, token);
     }
 
     /// @notice Modifier to ensure only supported tokens are used.
     /// @param token The address of the token to check.
     modifier onlySupportedToken(address token) {
-        TreasuryStorage storage $ = _getTreasuryStorage();
+        FeesStorage storage $ = _getFeesStorage();
         // fees == 0 is default for uint256.
         // address(0) is equivalent to native token if fees > 0
         if (!$._tokenSupported[token]) revert InvalidUnsupportedToken(token);
@@ -93,30 +92,30 @@ abstract contract TreasuryUpgradeable is Initializable, ITreasury {
         _;
     }
 
-    /// @inheritdoc ITreasury
-    /// @notice Gets the treasury fee for the specified token.
+    /// @inheritdoc IFeesManager
+    /// @notice Gets the fees fee for the specified token.
     /// @dev This method could return a basis points (bps) fee or a flat fee depending on the context of use.
-    /// @param token The address of the token for which to retrieve the treasury fee.
-    /// @return uint256 The treasury fee for the specified token.
-    function getTreasuryFee(
+    /// @param token The address of the token for which to retrieve the fees fee.
+    /// @return uint256 The fees fee for the specified token.
+    function getFees(
         address token
     ) public view override onlySupportedToken(token) returns (uint256) {
-        TreasuryStorage storage $ = _getTreasuryStorage();
+        FeesStorage storage $ = _getFeesStorage();
         return $._tokenFees[token];
     }
 
-    /// @notice Sets a new treasury fee.
+    /// @notice Sets a new fees fee.
     /// @dev Sets the fee for a specific token or native currency.
     /// Depending on the context, the fee could be in basis points (bps) or a flat fee.
-    /// @param newTreasuryFee The new treasury fee to set.
+    /// @param newFeesFee The new fees fee to set.
     /// @param token The token to associate fees with. Use address(0) for the native token.
     /// @notice Only the owner can call this function.
-    function _setTreasuryFee(
-        uint256 newTreasuryFee,
+    function _setFees(
+        uint256 newFeesFee,
         address token
     ) internal virtual {
-        TreasuryStorage storage $ = _getTreasuryStorage();
-        $._tokenFees[token] = newTreasuryFee;
+        FeesStorage storage $ = _getFeesStorage();
+        $._tokenFees[token] = newFeesFee;
         $._tokenSupported[token] = true;
     }
 }

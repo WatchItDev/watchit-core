@@ -3,24 +3,26 @@
 pragma solidity ^0.8.24;
 
 import "./ITreasurer.sol";
-import "./ITreasury.sol";
+import "./IDisburser.sol";
+import "./IFeesManager.sol";
 import "./IRegistrable.sol";
 import "./IRegistrableRevokable.sol";
 import "./IRegistrableVerifiable.sol";
 
 /// @title Content Syndication Interface
 /// @notice This interface spec all distribution logic needed for creators and distributors.
-/// @dev This interface extends ITreasurer, ITreasury, and IRegistrable interfaces.
+/// @dev This interface extends ITreasurer, IFeesManager, and IRegistrable interfaces.
 interface ISyndicatable is
     ITreasurer,
-    ITreasury,
+    IDisburser,
     IRegistrable,
+    IFeesManager,
     IRegistrableRevokable,
     IRegistrableVerifiable
 {
     /// @notice Function to set the penalty rate for quitting enrollment.
     /// @param newPenaltyRate The new penalty rate to be set. It should be a value representing base points (bps).
-    /// @dev The penalty rate is represented as base points (expressed as a uint256) 
+    /// @dev The penalty rate is represented as base points (expressed as a uint256)
     /// That will be applied to the enrollment fee when a distributor quits.
     function setPenaltyRate(uint256 newPenaltyRate) external;
 }

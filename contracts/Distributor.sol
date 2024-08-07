@@ -6,7 +6,7 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 import "contracts/base/upgradeable/CurrencyManagerUpgradeable.sol";
-import "contracts/base/upgradeable/TreasuryUpgradeable.sol";
+import "contracts/base/upgradeable/FeesManagerUpgradeable.sol";
 import "contracts/libraries/TreasuryHelper.sol";
 import "contracts/interfaces/IDistributor.sol";
 
@@ -20,7 +20,7 @@ contract Distributor is
     Initializable,
     ERC165Upgradeable,
     OwnableUpgradeable,
-    TreasuryUpgradeable,
+    FeesManagerUpgradeable,
     CurrencyManagerUpgradeable,
     IDistributor
 {
@@ -48,7 +48,7 @@ contract Distributor is
         __ERC165_init();
         __Ownable_init(_owner);
         __CurrencyManager_init();
-        __Treasury_init(1, address(0));
+        __Fees_init(1, address(0));
 
         if (bytes(_endpoint).length == 0) revert InvalidEndpoint();
         endpoint = _endpoint;
@@ -80,25 +80,25 @@ contract Distributor is
         emit EndpointUpdated(oldEndpoint, _endpoint);
     }
 
-    /// @inheritdoc ITreasury
+    /// @inheritdoc IFeesManager
     /// @notice Sets a new treasury fee for a specific token.
     /// @param newTreasuryFee The new fee expresed as base points to be set.
     /// @param token The address of the token for which the fee is to be set.
-    function setTreasuryFee(
+    function setFees(
         uint256 newTreasuryFee,
         address token
     ) public onlyOwner onlyBasePointsAllowed(newTreasuryFee) {
-        _setTreasuryFee(newTreasuryFee, token);
+        _setFees(newTreasuryFee, token);
         _addCurrency(token);
     }
 
-    /// @inheritdoc ITreasury
+    /// @inheritdoc IFeesManager
     /// @notice Sets a new treasury fee for the native token.
     /// @param newTreasuryFee The new fee expresed as base points to be set.
-    function setTreasuryFee(
+    function setFees(
         uint256 newTreasuryFee
     ) public onlyOwner onlyBasePointsAllowed(newTreasuryFee) {
-        _setTreasuryFee(newTreasuryFee, address(0));
+        _setFees(newTreasuryFee, address(0));
         _addCurrency(address(0));
     }
 
@@ -130,6 +130,4 @@ contract Distributor is
             super.supportsInterface(interfaceId);
     }
 
-    // Reserved space for future storage variables to prevent storage conflicts in upgrades
-    uint256[50] private __gap;
 }
