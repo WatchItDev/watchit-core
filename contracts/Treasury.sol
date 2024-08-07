@@ -9,7 +9,8 @@ import "contracts/interfaces/IFeesManager.sol";
 import "contracts/interfaces/IDisburser.sol";
 
 /// @title Treasury Contract
-/// @dev This contract is designed to manage funds and token transfers, and it implements upgradeable features using UUPS proxy pattern.
+/// @dev This contract is designed to manage funds and token transfers,
+/// and it implements upgradeable features using UUPS proxy pattern.
 contract Treasury is
     Initializable,
     UUPSUpgradeable,
