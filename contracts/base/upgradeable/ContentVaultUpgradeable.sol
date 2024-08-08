@@ -45,10 +45,10 @@ abstract contract ContentVaultUpgradeable is Initializable, IContentVault {
     /// @param contentId The identifier of the content.
     /// @param encryptedContent The encrypted content to store.
     /// @dev This function allows storing any secured data as bytes, enabling dynamic secure data storage.
-    /// For example: LIT ciphertext:hash combination, public key encrypted data, shared key encrypted data, etc.
+    /// For example: LIT chain.ciphertext.dataToEncryptHash combination, public key encrypted data, shared key encrypted data, etc.
     function _secureContent(
         uint256 contentId,
-        bytes calldata encryptedContent
+        bytes memory encryptedContent
     ) internal {
         VaultStorage storage $ = _getVaultStorage();
         $._secured[contentId] = encryptedContent;
