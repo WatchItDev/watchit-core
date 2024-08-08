@@ -19,5 +19,6 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
       - run: make test
+      - run: make testfy # internal tests
 
   

@@ -6,12 +6,23 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 /**
  * @title QuorumUpgradeable
- * @dev Abstract contract for managing generic registration and status.
+ * @dev Abstract contract for managing registration status in a Finite State Machine (FSM).
+ * 
+ *   Default (0: Pending)
+ *      |
+ *      v
+ *   Register (1: Waiting)
+ *      |               \
+ *      v                v
+ *   Quit (0: Pending)  Approve (2: Active)
+ *                          |
+ *                          v
+ *                      Revoke (3: Blocked)
  */
 abstract contract QuorumUpgradeable is Initializable {
     /// @notice Enum to represent the status of an entity.
     enum Status {
-        Pending, // 0: The entity is pending approval
+        Pending, // 0: The entity is default pending approval
         Waiting, // 1: The entity is waiting for approval
         Active, // 2: The entity is active
         Blocked // 3: The entity is blocked
