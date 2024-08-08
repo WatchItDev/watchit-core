@@ -80,7 +80,7 @@ abstract contract CurrencyManagerUpgradeable is
 
     /// @notice Returns the list of supported currencies.
     /// @return An array of addresses of the supported currencies.
-    function supportedCurrencies() external view returns (address[] memory) {
+    function supportedCurrencies() public view returns (address[] memory) {
         CurrencyManagerStorage storage $ = _getCurrencyManagerStorage();
         return $._supportedCurrencies;
     }
