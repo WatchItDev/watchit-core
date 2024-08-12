@@ -2,19 +2,17 @@
 // NatSpec format convention - https://docs.soliditylang.org/en/v0.5.10/natspec-format.html
 pragma solidity ^0.8.24;
 
-import "@openzeppelin/contracts/utils/types/Time.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/types/Time.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "contracts/modules/lens/interfaces/IPublicationActionModule.sol";
 import "contracts/modules/lens/base/LensModuleMetadata.sol";
 import "contracts/modules/lens/base/LensModuleRegistrant.sol";
 import "contracts/modules/lens/base/HubRestricted.sol";
 import "contracts/modules/lens/libraries/Types.sol";
-import "contracts/interfaces/IRepository.sol";
 import "contracts/interfaces/IAccessWitness.sol";
-import "contracts/interfaces/IDistributor.sol";
 import "contracts/interfaces/IRightsManager.sol";
-import "contracts/libraries/TreasuryHelper.sol";
-import "contracts/libraries/MathHelper.sol";
 import "contracts/libraries/Types.sol";
 
 /**
@@ -31,8 +29,7 @@ contract RentModule is
     IAccessWitness,
     IPublicationActionModule
 {
-    using MathHelper for uint256;
-    using TreasuryHelper for address;
+    using SafeERC20 for IERC20;
 
     // Custom errors for specific failure cases
     error InvalidExistingContentPublication();
@@ -41,6 +38,7 @@ contract RentModule is
 
     // Address of the Digital Rights Management (DRM) contract
     address private immutable drmAddress;
+    address private immutable wvcAddress;
     // Mapping from publication ID to content ID
     mapping(uint256 => uint256) contentRegistry;
     mapping(uint256 => mapping(address => uint256)) rentRegistry;
@@ -65,6 +63,7 @@ contract RentModule is
         // Get the registered DRM contract from the repository
         IRepository repo = IRepository(repository);
         drmAddress = repo.getContract(T.ContractTypes.DRM);
+        wvcAddress = repo.getContract(T.ContractTypes.WVC);
     }
 
     /**
@@ -197,10 +196,8 @@ contract RentModule is
 
         // The access proof is established here..
         T.AccessCondition memory cond = T.AccessCondition(
-            address(this), // the witness who validates the access
-            this.approve.selector, // the function in the witness contract
-            currency, // the transaction currency
-            total // the transaction amount
+            T.Witness(address(this), this.approve.selector), // the function in the witness contract to approve the access
+            T.Fees(currency, total) // the transaction amount and currency
         );
 
         // TODO aqui se podria agregar un hook?
@@ -208,8 +205,14 @@ contract RentModule is
         // establecer acciones sobre las operaciones
         // sobre el contenido, como "rewards for rent in X token"
         // rewardsType = module(feeDistribution, token) o un metodo en library
+        // https://docs.openzeppelin.com/contracts/4.x/api/finance
 
-        //TODO emit event here
+        // We deposit the token amount as delegated rights handler.
+        // A previous approval should be done.
+        // https://www.lens.xyz/docs/primitives/collect/collectables#additional-options-erc-20-approvals
+        IERC20(currency).safeTransferFrom(rentalWatcher, address(this), total);
+        // add allowance to drm contract from delegated module.
+        IERC20(currency).safeIncreaseAllowance(drmAddress, total);
         // Add access to content for N days to account..
         IRightsManager(drmAddress).grantAccess(rentalWatcher, contentId, cond);
         return abi.encode(rentRegistry[contentId][rentalWatcher], currency);

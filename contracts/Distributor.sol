@@ -102,22 +102,6 @@ contract Distributor is
         _addCurrency(address(0));
     }
 
-    /// @inheritdoc IDisburser
-    /// @notice Withdraws the specified amount of native tokens from the contract.
-    /// @param amount The amount of native tokens to withdraw.
-    function withdraw(uint256 amount) public override onlyOwner {
-        // withdraw native token if supported
-        owner().disburst(amount);
-    }
-
-    /// @inheritdoc IDisburser
-    /// @notice Withdraws the specified amount of ERC20 tokens from the contract.
-    /// @param amount The amount of ERC20 tokens to withdraw.
-    /// @param token The address of the ERC20 token to withdraw.
-    function withdraw(uint256 amount, address token) public onlyOwner {
-        owner().disburst(amount, token);
-    }
-
     /// @inheritdoc IERC165
     /// @notice Checks if the contract supports a specific interface.
     /// @param interfaceId The interface identifier to check.

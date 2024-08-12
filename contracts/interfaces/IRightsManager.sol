@@ -2,8 +2,9 @@
 pragma solidity ^0.8.24;
 
 import "./ITreasurer.sol";
-import "./IDisburser.sol";
+import "./IFundsManager.sol";
 import "./IFeesManager.sol";
+import "./IDisburser.sol";
 import "./IRightsOwnership.sol";
 import "./IRightsCustodial.sol";
 import "./IRightsAccessController.sol";
@@ -11,8 +12,9 @@ import "./IContentVault.sol";
 
 interface IRightsManager is
     ITreasurer,
-    IFeesManager,
     IDisburser,
+    IFeesManager,
+    IFundsManager,
     IContentVault,
     IRightsOwnership,
     IRightsCustodial,

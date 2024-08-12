@@ -4,6 +4,7 @@ pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/utils/types/Time.sol";
 import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
@@ -20,6 +21,7 @@ import "contracts/base/upgradeable/extensions/RightsManagerDistributionUpgradeab
 import "contracts/interfaces/IRegistrableVerifiable.sol";
 import "contracts/interfaces/IReferendumVerifiable.sol";
 import "contracts/interfaces/IRightsManager.sol";
+import "contracts/interfaces/IDistributor.sol";
 import "contracts/interfaces/IRepository.sol";
 import "contracts/libraries/TreasuryHelper.sol";
 import "contracts/libraries/MathHelper.sol";
@@ -49,6 +51,11 @@ contract RightsManager is
     event GrantedAccess(address account, uint256 contentId);
     event RegisteredContent(uint256 contentId);
     event RevokedContent(uint256 contentId);
+    event FeesDisbursed(
+        address indexed treasury,
+        uint256 amount,
+        address token
+    );
 
     address private syndication;
     address private referendum;
@@ -208,24 +215,26 @@ contract RightsManager is
     }
 
     /// @inheritdoc IDisburser
-    /// @notice Withdraw funds of a specific token from the contract and sends them to the treasury.
-    /// @param token The address of the token.
-    /// @param amount The amount of tokens to withdraw.
-    /// @dev Only callable by governance.
-    function withdraw(uint256 amount, address token) public onlyGov {
-        // collect native token and send it to treasury
+    /// @notice Disburses tokens from the contract to a specified address.
+    /// @param amount The amount of tokens to disburse.
+    /// @param token The address of the ERC20 token to disburse tokens.
+    /// @dev This function can only be called by governance or an authorized entity.
+    function disburse(uint256 amount, address token) public onlyGov {
+        // collect tokens/coin token and send it to treasury
         address treasury = getTreasuryAddress();
-        treasury.disburst(amount, token);
+        treasury.disburse(amount, token);
+        emit FeesDisbursed(treasury, balance, token);
     }
 
     /// @inheritdoc IDisburser
-    /// @notice Withdraw funds from the contract and sends them to the treasury.
-    /// @param amount The amount of coins to withdraw.
-    /// @dev Only callable by governance.
-    function withdraw(uint256 amount) public onlyGov {
+    /// @notice Disburses tokens from the contract to a specified address.
+    /// @param amount The amount of tokens to disburse.
+    /// @dev This function can only be called by governance or an authorized entity.
+    function disburse(uint256 amount) public onlyGov {
         // collect native token and send it to treasury
         address treasure = getTreasuryAddress();
-        treasure.disburst(amount);
+        treasure.disburse(amount);
+        emit FeesDisbursed(treasury, amount, address(0));
     }
 
     /// @inheritdoc IRightsManager
@@ -276,39 +285,61 @@ contract RightsManager is
         emit GrantedCustodial(distributor, contentId);
     }
 
+    function _checkFeesCompletion(
+        address currency,
+        uint256 expectedFees,
+        address payee
+    ) internal pure returns (uint256) {
+        if (expectedFees == 0) revert;
+        // if currency is native coin then
+        if (currency == address(0)) {
+            if (msg.value < expectedFees) {
+                revert;
+            }
+        } else {
+            // expect the right amount allowed
+            if (payee.allowance(token) < expectedFees) revert;
+            payee.deposit(address(this), expectedFees, currency);
+        }
+
+        return fees;
+    }
+
     /// @inheritdoc IRightsAccessController
-    /// @notice Grants access to a specific account for a certain content ID for a given timeframe.
+    /// @notice Grants access to a specific account for a certain content ID for a given condition.
     /// @param account The address of the account.
     /// @param contentId The content ID to grant access to.
-    /// @param condition The proof to validate access.
+    /// @param condition The proof or conditions that validate access, including any required fees.
     function grantAccess(
         address account,
         uint256 contentId,
         T.AccessCondition calldata condition
-    ) public onlyRegisteredContent(contentId) onlyHolder(contentId) {
+    ) public payable onlyRegisteredContent(contentId) onlyHolder(contentId) {
         // in some cases the content or distributor could be revoked..
         if (!isEligibleForDistribution(contentId))
             revert InvalidNotAllowedContent();
 
         address owner = ownerOf(contentId);
         address custodial = getCustodial(contentId);
+        address currency = condition.fee.currency;
+        uint256 fees = condition.fee.amount;
+
+        // init the distributor current content custodial..
+        IDistributor distributor = IDistributor(custodial);
         //!IMPORTANT if distributor or trasury does not support the currency, will revert..
-        uint256 treasurySplit = getFees(condition.txCurrency); // bps
-        uint256 distSplit = IFeesManager(custodial).getFees(condition.txCurrency); // bps
-
-        // get treasure fees and subtract from transaction amount
-        uint256 treasuryFees = condition.txAmount.perOf(treasurySplit);
-        uint256 total = condition.txAmount - treasuryFees;
-
+        uint256 distSplit = distributor.getFees(currency); // bps
+        uint256 treasurySplit = getFees(currency); // bps
+        // The owner or delegated module must ensure that the necessary steps
+        // are taken to handle the transaction value or set the appropriate
+        // approve/allowance for the DRM (Digital Rights Management) contract.
+        _checkFeesCompletion(currency, fees, account);
         // the max bps integrity is warrantied by treasure fees only bps modifier
         uint256 distributorFees = total.perOf(distSplit);
-        uint256 depositToOwner = total - distributorFees;
-
-        // Deposit the calculated amounts to the respective addresses
-        account.safeDeposit(owner, depositToOwner, condition.txCurrency);
-        account.safeDeposit(custodial, distributorFees, condition.txCurrency);
-        account.safeDeposit(address(this), treasuryFees, condition.txCurrency);
-
+        uint256 ownerFees = total - distributorFees;
+        // a new value is added to ledger to 
+        // TODO withdraw
+        _sumLedgerEntry(owner, ownerFees, currency);
+        _sumLedgerEntry(distributor.getManager(), distributorFees, currency);
         _grantAccess(account, contentId, condition);
         emit GrantedAccess(account, contentId);
     }

@@ -13,6 +13,7 @@ abstract contract TreasurerUpgradeable is Initializable, ITreasurer {
     /// @custom:storage-location erc7201:treasurerupgradeable
     struct TreasurerStorage {
         address _treasury;
+        mapping(address => mapping(address => uint256)) _ledger;
     }
 
     bytes32 private constant GOB_ROLE = keccak256("GOB_ROLE");
@@ -35,9 +36,6 @@ abstract contract TreasurerUpgradeable is Initializable, ITreasurer {
         }
     }
 
-    /// @notice Function to receive native coin.
-    receive() external payable {}
-
     /// @notice Initializes the treasurer with the given address.
     /// @param treasureAddress The address of the treasury.
     function __Treasurer_init(
@@ -52,6 +50,68 @@ abstract contract TreasurerUpgradeable is Initializable, ITreasurer {
         address treasureAddress
     ) internal onlyInitializing {
         _setTreasuryAddress(treasureAddress);
+    }
+
+    /// @notice Internal function to store the token fees for account.
+    /// @param account The address of the account.
+    /// @param amount The amount to register to account.
+    /// @param token The token to register to account.
+    /// @dev This function is used to store the fees for acount.
+    function _setLedgerEntry(
+        address account,
+        uint256 amount,
+        address token
+    ) internal {
+        TreasurerStorage storage $ = _getTreasurerStorage();
+        $._ledger[account][token] = amount;
+    }
+
+    /// @notice Internal function to accumulate token fees for account.
+    /// @param account The address of the account.
+    /// @param amount The amount to register to account.
+    /// @param token The token to register to account.
+    /// @dev This function is used to store the fees for acount.
+    function _sumLedgerEntry(
+        address account,
+        uint256 amount,
+        address token
+    ) internal {
+        TreasurerStorage storage $ = _getTreasurerStorage();
+        $._ledger[account][token] += amount;
+    }
+
+    /// @notice Internal function to subtract token fees for account.
+    /// @param account The address of the account.
+    /// @param amount The amount to register to account.
+    /// @param token The token to register to account.
+    /// @dev This function is used to store the fees for acount.
+    function _subLedgerEntry(
+        address account,
+        uint256 amount,
+        address token
+    ) internal {
+        TreasurerStorage storage $ = _getTreasurerStorage();
+        $._ledger[account][token] -= amount;
+    }
+
+    /// @inheritdoc ITreasurer
+    /// @notice Retrieves the registered coins amoint for the specified account.
+    /// @param account The address of the account.
+    function getLedgerEntry(address account) public view returns (uint256) {
+        TreasurerStorage storage $ = _getTreasurerStorage();
+        return $._ledger[account][address(0)];
+    }
+
+    /// @inheritdoc ITreasurer
+    /// @notice Retrieves the registered token amount for the specified account.
+    /// @param account The address of the account.
+    /// @param token The token to retrieve ledger amount.
+    function getLedgerEntry(
+        address account,
+        address token
+    ) public view returns (uint256) {
+        TreasurerStorage storage $ = _getTreasurerStorage();
+        return $._ledger[account][token];
     }
 
     /// @notice Internal function to set the address of the treasury.

@@ -20,15 +20,19 @@ abstract contract RightsManagerContentAccessUpgradeable is
     bytes4 private constant INTERFACE_WITNESS_ACCESS =
         type(IAccessWitness).interfaceId;
 
+    // TODO namespace refactor
     /// @dev Error thrown when access control validation fails.
     /// @param contractAddress The address of the contract where validation failed.
     error InvalidAccessControlValidation(address contractAddress);
-
     /// @dev Error thrown when the witness contract does not implement the correct interface.
     error InvalidWitnessContract();
 
     /// @dev Mapping to store the access control list for each account and content hash.
-    mapping(uint256 => mapping(address => T.AccessCondition)) private acl;
+    mapping(uint256 => mapping(address => Witness )) private acl;
+    // The access to content can be delegated, so the owner can delegate "holding" rights.
+    // under specific conditions and admin the access to others account under that conditions.
+    // eg: you are allowed to handle X, Y, Z access conditions..
+    mapping(uint256 => mapping(address => T.AccessCondition)) private allowed;
 
     /// @dev Modifier to check that the witness contract implements the IAccessWitness interface.
     /// @param witness The address of the witness contract.
@@ -38,7 +42,7 @@ abstract contract RightsManagerContentAccessUpgradeable is
         _;
     }
 
-    /// @notice Grants access to a specific account for a certain content ID for a given timeframe.
+    /// @notice Grants access to a specific account for a certain content ID.
     /// @param account The address of the account.
     /// @param contentId The content ID to grant access to.
     /// @param condition The conditional access control.
@@ -46,9 +50,29 @@ abstract contract RightsManagerContentAccessUpgradeable is
         address account,
         uint256 contentId,
         T.AccessCondition calldata condition
-    ) internal validWitnessOnly(condition.witnessAddress) {
+    ) internal validWitnessOnly(condition.witness.contractAddress) {
         // Register the condition to validate access.
         acl[contentId][account] = condition;
+    }
+
+    /// @notice Grants delegate right to address under specific conditions.
+    /// @param delegate The address of the account.
+    /// @param contentId The content ID to grant access to.
+    /// @param condition The conditional access control.
+    function _delegateRights(
+        address delegate,
+        uint256 contentId,
+        T.AccessCondition calldata condition
+    ) internal validWitnessOnly(condition.witness.contractAddress) {
+        // Register the condition to validate access.
+        allowed[contentId][account] = condition;
+    }
+
+    function _hasDelegatedRights(
+        address delegate,
+        uint256 contentId
+        ){
+
     }
 
     /// @notice Checks if access is allowed for a specific account and content.
@@ -62,11 +86,11 @@ abstract contract RightsManagerContentAccessUpgradeable is
         // The approve method is called and executed according to the IAccessWitness spec.
         T.AccessCondition memory condition = acl[contentId][account];
         (bool success, bytes memory result) = condition
-            .witnessAddress
+            .witness.contractAddress
             // staticcall does not allow changing the state of the blockchain.
             .staticcall(
                 abi.encodeWithSelector(
-                    condition.witnessSelector,
+                    condition.witness.functionSelector,
                     account,
                     contentId
                 )
@@ -74,7 +98,7 @@ abstract contract RightsManagerContentAccessUpgradeable is
 
         if (!success)
             revert InvalidAccessControlValidation(
-                condition.witnessAddress
+                condition.witness.contractAddress
             );
         // Decode the expected result and return it.
         return abi.decode(result, (bool));

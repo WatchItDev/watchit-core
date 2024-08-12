@@ -39,9 +39,6 @@ contract Syndication is
     // 10% initial quitting penalization rate
     uint256 public penaltyRate;
     uint256 public enrollmentsCount;
-
-    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-    mapping(address => uint256) public enrollmentFees;
     bytes4 private constant INTERFACE_ID_IDISTRIBUTOR =
         type(IDistributor).interfaceId;
 
@@ -63,7 +60,11 @@ contract Syndication is
     /// @notice Event emitted when an entity is revoked.
     /// @param distributor The address of the revoked entity.
     event Revoked(address indexed distributor);
-    event FeesDisbursed(address indexed treasury, uint256 amount);
+    event FeesDisbursed(
+        address indexed treasury,
+        uint256 amount,
+        address token
+    );
 
     /// @dev Constructor that disables initializers to prevent the implementation contract from being initialized.
     /// @notice This constructor prevents the implementation contract from being initialized.
@@ -117,14 +118,6 @@ contract Syndication is
         address newImplementation
     ) internal override onlyAdmin {}
 
-    /// @notice Private function to store the enrollment fees for distributors.
-    /// @param manager The address of the contract manager (distributor).
-    /// @param amount The amount of Wei enrolled by the distributor.
-    /// @dev This function is used to store the enrollment fees for distributors.
-    function _setEnrollment(address manager, uint256 amount) private {
-        enrollmentFees[manager] = amount;
-    }
-
     /// @inheritdoc ISyndicatable
     /// @notice Function to set the penalty rate for quitting enrollment.
     /// @param newPenaltyRate The new penalty rate to be set. It should be a value representin base points (bps).
@@ -153,13 +146,14 @@ contract Syndication is
     }
 
     /// @inheritdoc IDisburser
-    /// @notice Withdraw funds from the contract and sends them to the treasury.
-    /// @param amount The amount of coins to withdraw.
-    /// @dev Only callable by governance.
-    function withdraw(uint256 amount) public onlyGov {
+    /// @notice Disburses tokens from the contract to a specified address.
+    /// @param amount The amount of tokens to disburse.
+    /// @dev This function can only be called by governance or an authorized entity.
+    function disburse(uint256 amount) public onlyGov {
+        // collect tokens/coin token and send it to treasury
         // collect native token and send it to treasury
         address treasury = getTreasuryAddress();
-        treasury.disburst(amount); // sent..
+        treasury.disburse(amount); // sent..
         emit FeesDisbursed(treasury, amount);
     }
 
@@ -208,7 +202,7 @@ contract Syndication is
         // the contract manager;
         address manager = IDistributor(distributor).getManager();
         // Persist the enrollment payment in case the distributor quits before approval
-        _setEnrollment(manager, msg.value);
+        _setLedgerEntry(manager, msg.value, address(0));
         // Set the distributor as pending approval
         _register(uint160(distributor));
         emit Registered(distributor);
@@ -221,19 +215,20 @@ contract Syndication is
     function quit(
         address distributor
     ) public nonReentrant validContractOnly(distributor) {
-        address manager = IDistributor(distributor).getManager(); // the contract manager
-        uint256 registeredAmount = enrollmentFees[manager]; // Wei
+        address manager = _msgSender(); // the sender is expected to be the manager..
+        uint256 registeredAmount = getLedgerEntry(manager); // Wei, etc..
         if (registeredAmount == 0)
-            revert FailDuringQuit("Invalid distributor enrollment.");
+            revert FailDuringQuit("Invalid distributor/manager enrollment.");
 
         // eg: (100 * bps) / BPS_MAX
         uint256 penal = registeredAmount.perOf(penaltyRate);
         uint256 res = registeredAmount - penal;
-
-        _setEnrollment(manager, 0);
+        
+        // reset ledger..
+        _setLedgerEntry(manager, 0, address(0));
         _quit(uint160(distributor));
         // rollback partial payment..
-        manager.disburst(res);
+        manager.disburse(res);
         emit Resigned(distributor);
     }
 
@@ -253,7 +248,9 @@ contract Syndication is
     function approve(
         address distributor
     ) public onlyGov validContractOnly(distributor) {
-        _setEnrollment(IDistributor(distributor).getManager(), 0);
+        address manager = IDistributor(distributor).getManager();
+        // reset ledger..
+        _setLedgerEntry(manager, 0, address(0));
         _approve(uint160(distributor));
         enrollmentsCount++;
         emit Approved(distributor);
@@ -269,9 +266,9 @@ contract Syndication is
     ) public override onlyGov {}
 
     /// @inheritdoc IDisburser
-    /// @notice Withdraw funds of a specific token from the contract and sends them to the treasury.
-    /// @param token The address of the token.
-    /// @param amount The amount of tokens to withdraw.
-    /// @dev Only callable by an admin.
-    function withdraw(uint256 amount, address token) public onlyAdmin {}
+    /// @notice Disburses tokens from the contract to a specified address.
+    /// @param amount The amount of tokens to disburse.
+    /// @param token The address of the ERC20 token to disburse tokens.
+    /// @dev This function can only be called by governance or an authorized entity.
+    function disburse(uint256 amount, address token) public onlyGov {}
 }

@@ -6,7 +6,7 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "contracts/base/upgradeable/GovernableUpgradeable.sol";
 import "contracts/interfaces/IFeesManager.sol";
-import "contracts/interfaces/IDisburser.sol";
+import "contracts/interfaces/IFundsManager.sol";
 
 /// @title Treasury Contract
 /// @dev This contract is designed to manage funds and token transfers,
@@ -15,7 +15,7 @@ contract Treasury is
     Initializable,
     UUPSUpgradeable,
     GovernableUpgradeable,
-    IDisburser
+    IFundsManager
 {
     /// @dev Constructor that disables initializers to prevent the implementation contract from being initialized.
     /// @notice This constructor prevents the implementation contract from being initialized.
@@ -45,13 +45,16 @@ contract Treasury is
         __Governable_init();
     }
 
-
-    /// @notice Withdraws the specified amount of Ether from the contract.
-    /// @param amount The amount of Ether to withdraw.
-    function withdraw(uint256 amount) public override onlyGov {}
-
-    /// @notice Withdraws the specified amount of the specified token from the contract.
+    /// @notice Withdraws tokens from the contract to a specified recipient's address.
+    /// @param recipient The address that will receive the withdrawn tokens.
     /// @param amount The amount of tokens to withdraw.
-    /// @param token The address of the token to withdraw.
-    function withdraw(uint256 amount, address token) public onlyGov {}
+    /// @param token The address of the ERC20 token to withdraw, or address(0) to withdraw native tokens.
+    /// @dev This function can only be called by the owner of the contract or an authorized entity.
+    function withdraw(
+        address recipient,
+        uint256 amount,
+        address token
+    ) public override onlyGov {}
+
+    // TODO multisignature withdraw
 }
