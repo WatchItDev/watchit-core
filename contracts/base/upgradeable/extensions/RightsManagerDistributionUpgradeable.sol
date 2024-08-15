@@ -5,53 +5,59 @@ pragma solidity ^0.8.24;
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "contracts/interfaces/IRightsCustodial.sol";
 
+/// @title Rights Manager Distribution Upgradeable
+/// @notice This abstract contract manages the assignment and retrieval of distribution rights for content, 
+/// ensuring that custodial rights are properly managed.
 abstract contract RightsManagerDistributionUpgradeable is
     Initializable,
     IRightsCustodial
 {
     /// @custom:storage-location erc7201:rightsmanagerdistributionupgradeable
-    struct DistributionRightsStorage {
+    /// @dev Storage struct for managing custodial rights for content distribution.
+    struct CustodyStorage {
+        /// @dev Mapping to store the custodial address for each content ID.
         mapping(uint256 => address) _custodying;
     }
 
-    // ERC-7201: Namespaced Storage Layout is another convention that can be used to avoid storage layout errors
-    // keccak256(abi.encode(uint256(keccak256("watchit.distributionrights.custodying")) - 1)) & ~bytes32(uint256(0xff))
-    bytes32 private constant DISTRIBUTION_RIGHTS_SLOT =
+    /// @dev Namespaced storage slot for CustodyStorage to avoid storage layout collisions in upgradeable contracts.
+    /// @dev The storage slot is calculated using a combination of keccak256 hashes and bitwise operations.
+    bytes32 private constant DISTRIBUTION_CUSTODY_SLOT =
         0x19de352aacf5eb23e556c4ae8a1f47118f3051b029159b7e1b8f4f1672aaf600;
 
-    // @notice Emitted when distribution rights are granted to a distributor.
-    /// @param contentId The content  identifier.
-    /// @param distributor The distributor contract address.
-    event RightsGranted(uint256 contentId, address indexed distributor);
-
     /**
-     * @notice Internal function to get the governor storage.
-     * @return $ The distribution rights storage.
+     * @notice Internal function to access the custodial storage.
+     * @dev Uses inline assembly to assign the correct storage slot to the CustodyStorage struct.
+     * @return $ The storage struct containing the custodial information for distribution rights.
      */
-    function _getRightsStorage()
+    function _getCustodyStorage()
         private
         pure
-        returns (DistributionRightsStorage storage $)
+        returns (CustodyStorage storage $)
     {
         assembly {
-            $.slot := DISTRIBUTION_RIGHTS_SLOT
+            $.slot := DISTRIBUTION_CUSTODY_SLOT
         }
     }
 
-    /// @notice Assigns distribution rights over the content.
-    /// @dev The distributor must be active.
-    /// @param distributor The distributor address to assign the content to.
+    /**
+     * @notice Assigns distribution rights over the content to a specified distributor.
+     * @dev The distributor must be active and properly authorized to handle the content.
+     * @param distributor The address of the distributor to assign the content to.
+     * @param contentId The ID of the content for which distribution rights are being granted.
+     */
     function _grantCustodial(address distributor, uint256 contentId) internal {
-        DistributionRightsStorage storage $ = _getRightsStorage();
+        CustodyStorage storage $ = _getCustodyStorage();
         $._custodying[contentId] = distributor;
-        emit RightsGranted(contentId, distributor);
     }
 
-    /// @notice Retrieves the custodial address for the given content ID and ensures it is active.
-    /// @param contentId The ID of the content.
-    /// @return The address of the active custodial.
+    /**
+     * @notice Retrieves the custodial address for a given content ID.
+     * @dev This function ensures that the retrieved custodial address is active and authorized.
+     * @param contentId The ID of the content for which the custodial address is being requested.
+     * @return The address of the active custodial responsible for the specified content ID.
+     */
     function getCustodial(uint256 contentId) public view returns (address) {
-        DistributionRightsStorage storage $ = _getRightsStorage();
+        CustodyStorage storage $ = _getCustodyStorage();
         return $._custodying[contentId];
     }
 }

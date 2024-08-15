@@ -106,12 +106,12 @@ abstract contract FeesManagerUpgradeable is Initializable, IFeesManager {
     /// @notice Sets a new fees fee.
     /// @dev Sets the fee for a specific token or native currency.
     /// Depending on the context, the fee could be in basis points (bps) or a flat fee.
-    /// @param newFeesFee The new fees fee to set.
+    /// @param fee The new fees fee to set.
     /// @param token The token to associate fees with. Use address(0) for the native token.
     /// @notice Only the owner can call this function.
-    function _setFees(uint256 newFeesFee, address token) internal virtual {
+    function _setFees(uint256 fee, address token) internal {
         FeesStorage storage $ = _getFeesStorage();
-        $._tokenFees[token] = newFeesFee;
+        $._tokenFees[token] = fee;
         $._tokenSupported[token] = true;
     }
 }

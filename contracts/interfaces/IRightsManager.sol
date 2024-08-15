@@ -2,15 +2,18 @@
 pragma solidity ^0.8.24;
 
 import "./ITreasurer.sol";
+import "./ILedger.sol";
 import "./IFundsManager.sol";
 import "./IFeesManager.sol";
 import "./IDisburser.sol";
 import "./IRightsOwnership.sol";
 import "./IRightsCustodial.sol";
+import "./IRightsDelegable.sol";
 import "./IRightsAccessController.sol";
 import "./IContentVault.sol";
 
 interface IRightsManager is
+    ILedger,
     ITreasurer,
     IDisburser,
     IFeesManager,
@@ -18,6 +21,7 @@ interface IRightsManager is
     IContentVault,
     IRightsOwnership,
     IRightsCustodial,
+    IRightsDelegable,
     IRightsAccessController
 {
     /// @notice Checks if the content is eligible for distribution.

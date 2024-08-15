@@ -10,6 +10,7 @@ import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol
 import "contracts/base/upgradeable/GovernableUpgradeable.sol";
 import "contracts/base/upgradeable/QuorumUpgradeable.sol";
 import "contracts/base/upgradeable/TreasurerUpgradeable.sol";
+import "contracts/base/upgradeable/LedgerUpgradeable.sol";
 import "contracts/base/upgradeable/FeesManagerUpgradeable.sol";
 
 import "contracts/libraries/Types.sol";
@@ -25,11 +26,12 @@ import "contracts/libraries/MathHelper.sol";
 contract Syndication is
     Initializable,
     UUPSUpgradeable,
-    GovernableUpgradeable,
-    ReentrancyGuardUpgradeable,
+    LedgerUpgradeable,
     QuorumUpgradeable,
     TreasurerUpgradeable,
+    GovernableUpgradeable,
     FeesManagerUpgradeable,
+    ReentrancyGuardUpgradeable,
     ISyndicatable
 {
     using MathHelper for uint256;
@@ -77,7 +79,7 @@ contract Syndication is
 
     /// @notice Modifier to ensure that the given distributor contract supports the IDistributor interface.
     /// @param distributor The distributor contract address.
-    modifier validContractOnly(address distributor) {
+    modifier onlyDistributorContract(address distributor) {
         if (!distributor.supportsInterface(INTERFACE_ID_IDISTRIBUTOR))
             revert InvalidDistributorContract();
         _;
@@ -94,6 +96,7 @@ contract Syndication is
         uint256 initialPenaltyRateBps
     ) public initializer onlyBasePointsAllowed(initialPenaltyRateBps) {
         __Quorum_init();
+        __Ledger_init();
         __Governable_init();
         __UUPSUpgradeable_init();
         __ReentrancyGuard_init();
@@ -164,7 +167,7 @@ contract Syndication is
     /// @return bool True if the distributor is active, false otherwise.
     function isActive(
         address distributor
-    ) public view validContractOnly(distributor) returns (bool) {
+    ) public view onlyDistributorContract(distributor) returns (bool) {
         return _status(uint160(distributor)) == Status.Active;
     }
 
@@ -175,7 +178,7 @@ contract Syndication is
     /// @return bool True if the distributor is waiting, false otherwise.
     function isWaiting(
         address distributor
-    ) public view validContractOnly(distributor) returns (bool) {
+    ) public view onlyDistributorContract(distributor) returns (bool) {
         return _status(uint160(distributor)) == Status.Waiting;
     }
 
@@ -186,7 +189,7 @@ contract Syndication is
     /// @return bool True if the distributor is blocked, false otherwise.
     function isBlocked(
         address distributor
-    ) public view validContractOnly(distributor) returns (bool) {
+    ) public view onlyDistributorContract(distributor) returns (bool) {
         return _status(uint160(distributor)) == Status.Blocked;
     }
 
@@ -195,7 +198,7 @@ contract Syndication is
     /// @param distributor The address of the distributor to register.
     function register(
         address distributor
-    ) public payable validContractOnly(distributor) {
+    ) public payable onlyDistributorContract(distributor) {
         if (msg.value < getFees(address(0)))
             revert FailDuringEnrollment("Invalid fee amount");
 
@@ -214,7 +217,7 @@ contract Syndication is
     /// @dev The function reverts if the distributor has not enrolled or if the refund fails.
     function quit(
         address distributor
-    ) public nonReentrant validContractOnly(distributor) {
+    ) public nonReentrant onlyDistributorContract(distributor) {
         address manager = _msgSender(); // the sender is expected to be the manager..
         uint256 registeredAmount = getLedgerEntry(manager); // Wei, etc..
         if (registeredAmount == 0)
@@ -237,7 +240,7 @@ contract Syndication is
     /// @param distributor The address of the distributor to revoke.
     function revoke(
         address distributor
-    ) public onlyGov validContractOnly(distributor) {
+    ) public onlyGov onlyDistributorContract(distributor) {
         _revoke(uint160(distributor));
         emit Revoked(distributor);
     }
@@ -247,7 +250,7 @@ contract Syndication is
     /// @param distributor The address of the distributor to approve.
     function approve(
         address distributor
-    ) public onlyGov validContractOnly(distributor) {
+    ) public onlyGov onlyDistributorContract(distributor) {
         address manager = IDistributor(distributor).getManager();
         // reset ledger..
         _setLedgerEntry(manager, 0, address(0));

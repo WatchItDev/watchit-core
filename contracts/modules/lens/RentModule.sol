@@ -11,9 +11,10 @@ import "contracts/modules/lens/base/LensModuleMetadata.sol";
 import "contracts/modules/lens/base/LensModuleRegistrant.sol";
 import "contracts/modules/lens/base/HubRestricted.sol";
 import "contracts/modules/lens/libraries/Types.sol";
-import "contracts/interfaces/IAccessWitness.sol";
+import "contracts/interfaces/IStrategy.sol";
 import "contracts/interfaces/IRightsManager.sol";
 import "contracts/libraries/Types.sol";
+import "contracts/libraries/Constants.sol";
 
 /**
  * @title RentModule
@@ -26,7 +27,7 @@ contract RentModule is
     LensModuleMetadata,
     LensModuleRegistrant,
     HubRestricted,
-    IAccessWitness,
+    IStrategy,
     IPublicationActionModule
 {
     using SafeERC20 for IERC20;
@@ -34,11 +35,17 @@ contract RentModule is
     // Custom errors for specific failure cases
     error InvalidExistingContentPublication();
     error InvalidNotSupportedCurrency();
+
     error InvalidRentPrice();
+
+    struct Registry {
+        uint256 total;
+        address currency;
+        uint256 timelock;
+    }
 
     // Address of the Digital Rights Management (DRM) contract
     address private immutable drmAddress;
-    address private immutable wvcAddress;
     // Mapping from publication ID to content ID
     mapping(uint256 => uint256) contentRegistry;
     mapping(uint256 => mapping(address => uint256)) rentRegistry;
@@ -58,13 +65,9 @@ contract RentModule is
     )
         Ownable(_msgSender())
         HubRestricted(hub)
+        DRMRestricted(repository)
         LensModuleRegistrant(registrant)
-    {
-        // Get the registered DRM contract from the repository
-        IRepository repo = IRepository(repository);
-        drmAddress = repo.getContract(T.ContractTypes.DRM);
-        wvcAddress = repo.getContract(T.ContractTypes.WVC);
-    }
+    {}
 
     /**
      * @dev Registers an ERC20 currency to be used for rentals.
@@ -105,7 +108,7 @@ contract RentModule is
         Types.RentParams memory rent,
         uint256 pubId
     ) private {
-        uint256 i = 0;
+        uint8 i = 0;
         while (i < rent.rentPrices.length) {
             uint256 price = rent.rentPrices[i].price;
             address currency = rent.rentPrices[i].currency;
@@ -159,10 +162,9 @@ contract RentModule is
         // eg: LIT cypertext + hash, public key enceypted data, shared key encrypted data..
         // Grant initial custody to the distributor
         drm.grantCustodial(rent.contentId, rent.distributor, rent.secured);
+        drm.grantRights(address(this), rent.contentId);
         // Store renting parameters
         _setPublicationRentSetting(rent, pubId);
-        // TODO royalties NFT
-        // TODO fragmentable NFT
         // TODO mirror content
         // TODO review security concerns
         // TODO tests
@@ -190,45 +192,71 @@ contract RentModule is
         address rentalWatcher = params.transactionExecutor;
 
         // hold rent time in module to later validate it in access control...
-        rentRegistry[contentId][rentalWatcher] =
-            Time.timestamp() +
-            (_days * 1 days);
-
-        // The access proof is established here..
-        T.AccessCondition memory cond = T.AccessCondition(
-            T.Witness(address(this), this.approve.selector), // the function in the witness contract to approve the access
-            T.Fees(currency, total) // the transaction amount and currency
+        rentRegistry[contentId][rentalWatcher] = Registry(
+            total,
+            currency,
+            Time.timestamp() + (_days * 1 days)
         );
 
-        // TODO aqui se podria agregar un hook?
-        // quizas tener hooks para que se pueda
-        // establecer acciones sobre las operaciones
-        // sobre el contenido, como "rewards for rent in X token"
-        // rewardsType = module(feeDistribution, token) o un metodo en library
-        // https://docs.openzeppelin.com/contracts/4.x/api/finance
-
-        // We deposit the token amount as delegated rights handler.
-        // A previous approval should be done.
-        // https://www.lens.xyz/docs/primitives/collect/collectables#additional-options-erc-20-approvals
-        IERC20(currency).safeTransferFrom(rentalWatcher, address(this), total);
-        // add allowance to drm contract from delegated module.
-        IERC20(currency).safeIncreaseAllowance(drmAddress, total);
-        // Add access to content for N days to account..
-        IRightsManager(drmAddress).grantAccess(rentalWatcher, contentId, cond);
+        IRightsManager(drmAddress).grantAccess(rentalWatcher, contentId);
         return abi.encode(rentRegistry[contentId][rentalWatcher], currency);
     }
 
-    /**
-     * @dev Checks if the rental period has expired.
-     * @param account The address of the account.
-     * @param contentId The ID of the content.
-     * @return bool True if the rental period has expired, false otherwise.
-     */
-    function approve(
+    /// @inheritdoc IStrategy
+    /// @notice Approves a specific condition for an account and content ID.
+    /// @dev This function checks if the current timestamp is greater than the timelock for the specified account and content ID.
+    /// If true, the condition is considered approved.
+    /// @param account The address of the account to approve.
+    /// @param contentId The content ID to approve against.
+    /// @return bool True if the condition is approved, false otherwise.
+    function approved(
         address account,
         uint256 contentId
     ) external view returns (bool) {
-        return Time.timestamp() > rentRegistry[contentId][account];
+        // Checks if the current timestamp is greater than the timelock for the given account and contentId
+        return Time.timestamp() > rentRegistry[contentId][account].timelock;
+    }
+
+    /// @inheritdoc IStrategy
+    /// @notice Executes a transaction for a given account and content ID.
+    /// @dev This function transfers the specified amount of tokens from the account to the contract and then increases the allowance for the DRM contract.
+    /// It expects that the account has previously approved the contract to spend the specified amount of tokens.
+    /// @param account The address of the account initiating the transaction.
+    /// @param contentId The content ID related to the transaction.
+    /// @return T.Transaction A transaction object containing the currency and total amount transferred.
+    function transaction(
+        address account,
+        uint256 contentId
+    ) external view onlyDRM returns (T.Transaction) {
+        uint256 total = rentRegistry[contentId][account].total;
+        address currency = rentRegistry[contentId][account].currency;
+
+        if (currency != address(0)) {
+            // Transfers the specified amount of tokens from the account to this contract
+            // Requires that the account has previously approved this contract to spend the specified amount
+            IERC20(currency).safeTransferFrom(account, address(this), total);
+            // Increases the allowance for the DRM contract by the total amount
+            IERC20(currency).approve(drmAddress, total);
+        }
+
+        return T.Transaction(currency, total);
+    }
+
+    /// @inheritdoc IStrategy
+    /// @notice Retrieves the distribution requirements for accessing specific content for an account.
+    /// @dev This function returns an array of distribution objects, which represent the allocation of royalties or fees.
+    /// An empty array means that all royalties go to the owner. If a distribution is set, the sum of the percentages should
+    /// not exceed 100%, otherwise, the owner's share could be reduced to zero.
+    /// @param tx_ The transaction object containing information about the current transaction.
+    /// @return T.Distribution[] An array representing the distribution of royalties or fees.
+    function allocation(
+        T.Transaction
+    ) external view returns (T.Allocation[] memory) {
+        // An empty distribution means all royalties go to the owner.
+        // If a distribution is set, e.g., a=>5%, b=>5%, owner=>remaining 90%,
+        // if the distribution sums to 100%, the owner receives 0.
+        // This can be used to manage various business logic for content distribution.
+        return new T.Allocation[](0);
     }
 
     /**
@@ -241,7 +269,7 @@ contract RentModule is
     ) public pure override returns (bool) {
         return
             interfaceID == type(IPublicationActionModule).interfaceId ||
-            interfaceID == type(IAccessWitness).interfaceId ||
+            interfaceID == type(IStrategy).interfaceId ||
             super.supportsInterface(interfaceID);
     }
 }

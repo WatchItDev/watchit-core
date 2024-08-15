@@ -10,6 +10,7 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import "contracts/base/upgradeable/QuorumUpgradeable.sol";
+import "contracts/base/upgradeable/LedgerUpgradeable.sol";
 import "contracts/base/upgradeable/FeesManagerUpgradeable.sol";
 import "contracts/base/upgradeable/TreasurerUpgradeable.sol";
 import "contracts/base/upgradeable/CurrencyManagerUpgradeable.sol";
@@ -18,13 +19,16 @@ import "contracts/base/upgradeable/ContentVaultUpgradeable.sol";
 import "contracts/base/upgradeable/extensions/RightsManagerERC721Upgradeable.sol";
 import "contracts/base/upgradeable/extensions/RightsManagerContentAccessUpgradeable.sol";
 import "contracts/base/upgradeable/extensions/RightsManagerDistributionUpgradeable.sol";
+import "contracts/base/upgradeable/extensions/RightsManagerDelegationUpgradeable.sol";
 import "contracts/interfaces/IRegistrableVerifiable.sol";
 import "contracts/interfaces/IReferendumVerifiable.sol";
 import "contracts/interfaces/IRightsManager.sol";
+import "contracts/interfaces/IStrategy.sol";
 import "contracts/interfaces/IDistributor.sol";
 import "contracts/interfaces/IRepository.sol";
 import "contracts/libraries/TreasuryHelper.sol";
 import "contracts/libraries/MathHelper.sol";
+import "contracts/libraries/Constants.sol";
 import "contracts/libraries/Types.sol";
 
 /// @title Rights Manager
@@ -33,6 +37,7 @@ import "contracts/libraries/Types.sol";
 contract RightsManager is
     Initializable,
     UUPSUpgradeable,
+    LedgerUpgradeable,
     FeesManagerUpgradeable,
     GovernableUpgradeable,
     TreasurerUpgradeable,
@@ -42,20 +47,32 @@ contract RightsManager is
     RightsManagerERC721Upgradeable,
     RightsManagerDistributionUpgradeable,
     RightsManagerContentAccessUpgradeable,
+    RightsManagerDelegationUpgradeable,
     IRightsManager
 {
     using TreasuryHelper for address;
     using MathHelper for uint256;
 
-    event GrantedCustodial(address distributor, uint256 contentId);
-    event GrantedAccess(address account, uint256 contentId);
-    event RegisteredContent(uint256 contentId);
-    event RevokedContent(uint256 contentId);
+    /// @notice Emitted when distribution custodial rights are granted to a distributor.
+    /// @param prevCustody The previous distributor custodial address.
+    /// @param newCustody The new distributor custodial address.
+    /// @param contentId The content identifier.
+    event GrantedCustodial(
+        address indexed prevCustody,
+        address indexed newCustody,
+        uint256 contentId
+    );
+
     event FeesDisbursed(
         address indexed treasury,
         uint256 amount,
         address token
     );
+
+    event GrantedAccess(address account, uint256 contentId);
+    event RegisteredContent(uint256 contentId);
+    event RightsDelegated(address indexed validator, uint256 indexed contentId);
+    event RightsRevoked(address indexed validator);
 
     address private syndication;
     address private referendum;
@@ -69,6 +86,7 @@ contract RightsManager is
     error InvalidNotApprovedContent();
     error InvalidNotAllowedContent();
     error InvalidUnknownContent();
+    error NoDeal(string reason);
 
     /// @dev Constructor that disables initializers to prevent the implementation contract from being initialized.
     /// https://forum.openzeppelin.com/t/uupsupgradeable-vulnerability-post-mortem/15680
@@ -85,6 +103,7 @@ contract RightsManager is
         address repository,
         uint256 initialFee
     ) public initializer onlyBasePointsAllowed(initialFee) {
+        __Ledger_init();
         __Governable_init();
         __ERC721_init("Watchit", "WOT");
         __ERC721Enumerable_init();
@@ -223,7 +242,7 @@ contract RightsManager is
         // collect tokens/coin token and send it to treasury
         address treasury = getTreasuryAddress();
         treasury.disburse(amount, token);
-        emit FeesDisbursed(treasury, balance, token);
+        emit FeesDisbursed(treasury, amount, token);
     }
 
     /// @inheritdoc IDisburser
@@ -231,9 +250,10 @@ contract RightsManager is
     /// @param amount The amount of tokens to disburse.
     /// @dev This function can only be called by governance or an authorized entity.
     function disburse(uint256 amount) public onlyGov {
+        // TODO validate ledger
         // collect native token and send it to treasury
-        address treasure = getTreasuryAddress();
-        treasure.disburse(amount);
+        address treasury = getTreasuryAddress();
+        treasury.disburse(amount);
         emit FeesDisbursed(treasury, amount, address(0));
     }
 
@@ -280,67 +300,161 @@ contract RightsManager is
         onlyRegisteredContent(contentId)
         onlyHolder(contentId)
     {
+        // if it's first custody assignment prev = address(0)
+        address prevCustody = getCustodial(contentId);
         _grantCustodial(distributor, contentId);
         _secureContent(contentId, encryptedContent);
-        emit GrantedCustodial(distributor, contentId);
+        emit GrantedCustodial(prevCustody, distributor, contentId);
     }
 
-    function _checkFeesCompletion(
-        address currency,
-        uint256 expectedFees,
-        address payee
-    ) internal pure returns (uint256) {
-        if (expectedFees == 0) revert;
-        // if currency is native coin then
-        if (currency == address(0)) {
-            if (msg.value < expectedFees) {
-                revert;
-            }
+    /// @inheritdoc IRightsDelegable
+    /// @notice Delegates rights for a specific content ID to a grantee.
+    /// @param validatopr The address of strategy license validator contract to delegate rights to.
+    /// @param contentId The content ID for which rights are being delegated.
+    function grantRights(
+        address validator,
+        uint256 contentId
+    ) onlyHolder(contentId) onlyStrategyContract(validator) {
+        _grantRights(validator, contentId);
+        emit RightsDelegated(validator, contentId);
+    }
+
+    /// @inheritdoc IRightsDelegable
+    /// @notice Delegates rights for a specific content ID to a grantee.
+    /// @param validator The address of strategy license validator contract to revoke rights to.
+    /// @param contentId The content ID for which rights are being revoked.
+    function revokeRights(
+        address validator,
+        uint256 contentId
+    ) onlyHolder(contentId) onlyStrategyContract(validator) {
+        _revokeRights(validator, contentId);
+        emit RightsRevoked(validator, contentId);
+    }
+
+    // TODO move to royalties
+    // TODO En royalties debe registrarse el amount generado por cada contentId
+
+    /**
+     * @dev Verify and processes the transaction required for an operation.
+     * @param tx_ The transaction required for the operation.
+     * @param payee The address of the account that will pay the transaction.
+     */
+    function _verifyAndProcessTx(address currency, address payee) internal {
+        // If the currency is the native coin (e.g., ETH)
+        // these amounts are expected from the strategy license validator
+        if (tx_.currency == address(0)) {
+            if (tx_.amount != msg.value) revert;
+            return msg.value;
         } else {
-            // expect the right amount allowed
-            if (payee.allowance(token) < expectedFees) revert;
-            payee.deposit(address(this), expectedFees, currency);
+            // transfer token to contract and reset allowance..
+            uint256 allowed = payee.allowance(tx_.currency);
+            if (tx_.amount != allowed) revert;
+            payee.safeTransfer(allowed, allowed);
+            return allowed;
+        }
+    }
+
+    function _calculateAndRegisterRoyalties(
+        uint256 amount,
+        uint256 split,
+        address target,
+        address currency
+    ) internal onlyBasePointsAllowed(split) {
+        uint256 total = amount.perOf(split);
+        // set in ledger the amount to target..
+        _sumLedgerEntry(target, total, currency);
+    }
+
+    function _distributeRoyalties(
+        uint256 amount,
+        address currency,
+        T.Distribution[] distribution
+    ) internal {
+        // 1% for each distributor is the min!
+        if (distribution.length == 0) return amount;
+        if (distribution.length > 100) {
+            revert;
         }
 
-        return fees;
+        uint8 i = 0;
+        uint256 accBps = 0;
+        uint256 total = amount;
+
+        while (i < distribution.length) {
+            // set in ledger the amount to target..
+            _calculateAndRegisterRoyalties(
+                amount,
+                distribution[i].bps,
+                distribution[i].target,
+                currency
+            );
+
+            total -= split;
+            accBps += bps;
+
+            unchecked {
+                ++i;
+            }
+        }
+
+        if (accBps > C.BPS_MAX || total < 0) revert;
+        return total;
     }
 
     /// @inheritdoc IRightsAccessController
-    /// @notice Grants access to a specific account for a certain content ID for a given condition.
-    /// @param account The address of the account.
-    /// @param contentId The content ID to grant access to.
-    /// @param condition The proof or conditions that validate access, including any required fees.
+    /// @notice Grants access to a specific account for a certain content ID based on given conditions.
+    /// @param account The address of the account to be granted access.
+    /// @param contentId The ID of the content for which access is being granted.
+    /// @dev Access can be granted only if the validator contract is valid and has been granted delegation rights.
     function grantAccess(
         address account,
-        uint256 contentId,
-        T.AccessCondition calldata condition
-    ) public payable onlyRegisteredContent(contentId) onlyHolder(contentId) {
+        uint256 contentId
+    )
+        public
+        payable
+        nonReentrant
+        onlyRegisteredContent(contentId)
+        onlyWhenRightsDelegated(_msgSender(), contentId)
+    {
         // in some cases the content or distributor could be revoked..
         if (!isEligibleForDistribution(contentId))
             revert InvalidNotAllowedContent();
 
-        address owner = ownerOf(contentId);
-        address custodial = getCustodial(contentId);
-        address currency = condition.fee.currency;
-        uint256 fees = condition.fee.amount;
-
-        // init the distributor current content custodial..
-        IDistributor distributor = IDistributor(custodial);
-        //!IMPORTANT if distributor or trasury does not support the currency, will revert..
-        uint256 distSplit = distributor.getFees(currency); // bps
-        uint256 treasurySplit = getFees(currency); // bps
-        // The owner or delegated module must ensure that the necessary steps
+        IStrategy validator = IStrategy(_msgSender());
+        IDistributor distributor = IDistributor(getCustodial(contentId));
+        T.Transaction req = validation.transaction(account, contentId);
+        // The user, owner or delegated validator must ensure that the necessary steps
         // are taken to handle the transaction value or set the appropriate
         // approve/allowance for the DRM (Digital Rights Management) contract.
-        _checkFeesCompletion(currency, fees, account);
+        uint256 total = _verifyAndProcessTx(req, _msgSender());
+
+        //!IMPORTANT if distributor or trasury does not support the currency, will revert..
+        uint256 treasurySplit = total.perfOf(getFees(req.currency)); // bps
+        uint256 acceptedSplit = distributor.negotiate(total, req.currency);
         // the max bps integrity is warrantied by treasure fees only bps modifier
-        uint256 distributorFees = total.perOf(distSplit);
-        uint256 ownerFees = total - distributorFees;
-        // a new value is added to ledger to 
-        // TODO withdraw
-        _sumLedgerEntry(owner, ownerFees, currency);
-        _sumLedgerEntry(distributor.getManager(), distributorFees, currency);
-        _grantAccess(account, contentId, condition);
+        uint256 ownerSplit = total - (treasurySplit + distributoFees);
+
+        T.Distribution[] dist = validation.allocation(req);
+        uint256 remaining = _distributeRoyalties(
+            ownerSplit,
+            req.currency,
+            dist
+        );
+
+        // if the owner decide get 0 fees its ok!!
+        // we need warranty the distributor fees only :)
+        if (remaining < 0) {
+            revert NoDeal("Owner fees cannot be negative");
+        }
+
+        address owner = ownerOf(contentId);
+        address manager = distributor.getManager();
+        // a new value is added to ledger to
+        // TODO allow withdraw
+        _sumLedgerEntry(owner, remaining, req.currency);
+        _sumLedgerEntry(manager, acceptedSplit, req.currency);
+        _sumLedgerEntry(address(this), treasurySplit, req.currency);
+        _grantAccess(account, contentId, validator);
         emit GrantedAccess(account, contentId);
     }
 

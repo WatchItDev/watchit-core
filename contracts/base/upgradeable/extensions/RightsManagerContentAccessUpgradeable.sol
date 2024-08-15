@@ -6,101 +6,92 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
 import "contracts/interfaces/IRightsAccessController.sol";
-import "contracts/interfaces/IAccessWitness.sol";
+import "contracts/interfaces/IStrategy.sol";
 import "contracts/libraries/Types.sol";
 
 /// @title Rights Manager Content Access Upgradeable
-/// @notice This contract manages access control for content based on timeframes.
-/// @dev This contract is upgradeable and uses ReentrancyGuard to prevent reentrant calls.
+/// @notice This abstract contract manages content access control using a license validator contract that must implement the IStrategy interface.
 abstract contract RightsManagerContentAccessUpgradeable is
     Initializable,
     IRightsAccessController
 {
     using ERC165Checker for address;
-    bytes4 private constant INTERFACE_WITNESS_ACCESS =
-        type(IAccessWitness).interfaceId;
 
-    // TODO namespace refactor
-    /// @dev Error thrown when access control validation fails.
-    /// @param contractAddress The address of the contract where validation failed.
-    error InvalidAccessControlValidation(address contractAddress);
-    /// @dev Error thrown when the witness contract does not implement the correct interface.
-    error InvalidWitnessContract();
+    /// @dev The interface ID for IStrategy, used to verify that a validator contract implements the correct interface.
+    bytes4 private constant INTERFACE_STRATEGY_VALIDATOR =
+        type(IStrategy).interfaceId;
 
-    /// @dev Mapping to store the access control list for each account and content hash.
-    mapping(uint256 => mapping(address => Witness )) private acl;
-    // The access to content can be delegated, so the owner can delegate "holding" rights.
-    // under specific conditions and admin the access to others account under that conditions.
-    // eg: you are allowed to handle X, Y, Z access conditions..
-    mapping(uint256 => mapping(address => T.AccessCondition)) private allowed;
+    /// @custom:storage-location erc7201:rightscontentaccess.upgradeable
+    /// @dev Storage struct for the access control list (ACL) that maps content IDs and accounts to validator contracts.
+    struct ACLStorage {
+        /// @dev Mapping to store the access control list for each content ID and account.
+        mapping(uint256 => mapping(address => address)) _acl;
+    }
 
-    /// @dev Modifier to check that the witness contract implements the IAccessWitness interface.
-    /// @param witness The address of the witness contract.
-    modifier validWitnessOnly(address witness) {
-        if (!witness.supportsInterface(INTERFACE_WITNESS_ACCESS))
-            revert InvalidWitnessContract();
+    /// @dev Namespaced storage slot for ACLStorage to avoid storage layout collisions in upgradeable contracts.
+    /// @dev The storage slot is calculated using a combination of keccak256 hashes and bitwise operations.
+    bytes32 private constant ACCESS_CONTROL_SLOT =
+        0xcd95b85482a9213e30949ccc9c44037e29b901ca879098f5c64dd501b45d9200;
+
+    /**
+     * @notice Internal function to access the ACL storage.
+     * @dev Uses inline assembly to assign the correct storage slot to the ACLStorage struct.
+     * @return $ The storage struct containing the access control list.
+     */
+    function _getACLStorage() private pure returns (ACLStorage storage $) {
+        assembly {
+            $.slot := ACCESS_CONTROL_SLOT
+        }
+    }
+
+    /// @dev Error thrown when the validator contract does not implement the IStrategy interface.
+    error InvalidStrategyContract(address strategy);
+
+    /**
+     * @dev Modifier to check that a strategy validator contract implements the IStrategy interface.
+     * @param strategy The address of the strategy validator contract.
+     * Reverts if the validator does not implement the required interface.
+     */
+    modifier onlyStrategyContract(address strategy) {
+        if (!strategy.supportsInterface(INTERFACE_STRATEGY_VALIDATOR)) {
+            revert InvalidStrategyContract(strategy);
+        }
         _;
     }
 
-    /// @notice Grants access to a specific account for a certain content ID.
-    /// @param account The address of the account.
-    /// @param contentId The content ID to grant access to.
-    /// @param condition The conditional access control.
+    /**
+     * @notice Grants access to a specific account for a certain content ID.
+     * @dev The function associates a content ID and account with a validator contract in the ACL storage.
+     * @param account The address of the account to be granted access.
+     * @param contentId The ID of the content for which access is being granted.
+     * @param validator The address of the validator contract that will be used to validate access.
+     */
     function _grantAccess(
         address account,
         uint256 contentId,
-        T.AccessCondition calldata condition
-    ) internal validWitnessOnly(condition.witness.contractAddress) {
-        // Register the condition to validate access.
-        acl[contentId][account] = condition;
+        address validator
+    ) internal {
+        ACLStorage storage $ = _getACLStorage();
+        // Register the validator for the content and account.
+        $._acl[contentId][account] = validator;
     }
 
-    /// @notice Grants delegate right to address under specific conditions.
-    /// @param delegate The address of the account.
-    /// @param contentId The content ID to grant access to.
-    /// @param condition The conditional access control.
-    function _delegateRights(
-        address delegate,
-        uint256 contentId,
-        T.AccessCondition calldata condition
-    ) internal validWitnessOnly(condition.witness.contractAddress) {
-        // Register the condition to validate access.
-        allowed[contentId][account] = condition;
-    }
-
-    function _hasDelegatedRights(
-        address delegate,
-        uint256 contentId
-        ){
-
-    }
-
-    /// @notice Checks if access is allowed for a specific account and content.
-    /// @param account The address of the account.
-    /// @param contentId The content ID to check access for.
-    /// @return bool True if access is allowed, false otherwise.
+    /**
+     * @notice Checks if access is allowed for a specific account and content.
+     * @dev The function calls the `approved` method on the validator contract to determine if access is granted.
+     * @param account The address of the account to check access for.
+     * @param contentId The ID of the content to check access for.
+     * @return bool True if access is allowed, false otherwise.
+     */
     function _isAccessGranted(
         address account,
         uint256 contentId
     ) internal view returns (bool) {
-        // The approve method is called and executed according to the IAccessWitness spec.
-        T.AccessCondition memory condition = acl[contentId][account];
-        (bool success, bytes memory result) = condition
-            .witness.contractAddress
-            // staticcall does not allow changing the state of the blockchain.
-            .staticcall(
-                abi.encodeWithSelector(
-                    condition.witness.functionSelector,
-                    account,
-                    contentId
-                )
-            );
-
-        if (!success)
-            revert InvalidAccessControlValidation(
-                condition.witness.contractAddress
-            );
-        // Decode the expected result and return it.
-        return abi.decode(result, (bool));
+        ACLStorage storage $ = _getACLStorage();
+        address strategyValidator = $._acl[contentId][account];
+        // if the access is not registered, return false.
+        if (strategyValidator == address(0)) return false;
+        // The approved method is called and executed according to the IStrategy specification.
+        return IStrategy(strategyValidator).approved(account, contentId);
     }
 }

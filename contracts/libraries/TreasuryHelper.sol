@@ -93,9 +93,17 @@ library TreasuryHelper {
             revert FailDuringTransfer("Insufficient balance");
         _erc20(token, to, amount);
     }
-    
-    // TODO add docs
+
+    /// @notice Checks the allowance that the contract has been granted by the owner for a specific ERC20 token.
+    /// @dev This internal function queries the allowance that the `owner` has granted to this contract for spending the specified `token`.
+    /// @param owner The address of the token owner who has granted the allowance.
+    /// @param token The address of the ERC20 token contract.
+    /// @return The remaining number of tokens that the contract is allowed to spend on behalf of the `owner`.
     function allowance(address owner, address token) internal {
         return IERC20(token).allowance(owner, address(this));
+    }
+
+    function safeTransfer(ddress owner, uint256 amount, address token){
+         IERC20(token).safeTransferFrom(owner, address(this), amount);
     }
 }

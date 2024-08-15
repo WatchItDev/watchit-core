@@ -8,6 +8,7 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "contracts/base/upgradeable/CurrencyManagerUpgradeable.sol";
 import "contracts/base/upgradeable/FeesManagerUpgradeable.sol";
 import "contracts/libraries/TreasuryHelper.sol";
+import "contracts/libraries/MathHelper.sol";
 import "contracts/interfaces/IDistributor.sol";
 
 /// @title Content Distributor contract.
@@ -25,12 +26,14 @@ contract Distributor is
     IDistributor
 {
     using TreasuryHelper for address;
+    using MathHelper for uint256;
 
     /// @notice The URL to the distribution.
     /// Since this is a contract considered as implementation for beacon proxy,
     /// we need to reserve a gap for endpoint to avoid memory layout getting mixed up.
     /// https://docs.openzeppelin.com/upgrades-plugins/1.x/writing-upgradeable
     string private endpoint;
+    mapping(address => uint256) private floor;
 
     /// @notice Event emitted when the endpoint is updated.
     /// @param oldEndpoint The old endpoint.
@@ -102,6 +105,30 @@ contract Distributor is
         _addCurrency(address(0));
     }
 
+    /// @inheritdoc IDistributor
+    /// @notice Sets the minimum floor value for fees associated with a specific currency.
+    /// @dev This function can only be called by the owner and for supported tokens.
+    /// @param currency The address of the token for which the floor value is being set.
+    /// @param minimum The minimum fee that can be proposed for the given currency.
+    function setFloor(
+        address currency,
+        uint256 minimum
+    ) external onlyOwner onlySupportedToken(currency) {
+        floor[currency] = minimum;
+    }
+
+    /// @inheritdoc IDistributor
+    /// @notice Proposes a fee to the distributor by adjusting it according to a predefined floor value.
+    /// @param fees The initial fee amount proposed.
+    /// @param currency The currency in which the fees are proposed.
+    /// @return acceptedFees The final fee amount after adjustment, ensuring it meets the floor value.
+    function negotiate(uint256 fees, address currency) returns (uint256) {
+        uint256 bps = getFees(currency);
+        uint256 proposedFees = fees.perOf(bps);
+        uint256 acceptedFees = proposedFees < floor[currency] ? floor[currency] : proposedFees;
+        return acceptedFees;
+    }
+
     /// @inheritdoc IERC165
     /// @notice Checks if the contract supports a specific interface.
     /// @param interfaceId The interface identifier to check.
@@ -113,5 +140,4 @@ contract Distributor is
             interfaceId == type(IDistributor).interfaceId ||
             super.supportsInterface(interfaceId);
     }
-
 }

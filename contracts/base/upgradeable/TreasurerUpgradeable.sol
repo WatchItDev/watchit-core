@@ -16,7 +16,6 @@ abstract contract TreasurerUpgradeable is Initializable, ITreasurer {
         mapping(address => mapping(address => uint256)) _ledger;
     }
 
-    bytes32 private constant GOB_ROLE = keccak256("GOB_ROLE");
     // ERC-7201: Namespaced Storage Layout is another convention that can be used to avoid storage layout errors
     // keccak256(abi.encode(uint256(keccak256("watchit.treasurer.trasure"")) - 1)) & ~bytes32(uint256(0xff))
     bytes32 private constant TREASURER_SLOT =
@@ -52,67 +51,6 @@ abstract contract TreasurerUpgradeable is Initializable, ITreasurer {
         _setTreasuryAddress(treasureAddress);
     }
 
-    /// @notice Internal function to store the token fees for account.
-    /// @param account The address of the account.
-    /// @param amount The amount to register to account.
-    /// @param token The token to register to account.
-    /// @dev This function is used to store the fees for acount.
-    function _setLedgerEntry(
-        address account,
-        uint256 amount,
-        address token
-    ) internal {
-        TreasurerStorage storage $ = _getTreasurerStorage();
-        $._ledger[account][token] = amount;
-    }
-
-    /// @notice Internal function to accumulate token fees for account.
-    /// @param account The address of the account.
-    /// @param amount The amount to register to account.
-    /// @param token The token to register to account.
-    /// @dev This function is used to store the fees for acount.
-    function _sumLedgerEntry(
-        address account,
-        uint256 amount,
-        address token
-    ) internal {
-        TreasurerStorage storage $ = _getTreasurerStorage();
-        $._ledger[account][token] += amount;
-    }
-
-    /// @notice Internal function to subtract token fees for account.
-    /// @param account The address of the account.
-    /// @param amount The amount to register to account.
-    /// @param token The token to register to account.
-    /// @dev This function is used to store the fees for acount.
-    function _subLedgerEntry(
-        address account,
-        uint256 amount,
-        address token
-    ) internal {
-        TreasurerStorage storage $ = _getTreasurerStorage();
-        $._ledger[account][token] -= amount;
-    }
-
-    /// @inheritdoc ITreasurer
-    /// @notice Retrieves the registered coins amoint for the specified account.
-    /// @param account The address of the account.
-    function getLedgerEntry(address account) public view returns (uint256) {
-        TreasurerStorage storage $ = _getTreasurerStorage();
-        return $._ledger[account][address(0)];
-    }
-
-    /// @inheritdoc ITreasurer
-    /// @notice Retrieves the registered token amount for the specified account.
-    /// @param account The address of the account.
-    /// @param token The token to retrieve ledger amount.
-    function getLedgerEntry(
-        address account,
-        address token
-    ) public view returns (uint256) {
-        TreasurerStorage storage $ = _getTreasurerStorage();
-        return $._ledger[account][token];
-    }
 
     /// @notice Internal function to set the address of the treasury.
     /// @param newTreasuryAddress The new address of the treasury.

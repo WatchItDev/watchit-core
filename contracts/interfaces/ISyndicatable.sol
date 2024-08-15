@@ -2,6 +2,7 @@
 // NatSpec format convention - https://docs.soliditylang.org/en/v0.5.10/natspec-format.html
 pragma solidity ^0.8.24;
 
+import "./ILedger.sol";
 import "./ITreasurer.sol";
 import "./IDisburser.sol";
 import "./IFeesManager.sol";
@@ -13,6 +14,7 @@ import "./IRegistrableVerifiable.sol";
 /// @notice This interface spec all distribution logic needed for creators and distributors.
 /// @dev This interface extends ITreasurer, IFeesManager, and IRegistrable interfaces.
 interface ISyndicatable is
+    ILedger,
     ITreasurer,
     IDisburser,
     IRegistrable,

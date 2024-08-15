@@ -8,6 +8,10 @@ import "contracts/base/upgradeable/GovernableUpgradeable.sol";
 import "contracts/interfaces/IFeesManager.sol";
 import "contracts/interfaces/IFundsManager.sol";
 
+
+// TODO payment splitter
+// https://docs.openzeppelin.com/contracts/4.x/api/finance#PaymentSplitter
+
 /// @title Treasury Contract
 /// @dev This contract is designed to manage funds and token transfers,
 /// and it implements upgradeable features using UUPS proxy pattern.

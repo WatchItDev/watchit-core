@@ -111,7 +111,7 @@ contract Referendum is
     function submit(
         uint256 contentId,
         address initiator,
-        // TODO aca en lugar de ser un tipo, podria ser bytes, para permitir enviar datos escalables..
+        // TODO aca en lugar de ser un tipo, podria ser bytes con standard format, para permitir enviar datos escalables..
         T.ContentParams calldata params
     ) public {
         if (initiator == address(0)) revert InvalidSubmissionInitiator();

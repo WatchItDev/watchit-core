@@ -20,4 +20,18 @@ interface IDistributor is IFeesManager, ICurrencyManager {
     /// @dev This function allows users to view the current manager of the distributor.
     /// @return The address of the current manager of the distributor.
     function getManager() external view returns (address);
+
+    /// @notice Proposes a fee to the distributor by adjusting it according to a predefined floor value.
+    /// @param fees The initial fee amount proposed.
+    /// @param currency The currency in which the fees are proposed.
+    /// @return acceptedFees The final fee amount after adjustment, ensuring it meets the floor value.
+    function negotiate(
+        uint256 fees,
+        address currency
+    ) external view returns (uint256);
+
+    /// @notice Sets the minimum floor value for fees associated with a specific currency.
+    /// @param currency The address of the token for which the floor value is being set.
+    /// @param minimum The minimum fee that can be proposed for the given currency.
+    function setFloor(address currency, uint256 minimum) external;
 }
