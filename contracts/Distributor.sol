@@ -122,10 +122,15 @@ contract Distributor is
     /// @param fees The initial fee amount proposed.
     /// @param currency The currency in which the fees are proposed.
     /// @return acceptedFees The final fee amount after adjustment, ensuring it meets the floor value.
-    function negotiate(uint256 fees, address currency) returns (uint256) {
+    function negotiate(
+        uint256 fees,
+        address currency
+    ) external returns (uint256) {
         uint256 bps = getFees(currency);
         uint256 proposedFees = fees.perOf(bps);
-        uint256 acceptedFees = proposedFees < floor[currency] ? floor[currency] : proposedFees;
+        uint256 acceptedFees = proposedFees < floor[currency]
+            ? floor[currency]
+            : proposedFees;
         return acceptedFees;
     }
 

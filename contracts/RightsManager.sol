@@ -18,7 +18,7 @@ import "contracts/base/upgradeable/GovernableUpgradeable.sol";
 import "contracts/base/upgradeable/ContentVaultUpgradeable.sol";
 import "contracts/base/upgradeable/extensions/RightsManagerERC721Upgradeable.sol";
 import "contracts/base/upgradeable/extensions/RightsManagerContentAccessUpgradeable.sol";
-import "contracts/base/upgradeable/extensions/RightsManagerDistributionUpgradeable.sol";
+import "contracts/base/upgradeable/extensions/RightsManagerCustodialUpgradeable.sol";
 import "contracts/base/upgradeable/extensions/RightsManagerDelegationUpgradeable.sol";
 import "contracts/interfaces/IRegistrableVerifiable.sol";
 import "contracts/interfaces/IReferendumVerifiable.sol";
@@ -45,7 +45,7 @@ contract RightsManager is
     ReentrancyGuardUpgradeable,
     CurrencyManagerUpgradeable,
     RightsManagerERC721Upgradeable,
-    RightsManagerDistributionUpgradeable,
+    RightsManagerCustodialUpgradeable,
     RightsManagerContentAccessUpgradeable,
     RightsManagerDelegationUpgradeable,
     IRightsManager
@@ -71,8 +71,8 @@ contract RightsManager is
 
     event GrantedAccess(address account, uint256 contentId);
     event RegisteredContent(uint256 contentId);
-    event RightsDelegated(address indexed validator, uint256 indexed contentId);
-    event RightsRevoked(address indexed validator);
+    event RightsDelegated(address indexed validator, uint256 contentId);
+    event RightsRevoked(address indexed validator, uint256 contentId);
 
     address private syndication;
     address private referendum;
@@ -309,12 +309,12 @@ contract RightsManager is
 
     /// @inheritdoc IRightsDelegable
     /// @notice Delegates rights for a specific content ID to a grantee.
-    /// @param validatopr The address of strategy license validator contract to delegate rights to.
+    /// @param validator The address of strategy license validator contract to delegate rights to.
     /// @param contentId The content ID for which rights are being delegated.
     function grantRights(
         address validator,
         uint256 contentId
-    ) onlyHolder(contentId) onlyStrategyContract(validator) {
+    ) external onlyHolder(contentId) onlyStrategyContract(validator) {
         _grantRights(validator, contentId);
         emit RightsDelegated(validator, contentId);
     }
@@ -326,7 +326,7 @@ contract RightsManager is
     function revokeRights(
         address validator,
         uint256 contentId
-    ) onlyHolder(contentId) onlyStrategyContract(validator) {
+    ) external onlyHolder(contentId) onlyStrategyContract(validator) {
         _revokeRights(validator, contentId);
         emit RightsRevoked(validator, contentId);
     }
@@ -339,17 +339,22 @@ contract RightsManager is
      * @param tx_ The transaction required for the operation.
      * @param payee The address of the account that will pay the transaction.
      */
-    function _verifyAndProcessTx(address currency, address payee) internal {
+    function _verifyAndProcessTx(
+        T.Transaction memory tx_,
+        address payee
+    ) internal returns (uint256) {
         // If the currency is the native coin (e.g., ETH)
         // these amounts are expected from the strategy license validator
         if (tx_.currency == address(0)) {
-            if (tx_.amount != msg.value) revert;
+            if (tx_.amount != msg.value)
+                revert NoDeal("Invalid transaction amount sent");
             return msg.value;
         } else {
             // transfer token to contract and reset allowance..
             uint256 allowed = payee.allowance(tx_.currency);
-            if (tx_.amount != allowed) revert;
-            payee.safeTransfer(allowed, allowed);
+            if (tx_.amount > allowed)
+                revert NoDeal("Invalid transaction allowed amount");
+            payee.safeTransfer(allowed, tx_.currency);
             return allowed;
         }
     }
@@ -359,33 +364,36 @@ contract RightsManager is
         uint256 split,
         address target,
         address currency
-    ) internal onlyBasePointsAllowed(split) {
+    ) internal onlyBasePointsAllowed(split) returns (uint256) {
         uint256 total = amount.perOf(split);
         // set in ledger the amount to target..
         _sumLedgerEntry(target, total, currency);
+        return total;
     }
 
     function _distributeRoyalties(
         uint256 amount,
         address currency,
-        T.Distribution[] distribution
-    ) internal {
+        T.Allocation[] memory allocations
+    ) internal returns (uint256) {
         // 1% for each distributor is the min!
-        if (distribution.length == 0) return amount;
-        if (distribution.length > 100) {
-            revert;
+        if (allocations.length == 0) return amount;
+        if (allocations.length > 100) {
+            revert NoDeal("Invalid allocations. Cannot be more than 100.");
         }
 
         uint8 i = 0;
         uint256 accBps = 0;
         uint256 total = amount;
 
-        while (i < distribution.length) {
+        while (i < allocations.length) {
             // set in ledger the amount to target..
-            _calculateAndRegisterRoyalties(
+            uint256 bps = allocations[i].bps;
+            address target = allocations[i].target;
+            uint256 split = _calculateAndRegisterRoyalties(
                 amount,
-                distribution[i].bps,
-                distribution[i].target,
+                bps,
+                target,
                 currency
             );
 
@@ -397,7 +405,8 @@ contract RightsManager is
             }
         }
 
-        if (accBps > C.BPS_MAX || total < 0) revert;
+        if (accBps > C.BPS_MAX || total < 0)
+            revert NoDeal("Invalid split base points.");
         return total;
     }
 
@@ -419,26 +428,26 @@ contract RightsManager is
         // in some cases the content or distributor could be revoked..
         if (!isEligibleForDistribution(contentId))
             revert InvalidNotAllowedContent();
-
-        IStrategy validator = IStrategy(_msgSender());
+        
+        IStrategy strategy = IStrategy(_msgSender());
         IDistributor distributor = IDistributor(getCustodial(contentId));
-        T.Transaction req = validation.transaction(account, contentId);
+        T.Transaction memory req = strategy.transaction(account, contentId);
         // The user, owner or delegated validator must ensure that the necessary steps
         // are taken to handle the transaction value or set the appropriate
         // approve/allowance for the DRM (Digital Rights Management) contract.
         uint256 total = _verifyAndProcessTx(req, _msgSender());
 
         //!IMPORTANT if distributor or trasury does not support the currency, will revert..
-        uint256 treasurySplit = total.perfOf(getFees(req.currency)); // bps
-        uint256 acceptedSplit = distributor.negotiate(total, req.currency);
         // the max bps integrity is warrantied by treasure fees only bps modifier
-        uint256 ownerSplit = total - (treasurySplit + distributoFees);
+        uint256 treasurySplit = total.perOf(getFees(req.currency)); // bps
+        uint256 acceptedSplit = distributor.negotiate(total, req.currency);
+        uint256 ownerSplit = total - (treasurySplit + acceptedSplit);
 
-        T.Distribution[] dist = validation.allocation(req);
+        T.Allocation[] memory alloc = strategy.allocation(req);
         uint256 remaining = _distributeRoyalties(
             ownerSplit,
             req.currency,
-            dist
+            alloc
         );
 
         // if the owner decide get 0 fees its ok!!
@@ -453,8 +462,7 @@ contract RightsManager is
         // TODO allow withdraw
         _sumLedgerEntry(owner, remaining, req.currency);
         _sumLedgerEntry(manager, acceptedSplit, req.currency);
-        _sumLedgerEntry(address(this), treasurySplit, req.currency);
-        _grantAccess(account, contentId, validator);
+        _grantAccess(account, contentId, _msgSender());
         emit GrantedAccess(account, contentId);
     }
 

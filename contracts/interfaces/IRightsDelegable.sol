@@ -10,7 +10,7 @@ interface IRightsDelegable {
 
     /// @notice Revokes the delegation of rights for a grantee.
     /// @param grantee The address of the account or contract whose delegation is being revoked.
-    function revokeDelegation(address grantee) external;
+    function revokeRights(address grantee) external;
 
     /// @notice Checks if rights for a specific content ID have been delegated to a grantee.
     /// @param grantee The address of the account or contract to check.

@@ -8,11 +8,11 @@ import "contracts/interfaces/IRightsCustodial.sol";
 /// @title Rights Manager Distribution Upgradeable
 /// @notice This abstract contract manages the assignment and retrieval of distribution rights for content, 
 /// ensuring that custodial rights are properly managed.
-abstract contract RightsManagerDistributionUpgradeable is
+abstract contract RightsManagerCustodialUpgradeable is
     Initializable,
     IRightsCustodial
 {
-    /// @custom:storage-location erc7201:rightsmanagerdistributionupgradeable
+    /// @custom:storage-location erc7201:rightsmanagercustodialupgradeable
     /// @dev Storage struct for managing custodial rights for content distribution.
     struct CustodyStorage {
         /// @dev Mapping to store the custodial address for each content ID.

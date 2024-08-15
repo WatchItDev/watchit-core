@@ -5,6 +5,7 @@ pragma solidity ^0.8.24;
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "contracts/interfaces/IFeesManager.sol";
 import "contracts/libraries/MathHelper.sol";
+import "contracts/libraries/Constants.sol";
 
 /**
  * @dev Abstract contract for managing fee funds.
@@ -74,7 +75,7 @@ abstract contract FeesManagerUpgradeable is Initializable, IFeesManager {
     /// @param fees The fee amount to check.
     modifier onlyBasePointsAllowed(uint256 fees) {
         // if fees < 1 = 0.01% || fees basis > 10_000 = 100%
-        if (fees < 1 || fees > MathHelper.BPS_MAX)
+        if (fees < 1 || fees > C.BPS_MAX)
             revert InvalidBasisPointRange();
         _;
     }
@@ -83,7 +84,7 @@ abstract contract FeesManagerUpgradeable is Initializable, IFeesManager {
     /// @param fees The fee amount to check.
     modifier onlyNominalAllowed(uint256 fees) {
         // if fees < 1% || fees > 100%
-        if (fees < 1 || fees > MathHelper.SCALE_FACTOR)
+        if (fees < 1 || fees > C.SCALE_FACTOR)
             revert InvalidNominalRange();
         _;
     }

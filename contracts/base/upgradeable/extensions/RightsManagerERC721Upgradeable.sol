@@ -66,7 +66,6 @@ abstract contract RightsManagerERC721Upgradeable is
         override(
             IERC165,
             ERC721Upgradeable,
-            ERC721RoyaltyUpgradeable,
             ERC721EnumerableUpgradeable
         )
         returns (bool)

@@ -11,10 +11,12 @@ import "contracts/modules/lens/base/LensModuleMetadata.sol";
 import "contracts/modules/lens/base/LensModuleRegistrant.sol";
 import "contracts/modules/lens/base/HubRestricted.sol";
 import "contracts/modules/lens/libraries/Types.sol";
+
+import "contracts/base/DRMRestricted.sol";
 import "contracts/interfaces/IStrategy.sol";
 import "contracts/interfaces/IRightsManager.sol";
-import "contracts/libraries/Types.sol";
 import "contracts/libraries/Constants.sol";
+import "contracts/libraries/Types.sol";
 
 /**
  * @title RentModule
@@ -27,8 +29,9 @@ contract RentModule is
     LensModuleMetadata,
     LensModuleRegistrant,
     HubRestricted,
-    IStrategy,
-    IPublicationActionModule
+    DRMRestricted,
+    IPublicationActionModule,
+    IStrategy
 {
     using SafeERC20 for IERC20;
 
@@ -47,25 +50,25 @@ contract RentModule is
     // Address of the Digital Rights Management (DRM) contract
     address private immutable drmAddress;
     // Mapping from publication ID to content ID
+    // TODO se puede simplificar estas estructuras?
     mapping(uint256 => uint256) contentRegistry;
-    mapping(uint256 => mapping(address => uint256)) rentRegistry;
-    // Mapping from publication ID and currency to rent price
+    mapping(uint256 => mapping(address => Registry)) rentRegistry;
     mapping(uint256 => mapping(address => uint256)) private prices;
 
     /**
      * @dev Constructor that initializes the RentModule contract.
      * @param hub The address of the hub contract.
      * @param registrant The address of the registrant contract.
-     * @param repository The address of the repository contract.
+     * @param drm The address of the drm contract.
      */
     constructor(
         address hub,
         address registrant,
-        address repository
+        address drm
     )
         Ownable(_msgSender())
         HubRestricted(hub)
-        DRMRestricted(repository)
+        DRMRestricted(drm)
         LensModuleRegistrant(registrant)
     {}
 
@@ -115,14 +118,8 @@ contract RentModule is
 
             // Validate price and currency support
             if (price == 0) revert InvalidRentPrice();
-            bool isSupportedCurrencyByDistributor = IDistributor(
-                rent.distributor
-            ).isCurrencySupported(currency);
-
-            if (
-                !isRegisteredErc20(currency) ||
-                !isSupportedCurrencyByDistributor
-            ) revert InvalidNotSupportedCurrency();
+            if (!isRegisteredErc20(currency))
+                revert InvalidNotSupportedCurrency();
 
             // Set the rent price
             // pub -> wvc -> 5
@@ -202,6 +199,8 @@ contract RentModule is
         return abi.encode(rentRegistry[contentId][rentalWatcher], currency);
     }
 
+    // TODO approved necesita un nombre mas apropiado
+
     /// @inheritdoc IStrategy
     /// @notice Approves a specific condition for an account and content ID.
     /// @dev This function checks if the current timestamp is greater than the timelock for the specified account and content ID.
@@ -214,7 +213,8 @@ contract RentModule is
         uint256 contentId
     ) external view returns (bool) {
         // Checks if the current timestamp is greater than the timelock for the given account and contentId
-        return Time.timestamp() > rentRegistry[contentId][account].timelock;
+        uint256 expireAt = rentRegistry[contentId][account].timelock;
+        return Time.timestamp() > expireAt;
     }
 
     /// @inheritdoc IStrategy
@@ -227,7 +227,7 @@ contract RentModule is
     function transaction(
         address account,
         uint256 contentId
-    ) external view onlyDRM returns (T.Transaction) {
+    ) external view onlyDrm returns (T.Transaction memory) {
         uint256 total = rentRegistry[contentId][account].total;
         address currency = rentRegistry[contentId][account].currency;
 
@@ -247,10 +247,9 @@ contract RentModule is
     /// @dev This function returns an array of distribution objects, which represent the allocation of royalties or fees.
     /// An empty array means that all royalties go to the owner. If a distribution is set, the sum of the percentages should
     /// not exceed 100%, otherwise, the owner's share could be reduced to zero.
-    /// @param tx_ The transaction object containing information about the current transaction.
     /// @return T.Distribution[] An array representing the distribution of royalties or fees.
     function allocation(
-        T.Transaction
+        T.Transaction calldata
     ) external view returns (T.Allocation[] memory) {
         // An empty distribution means all royalties go to the owner.
         // If a distribution is set, e.g., a=>5%, b=>5%, owner=>remaining 90%,

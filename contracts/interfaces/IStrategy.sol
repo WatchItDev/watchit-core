@@ -21,12 +21,12 @@ interface IStrategy {
     function transaction(
         address account,
         uint256 contentId
-    ) external view returns (T.Transaction);
+    ) external view returns (T.Transaction memory);
 
     /// @notice Retrieves the distribution spec to distribute the royalties or fees.
     /// @param tx_ The transaction object containing information about the current transaction.
     /// @return T.Distribution[] An array representing the distribution of royalties or fees.
     function allocation(
-        T.Transaction tx_
+        T.Transaction calldata tx_
     ) external view returns (T.Allocation[] memory);
 }

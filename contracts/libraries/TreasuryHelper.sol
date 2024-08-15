@@ -99,11 +99,18 @@ library TreasuryHelper {
     /// @param owner The address of the token owner who has granted the allowance.
     /// @param token The address of the ERC20 token contract.
     /// @return The remaining number of tokens that the contract is allowed to spend on behalf of the `owner`.
-    function allowance(address owner, address token) internal {
+    function allowance(
+        address owner,
+        address token
+    ) internal returns (uint256) {
         return IERC20(token).allowance(owner, address(this));
     }
 
-    function safeTransfer(ddress owner, uint256 amount, address token){
-         IERC20(token).safeTransferFrom(owner, address(this), amount);
+    function safeTransfer(
+        address owner,
+        uint256 amount,
+        address token
+    ) internal {
+        IERC20(token).safeTransferFrom(owner, address(this), amount);
     }
 }

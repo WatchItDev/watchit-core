@@ -64,8 +64,7 @@ contract Syndication is
     event Revoked(address indexed distributor);
     event FeesDisbursed(
         address indexed treasury,
-        uint256 amount,
-        address token
+        uint256 amount
     );
 
     /// @dev Constructor that disables initializers to prevent the implementation contract from being initialized.

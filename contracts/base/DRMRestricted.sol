@@ -18,12 +18,11 @@ abstract contract DRMRestricted {
 
     /**
      * @dev Sets the DRM address upon contract deployment.
-     * @param drm The address of the repository contract.
+     * @param drm The address of the drm contract.
      */
-    constructor(address repository) {
+    constructor(address drm) {
        // Get the registered DRM contract from the repository
-        IRepository repo = IRepository(repository);
-        drmAddress = repo.getContract(T.ContractTypes.DRM);
+        drmAddress = drm;
     }
 
     /**
