@@ -34,7 +34,8 @@ library TreasuryHelper {
     }
 
     /// @notice Checks the allowance that the contract has been granted by the owner for a specific ERC20 token.
-    /// @dev This internal function queries the allowance that the `owner` has granted to this contract for spending the specified `token`.
+    /// @dev This internal function queries the allowance that the `owner` has granted 
+    /// to this contract for spending the specified `token`.
     /// @param owner The address of the token owner who has granted the allowance.
     /// @param token The address of the ERC20 token contract.
     /// @return The remaining number of tokens that the contract is allowed to spend on behalf of the `owner`.

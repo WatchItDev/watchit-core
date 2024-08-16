@@ -20,15 +20,11 @@ abstract contract RightsManagerERC721Upgradeable is
     ERC2981Upgradeable,
     IRightsOwnership
 {
-    /**
-     * @dev Internal function to update the ownership of a token.
-     * @param to The address to transfer the token to.
-     * @param tokenId The ID of the token to transfer.
-     * @param auth The address authorized to perform the transfer.
-     * @return The address of the new owner of the token.
-     *
-     * This function overrides the `_update` function from both ERC721Upgradeable and ERC721EnumerableUpgradeable.
-     */
+    /// @dev Internal function to update the ownership of a token.
+    /// @param to The address to transfer the token to.
+    /// @param tokenId The ID of the token to transfer.
+    /// @param auth The address authorized to perform the transfer.
+    /// @return The address of the new owner of the token.
     function _update(
         address to,
         uint256 tokenId,
@@ -41,13 +37,9 @@ abstract contract RightsManagerERC721Upgradeable is
         return super._update(to, tokenId, auth);
     }
 
-    /**
-     * @dev Internal function to increase the balance of an account.
-     * @param account The address of the account whose balance is to be increased.
-     * @param value The amount by which the balance is to be increased.
-     *
-     * This function overrides the `_increaseBalance` function from both ERC721Upgradeable and ERC721EnumerableUpgradeable.
-     */
+    /// @dev Internal function to increase the balance of an account.
+    /// @param account The address of the account whose balance is to be increased.
+    /// @param value The amount by which the balance is to be increased.
     function _increaseBalance(
         address account,
         uint128 value
@@ -55,13 +47,9 @@ abstract contract RightsManagerERC721Upgradeable is
         super._increaseBalance(account, value);
     }
     
-    /**
-     * @notice Checks if the contract supports a specific interface.
-     * @param interfaceId The interface ID to check.
-     * @return True if the contract supports the interface, false otherwise.
-     *
-     * This function overrides the `supportsInterface` function from multiple interfaces and extensions, including ERC165, ERC721Upgradeable, ERC721RoyaltyUpgradeable, and ERC721EnumerableUpgradeable.
-     */
+    /// @notice Checks if the contract supports a specific interface.
+    /// @param interfaceId The interface ID to check.
+    /// @return True if the contract supports the interface, false otherwise.
     function supportsInterface(
         bytes4 interfaceId
     )

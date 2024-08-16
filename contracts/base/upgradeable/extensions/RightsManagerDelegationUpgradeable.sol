@@ -7,7 +7,8 @@ import "contracts/interfaces/IRightsDelegable.sol";
 import "contracts/libraries/Types.sol";
 
 /// @title Rights Manager Delegation Upgradeable
-/// @notice This abstract contract manages the delegation of rights for specific content IDs to various strategy validators.
+/// @notice This abstract contract manages the delegation of rights
+/// for specific content IDs to various strategy validators.
 abstract contract RightsManagerDelegationUpgradeable is
     Initializable,
     IRightsDelegable
@@ -44,12 +45,11 @@ abstract contract RightsManagerDelegationUpgradeable is
         }
     }
 
-    /**
-     * @dev Modifier to ensure that the given validator contract has been delegated the rights for the specific content ID.
-     * @param grantee The address of the account or contract to delegate rights to.
-     * @param contentId The content ID to check for delegation.
-     * Reverts if the rights have not been delegated for the content ID.
-     */
+    /// @dev Modifier to ensure that the given validator contract has been delegated 
+    /// the rights for the specific content ID.
+    /// @param grantee The address of the account or contract to delegate rights to.
+    /// @param contentId The content ID to check for delegation.
+    /// Reverts if the rights have not been delegated for the content ID.
     modifier onlyWhenRightsDelegated(address grantee, uint256 contentId) {
         RightsStorage storage $ = _getRightsStorage();
         if (!$._delegation[grantee][contentId])

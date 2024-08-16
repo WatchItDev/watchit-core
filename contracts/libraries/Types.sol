@@ -27,24 +27,22 @@ library T {
         uint256 bps; // Basis points, with 10000 bps being equivalent to 100%.
     }
 
-    /**
-     * @title Transaction
-     * @dev Represents the details of a transaction involving a specific currency and amount.
-     * @param currency The address of the token or currency used in the transaction.
-     * @param amount The amount of the currency required for the transaction, specified in the smallest unit (e.g., wei for ETH).
-     */
+    /// @title Transaction
+    /// @dev Represents the details of a transaction involving a specific currency and amount.
+    /// @param currency The address of the token or currency used in the transaction.
+    /// @param amount The amount of the currency required for the transaction, 
+    /// specified in the smallest unit (e.g., wei for ETH).
     struct Transaction {
         address currency;
         uint256 amount;
     }
 
-    /**
-     * @title Royalties
-     * @notice Represents the currency, amount, and distribution of royalties for a transaction.
-     * @dev This struct encapsulates the transaction details and the distribution of royalties to various addresses.
-     * @param transaction The details of the transaction, including the currency and amount.
-     * @param distribution An array of Distribution structs, each representing an address and its corresponding share of the royalties in basis points.
-     */
+    /// @title Royalties
+    /// @notice Represents the currency, amount, and distribution of royalties for a transaction.
+    /// @dev This struct encapsulates the transaction details and the distribution of royalties to various addresses.
+    /// @param transaction The details of the transaction, including the currency and amount.
+    /// @param distribution An array of Distribution structs, each representing an address 
+    /// and its corresponding share of the royalties in basis points.
     struct Allocation {
         Transaction t9n;
         Distribution[] d10n;

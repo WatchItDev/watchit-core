@@ -10,7 +10,8 @@ import "contracts/interfaces/IStrategy.sol";
 import "contracts/libraries/Types.sol";
 
 /// @title Rights Manager Content Access Upgradeable
-/// @notice This abstract contract manages content access control using a license validator contract that must implement the IStrategy interface.
+/// @notice This abstract contract manages content access control using a license 
+/// validator contract that must implement the IStrategy interface.
 abstract contract RightsManagerContentAccessUpgradeable is
     Initializable,
     IRightsAccessController

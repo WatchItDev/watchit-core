@@ -3,7 +3,8 @@ pragma solidity ^0.8.24;
 import "contracts/libraries/Types.sol";
 
 /// @title IStrategy
-/// @notice Interface for managing access to content based on conditions, transactions, and distribution of royalties or fees.
+/// @notice Interface for managing access to content based on conditions, 
+/// transactions, and distribution of royalties or fees.
 interface IStrategy {
     /// @notice Verify access to for an account and content ID.
     /// @param account The address of the account to approve.

@@ -198,7 +198,8 @@ contract RentModule is
 
     /// @inheritdoc IStrategy
     /// @notice Approves a specific condition for an account and content ID.
-    /// @dev This function checks if the current timestamp is greater than the timelock for the specified account and content ID.
+    /// @dev This function checks if the current timestamp is greater than 
+    /// the timelock for the specified account and content ID.
     /// If true, the condition is considered approved.
     /// @param account The address of the account to approve.
     /// @param contentId The content ID to approve against.
@@ -214,7 +215,8 @@ contract RentModule is
 
     /// @inheritdoc IStrategy
     /// @notice Executes a transaction for a given account and content ID.
-    /// @dev This function transfers the specified amount of tokens from the account to the contract and then increases the allowance for the DRM contract.
+    /// @dev This function transfers the specified amount of tokens from the account 
+    /// to the contract and then increases the allowance for the DRM contract.
     /// It expects that the account has previously approved the contract to spend the specified amount of tokens.
     /// @param account The address of the account initiating the transaction.
     function allocation(

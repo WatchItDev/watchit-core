@@ -177,7 +177,8 @@ contract RightsManager is
     }
 
     /// @notice Allocates the specified amount across a distribution array and returns the remaining unallocated amount.
-    /// @dev Distributes the amount based on the provided distribution array. Ensures no more than 100 allocations and a minimum of 1% per distributor.
+    /// @dev Distributes the amount based on the provided distribution array. 
+    /// Ensures no more than 100 allocations and a minimum of 1% per distributor.
     /// @param amount The total amount to be allocated.
     /// @param currency The address of the currency being allocated.
     /// @param distribution An array of distributions specifying the split percentages and target addresses.
