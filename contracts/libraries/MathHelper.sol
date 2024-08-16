@@ -12,6 +12,8 @@ library MathHelper {
         uint256 amount,
         uint256 bps
     ) internal pure returns (uint256) {
+        // avoid division by zero error
+        if (amount == 0 || bps == 0) return amount;
         // 10 * (5*100) / 10_000
         return (amount * bps) / C.BPS_MAX;
     }

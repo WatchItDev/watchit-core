@@ -22,7 +22,7 @@ library T {
      * @param target The address that will receive a share of the royalties.
      * @param bps The basis points (bps) assigned to the target address, where 10,000 bps = 100%.
      */
-    struct Allocation {
+    struct Distribution {
         address target;
         uint256 bps; // Basis points, with 10000 bps being equivalent to 100%.
     }
@@ -36,6 +36,18 @@ library T {
     struct Transaction {
         address currency;
         uint256 amount;
+    }
+
+    /**
+     * @title Royalties
+     * @notice Represents the currency, amount, and distribution of royalties for a transaction.
+     * @dev This struct encapsulates the transaction details and the distribution of royalties to various addresses.
+     * @param transaction The details of the transaction, including the currency and amount.
+     * @param distribution An array of Distribution structs, each representing an address and its corresponding share of the royalties in basis points.
+     */
+    struct Allocation {
+        Transaction t9n;
+        Distribution[] d10n;
     }
 
     /**

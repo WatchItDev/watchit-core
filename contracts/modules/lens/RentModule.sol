@@ -38,7 +38,6 @@ contract RentModule is
     // Custom errors for specific failure cases
     error InvalidExistingContentPublication();
     error InvalidNotSupportedCurrency();
-
     error InvalidRentPrice();
 
     struct Registry {
@@ -47,8 +46,6 @@ contract RentModule is
         uint256 timelock;
     }
 
-    // Address of the Digital Rights Management (DRM) contract
-    address private immutable drmAddress;
     // Mapping from publication ID to content ID
     // TODO se puede simplificar estas estructuras?
     mapping(uint256 => uint256) contentRegistry;
@@ -199,8 +196,6 @@ contract RentModule is
         return abi.encode(rentRegistry[contentId][rentalWatcher], currency);
     }
 
-    // TODO approved necesita un nombre mas apropiado
-
     /// @inheritdoc IStrategy
     /// @notice Approves a specific condition for an account and content ID.
     /// @dev This function checks if the current timestamp is greater than the timelock for the specified account and content ID.
@@ -208,7 +203,7 @@ contract RentModule is
     /// @param account The address of the account to approve.
     /// @param contentId The content ID to approve against.
     /// @return bool True if the condition is approved, false otherwise.
-    function approved(
+    function access(
         address account,
         uint256 contentId
     ) external view returns (bool) {
@@ -222,12 +217,10 @@ contract RentModule is
     /// @dev This function transfers the specified amount of tokens from the account to the contract and then increases the allowance for the DRM contract.
     /// It expects that the account has previously approved the contract to spend the specified amount of tokens.
     /// @param account The address of the account initiating the transaction.
-    /// @param contentId The content ID related to the transaction.
-    /// @return T.Transaction A transaction object containing the currency and total amount transferred.
-    function transaction(
+    function allocation(
         address account,
         uint256 contentId
-    ) external view onlyDrm returns (T.Transaction memory) {
+    ) external onlyDrm returns (T.Allocation memory) {
         uint256 total = rentRegistry[contentId][account].total;
         address currency = rentRegistry[contentId][account].currency;
 
@@ -239,23 +232,14 @@ contract RentModule is
             IERC20(currency).approve(drmAddress, total);
         }
 
-        return T.Transaction(currency, total);
-    }
-
-    /// @inheritdoc IStrategy
-    /// @notice Retrieves the distribution requirements for accessing specific content for an account.
-    /// @dev This function returns an array of distribution objects, which represent the allocation of royalties or fees.
-    /// An empty array means that all royalties go to the owner. If a distribution is set, the sum of the percentages should
-    /// not exceed 100%, otherwise, the owner's share could be reduced to zero.
-    /// @return T.Distribution[] An array representing the distribution of royalties or fees.
-    function allocation(
-        T.Transaction calldata
-    ) external view returns (T.Allocation[] memory) {
-        // An empty distribution means all royalties go to the owner.
-        // If a distribution is set, e.g., a=>5%, b=>5%, owner=>remaining 90%,
-        // if the distribution sums to 100%, the owner receives 0.
-        // This can be used to manage various business logic for content distribution.
-        return new T.Allocation[](0);
+        return T.Allocation(
+            T.Transaction(currency, total),
+            // An empty distribution means all royalties go to the owner.
+            // If a distribution is set, e.g., a=>5%, b=>5%, owner=>remaining 90%,
+            // if the distribution sums to 100%, the owner receives 0.
+            // This can be used to manage various business logic for content distribution.
+            new T.Distribution[](0)
+        );
     }
 
     /**

@@ -78,14 +78,6 @@ abstract contract LedgerUpgradeable is Initializable, ILedger {
     }
 
     /// @inheritdoc ILedger
-    /// @notice Retrieves the registered coins amoint for the specified account.
-    /// @param account The address of the account.
-    function getLedgerEntry(address account) public view returns (uint256) {
-        LedgerStorage storage $ = _getLedgerStorage();
-        return $._ledger[account][address(0)];
-    }
-
-    /// @inheritdoc ILedger
     /// @notice Retrieves the registered token amount for the specified account.
     /// @param account The address of the account.
     /// @param token The token to retrieve ledger amount.

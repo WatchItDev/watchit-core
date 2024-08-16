@@ -100,7 +100,7 @@ describe('Syndication', function () {
       const nativeToken = hre.ethers.ZeroAddress // zero address means native
       const fees = hre.ethers.parseUnits('0.3', 'ether') // expected fees paid in contract..
       const syndication = await deploySyndicationWithFakeGovernor()
-      await(await syndication.setFees(fees)).wait()
+      await (await syndication.setFees(fees)).wait()
       expect(await syndication.getFees(nativeToken)).to.be.equal(fees);
     })
 
@@ -110,7 +110,7 @@ describe('Syndication', function () {
       const syndication = await deploySyndicationWithFakeGovernor()
       // https://github.com/ethers-io/ethers.js/issues/407
       // here is not expected to use an "EOA" address, but we don't expect ERC20 tokens for syndication treasury..
-      await(await syndication["setFees(uint256, address)"](fees, sampleTestAddress)).wait()
+      await (await syndication["setFees(uint256, address)"](fees, sampleTestAddress)).wait()
       await expect(syndication.getFees(sampleTestAddress)).to.revertedWithCustomError(
         syndication, 'InvalidUnsupportedToken'
       )
@@ -122,7 +122,7 @@ describe('Syndication', function () {
       const [sampleTestAddress,] = await getAccounts()
       // only governance can do this..
       const syndication = await deploySyndicationWithFakeGovernor()
-      await(await syndication.setTreasuryAddress(sampleTestAddress)).wait()
+      await (await syndication.setTreasuryAddress(sampleTestAddress)).wait()
       expect(await syndication.getTreasuryAddress()).to.be.equal(sampleTestAddress);
     })
 
@@ -132,7 +132,7 @@ describe('Syndication', function () {
       const fees = hre.ethers.parseUnits('0.3', 'ether')
       const [syndication,] = await deploySyndicationWithRegisteredDistributor()
       // only governance can do this..
-      await(await syndication.withdraw(fees)).wait()
+      await (await syndication.disburse(fees)).wait()
 
       const treasuryAddress = await syndication.getTreasuryAddress()
       const filter = syndication.filters.FeesDisbursed()
@@ -162,7 +162,7 @@ describe('Syndication', function () {
       await syndication.register(distributorAddress, { value: fees })
 
       const manager = await distributorContract.getManager()
-      expect(await syndication.getLedgerEntry(manager)).to.equal(fees)
+      expect(await syndication.getLedgerEntry(manager, hre.ethers.ZeroAddress)).to.equal(fees)
     })
 
     it('Should set waiting state during valid Distributor register.', async function () {
@@ -298,7 +298,7 @@ describe('Syndication', function () {
       await (await syndication.quit(distributorAddress)).wait()
 
       const manager = await distributorContract.getManager()
-      expect(await syndication.getLedgerEntry(manager)).to.equal(0)
+      expect(await syndication.getLedgerEntry(manager, hre.ethers.ZeroAddress)).to.equal(0)
     })
   })
 
@@ -313,7 +313,7 @@ describe('Syndication', function () {
       const [syndication, distributorContract, distributorAddress] = await deploySyndicationWithRegisteredDistributor()
       await (await syndication.approve(distributorAddress)).wait()
       const manager = await distributorContract.getManager()
-      expect(await syndication.getLedgerEntry(manager)).to.equal(0)
+      expect(await syndication.getLedgerEntry(manager, hre.ethers.ZeroAddress)).to.equal(0)
     })
 
     it('Should set valid active state after approval.', async function () {

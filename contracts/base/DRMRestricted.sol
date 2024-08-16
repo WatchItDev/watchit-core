@@ -2,7 +2,6 @@
 
 pragma solidity ^0.8.24;
 
-// TODO complete this refactor
 /**
  * @title DRMRestricted
  * @author 

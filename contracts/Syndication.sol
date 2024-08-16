@@ -62,10 +62,7 @@ contract Syndication is
     /// @notice Event emitted when an entity is revoked.
     /// @param distributor The address of the revoked entity.
     event Revoked(address indexed distributor);
-    event FeesDisbursed(
-        address indexed treasury,
-        uint256 amount
-    );
+    event FeesDisbursed(address indexed treasury, uint256 amount);
 
     /// @dev Constructor that disables initializers to prevent the implementation contract from being initialized.
     /// @notice This constructor prevents the implementation contract from being initialized.
@@ -127,7 +124,7 @@ contract Syndication is
     /// That will be applied to the enrollment fee when a distributor quits.
     function setPenaltyRate(
         uint256 newPenaltyRate
-    ) public onlyGov onlyBasePointsAllowed(newPenaltyRate) {
+    ) external onlyGov onlyBasePointsAllowed(newPenaltyRate) {
         if (newPenaltyRate == 0) revert InvalidPenaltyRate();
         penaltyRate = newPenaltyRate;
     }
@@ -135,7 +132,7 @@ contract Syndication is
     /// @inheritdoc IFeesManager
     /// @notice Sets a new treasury fee.
     /// @param newTreasuryFee The new treasury flat fee to be set.
-    function setFees(uint256 newTreasuryFee) public onlyGov {
+    function setFees(uint256 newTreasuryFee) external onlyGov {
         _setFees(newTreasuryFee, address(0));
     }
 
@@ -143,7 +140,7 @@ contract Syndication is
     /// @notice Sets the address of the treasury.
     /// @param newTreasuryAddress The new treasury address to be set.
     /// @dev Only callable by the governance role.
-    function setTreasuryAddress(address newTreasuryAddress) public onlyGov {
+    function setTreasuryAddress(address newTreasuryAddress) external onlyGov {
         _setTreasuryAddress(newTreasuryAddress);
     }
 
@@ -151,11 +148,11 @@ contract Syndication is
     /// @notice Disburses tokens from the contract to a specified address.
     /// @param amount The amount of tokens to disburse.
     /// @dev This function can only be called by governance or an authorized entity.
-    function disburse(uint256 amount) public onlyGov {
+    function disburse(uint256 amount) external onlyGov {
         // collect tokens/coin token and send it to treasury
         // collect native token and send it to treasury
         address treasury = getTreasuryAddress();
-        treasury.disburse(amount); // sent..
+        treasury.transfer(amount); // sent..
         emit FeesDisbursed(treasury, amount);
     }
 
@@ -197,7 +194,7 @@ contract Syndication is
     /// @param distributor The address of the distributor to register.
     function register(
         address distributor
-    ) public payable onlyDistributorContract(distributor) {
+    ) external payable onlyDistributorContract(distributor) {
         if (msg.value < getFees(address(0)))
             revert FailDuringEnrollment("Invalid fee amount");
 
@@ -216,21 +213,21 @@ contract Syndication is
     /// @dev The function reverts if the distributor has not enrolled or if the refund fails.
     function quit(
         address distributor
-    ) public nonReentrant onlyDistributorContract(distributor) {
+    ) external nonReentrant onlyDistributorContract(distributor) {
         address manager = _msgSender(); // the sender is expected to be the manager..
-        uint256 registeredAmount = getLedgerEntry(manager); // Wei, etc..
+        uint256 registeredAmount = getLedgerEntry(manager, address(0)); // Wei, etc..
         if (registeredAmount == 0)
             revert FailDuringQuit("Invalid distributor/manager enrollment.");
 
         // eg: (100 * bps) / BPS_MAX
         uint256 penal = registeredAmount.perOf(penaltyRate);
         uint256 res = registeredAmount - penal;
-        
+
         // reset ledger..
         _setLedgerEntry(manager, 0, address(0));
         _quit(uint160(distributor));
         // rollback partial payment..
-        manager.disburse(res);
+        manager.transfer(res);
         emit Resigned(distributor);
     }
 
@@ -239,7 +236,7 @@ contract Syndication is
     /// @param distributor The address of the distributor to revoke.
     function revoke(
         address distributor
-    ) public onlyGov onlyDistributorContract(distributor) {
+    ) external onlyGov onlyDistributorContract(distributor) {
         _revoke(uint160(distributor));
         emit Revoked(distributor);
     }
@@ -249,7 +246,7 @@ contract Syndication is
     /// @param distributor The address of the distributor to approve.
     function approve(
         address distributor
-    ) public onlyGov onlyDistributorContract(distributor) {
+    ) external onlyGov onlyDistributorContract(distributor) {
         address manager = IDistributor(distributor).getManager();
         // reset ledger..
         _setLedgerEntry(manager, 0, address(0));
@@ -265,12 +262,12 @@ contract Syndication is
     function setFees(
         uint256 newTreasuryFee,
         address token
-    ) public override onlyGov {}
+    ) external override onlyGov {}
 
     /// @inheritdoc IDisburser
     /// @notice Disburses tokens from the contract to a specified address.
     /// @param amount The amount of tokens to disburse.
     /// @param token The address of the ERC20 token to disburse tokens.
     /// @dev This function can only be called by governance or an authorized entity.
-    function disburse(uint256 amount, address token) public onlyGov {}
+    function disburse(uint256 amount, address token) external onlyGov {}
 }

@@ -2,14 +2,6 @@
 pragma solidity ^0.8.24;
 
 interface ILedger {
-
-    /**
-     * @notice Retrieves the registered coin amount for the specified account.
-     * @param account The address of the account.
-     * @return The amount of registered coins for the account.
-     */
-    function getLedgerEntry(address account) external view returns (uint256);
-
     /**
      * @notice Retrieves the registered token amount for the specified account.
      * @param account The address of the account.

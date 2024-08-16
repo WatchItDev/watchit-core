@@ -92,6 +92,6 @@ abstract contract RightsManagerContentAccessUpgradeable is
         // if the access is not registered, return false.
         if (strategyValidator == address(0)) return false;
         // The approved method is called and executed according to the IStrategy specification.
-        return IStrategy(strategyValidator).approved(account, contentId);
+        return IStrategy(strategyValidator).access(account, contentId);
     }
 }

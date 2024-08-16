@@ -11,7 +11,7 @@ interface IRightsAccessController {
     function grantAccess(
         address account,
         uint256 contentId
-    ) external;
+    ) external payable;
 
     /// @notice Checks if access is allowed for a specific user and content.
     /// @param account The address of the user.

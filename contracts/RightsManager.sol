@@ -86,6 +86,7 @@ contract RightsManager is
     error InvalidNotApprovedContent();
     error InvalidNotAllowedContent();
     error InvalidUnknownContent();
+    error NoFundsToWithdraw(address);
     error NoDeal(string reason);
 
     /// @dev Constructor that disables initializers to prevent the implementation contract from being initialized.
@@ -135,7 +136,7 @@ contract RightsManager is
     /// @return True if the distributor is active, false otherwise.
     function _checkActiveDistributor(
         address distributor
-    ) internal returns (bool) {
+    ) private returns (bool) {
         IRegistrableVerifiable _v = IRegistrableVerifiable(syndication);
         return _v.isActive(distributor); // is active status in syndication
     }
@@ -145,7 +146,7 @@ contract RightsManager is
     /// @return True if the content is active, false otherwise.
     function _checkActiveContent(
         uint256 contentId
-    ) internal view returns (bool) {
+    ) private view returns (bool) {
         IReferendumVerifiable _v = IReferendumVerifiable(referendum);
         return _v.isActive(contentId); // is active in referendum
     }
@@ -157,9 +158,67 @@ contract RightsManager is
     function _checkApprovedContent(
         address to,
         uint256 contentId
-    ) internal view returns (bool) {
+    ) private view returns (bool) {
         IReferendumVerifiable _v = IReferendumVerifiable(referendum);
         return _v.isApproved(to, contentId); // is approved by referendu,
+    }
+
+    /// @notice Calculates the portion of an amount based on a given split percentage.
+    /// @dev The split percentage is represented in base points (bps), where 10000 bps equals 100%.
+    /// Ensures the split is within allowed base points.
+    /// @param amount The total amount to be split.
+    /// @param split The percentage of the amount to allocate, represented in base points.
+    /// @return The calculated split amount.
+    function _calculateSplit(
+        uint256 amount,
+        uint256 split
+    ) private onlyBasePointsAllowed(split) returns (uint256) {
+        return amount.perOf(split);
+    }
+
+    /// @notice Allocates the specified amount across a distribution array and returns the remaining unallocated amount.
+    /// @dev Distributes the amount based on the provided distribution array. Ensures no more than 100 allocations and a minimum of 1% per distributor.
+    /// @param amount The total amount to be allocated.
+    /// @param currency The address of the currency being allocated.
+    /// @param distribution An array of distributions specifying the split percentages and target addresses.
+    /// @return The remaining unallocated amount after distribution.
+    function _allocate(
+        uint256 amount,
+        address currency,
+        T.Distribution[] memory distribution
+    ) private returns (uint256) {
+        // Ensure there's a distribution or return the full amount.
+        if (distribution.length == 0) return amount;
+        if (distribution.length > 100) {
+            revert NoDeal("Invalid allocations. Cannot be more than 100.");
+        }
+
+        uint8 i = 0;
+        uint256 accBps = 0; // Accumulated base points
+        uint256 accTotal = 0; // Accumulated total allocation
+
+        while (i < distribution.length) {
+            // Retrieve base points and target address from the distribution array.
+            uint256 bps = distribution[i].bps;
+            address target = distribution[i].target;
+            if (bps == 0) continue;
+
+            // Calculate and register the allocation for each distribution.
+            uint256 registeredAmount = _calculateSplit(amount, bps);
+            _sumLedgerEntry(target, registeredAmount, currency);
+
+            accTotal += registeredAmount;
+            accBps += bps;
+
+            unchecked {
+                ++i;
+            }
+        }
+
+        // Ensure the total base points do not exceed the maximum allowed (100%).
+        if (accBps > C.BPS_MAX)
+            revert NoDeal("Invalid split base points distribution.");
+        return amount - accTotal; // Return the remaining unallocated amount.
     }
 
     /// @notice Modifier to restrict access to the holder only or their delegate.
@@ -210,7 +269,7 @@ contract RightsManager is
     function setFees(
         uint256 newTreasuryFee,
         address token
-    ) public onlyGov onlyBasePointsAllowed(newTreasuryFee) {
+    ) external onlyGov onlyBasePointsAllowed(newTreasuryFee) {
         _setFees(newTreasuryFee, token);
         _addCurrency(token);
     }
@@ -220,7 +279,7 @@ contract RightsManager is
     /// @param newTreasuryFee The new fee amount to be set.
     function setFees(
         uint256 newTreasuryFee
-    ) public onlyGov onlyBasePointsAllowed(newTreasuryFee) {
+    ) external onlyGov onlyBasePointsAllowed(newTreasuryFee) {
         _setFees(newTreasuryFee, address(0));
         _addCurrency(address(0));
     }
@@ -229,7 +288,7 @@ contract RightsManager is
     /// @notice Sets the address of the treasury.
     /// @param newTreasuryAddress The new treasury address to be set.
     /// @dev Only callable by the governance role.
-    function setTreasuryAddress(address newTreasuryAddress) public onlyGov {
+    function setTreasuryAddress(address newTreasuryAddress) external onlyGov {
         _setTreasuryAddress(newTreasuryAddress);
     }
 
@@ -238,10 +297,9 @@ contract RightsManager is
     /// @param amount The amount of tokens to disburse.
     /// @param token The address of the ERC20 token to disburse tokens.
     /// @dev This function can only be called by governance or an authorized entity.
-    function disburse(uint256 amount, address token) public onlyGov {
-        // collect tokens/coin token and send it to treasury
+    function disburse(uint256 amount, address token) external onlyGov {
         address treasury = getTreasuryAddress();
-        treasury.disburse(amount, token);
+        treasury.transfer(amount, token);
         emit FeesDisbursed(treasury, amount, token);
     }
 
@@ -249,12 +307,28 @@ contract RightsManager is
     /// @notice Disburses tokens from the contract to a specified address.
     /// @param amount The amount of tokens to disburse.
     /// @dev This function can only be called by governance or an authorized entity.
-    function disburse(uint256 amount) public onlyGov {
-        // TODO validate ledger
+    function disburse(uint256 amount) external onlyGov {
         // collect native token and send it to treasury
         address treasury = getTreasuryAddress();
-        treasury.disburse(amount);
+        // if no balance revert..
+        treasury.transfer(amount);
         emit FeesDisbursed(treasury, amount, address(0));
+    }
+
+    /// @inheritdoc IFundsManager
+    /// @notice Withdraws tokens from the contract to a specified recipient's address.
+    /// @param recipient The address that will receive the withdrawn tokens.
+    /// @param amount The amount of tokens to withdraw.
+    /// @param token The address of the ERC20 token to withdraw, or address(0) to withdraw native tokens.
+    function withdraw(
+        address recipient,
+        uint256 amount,
+        address token
+    ) external {
+        uint256 available = getLedgerEntry(recipient, token);
+        if (available < amount) revert NoFundsToWithdraw(recipient);
+        recipient.transfer(amount, token);
+        _subLedgerEntry(recipient, amount, token);
     }
 
     /// @inheritdoc IRightsManager
@@ -295,7 +369,7 @@ contract RightsManager is
         address distributor,
         bytes calldata encryptedContent
     )
-        public
+        external
         onlyActiveDistributor(distributor)
         onlyRegisteredContent(contentId)
         onlyHolder(contentId)
@@ -331,85 +405,6 @@ contract RightsManager is
         emit RightsRevoked(validator, contentId);
     }
 
-    // TODO move to royalties
-    // TODO En royalties debe registrarse el amount generado por cada contentId
-
-    /**
-     * @dev Verify and processes the transaction required for an operation.
-     * @param tx_ The transaction required for the operation.
-     * @param payee The address of the account that will pay the transaction.
-     */
-    function _verifyAndProcessTx(
-        T.Transaction memory tx_,
-        address payee
-    ) internal returns (uint256) {
-        // If the currency is the native coin (e.g., ETH)
-        // these amounts are expected from the strategy license validator
-        if (tx_.currency == address(0)) {
-            if (tx_.amount != msg.value)
-                revert NoDeal("Invalid transaction amount sent");
-            return msg.value;
-        } else {
-            // transfer token to contract and reset allowance..
-            uint256 allowed = payee.allowance(tx_.currency);
-            if (tx_.amount > allowed)
-                revert NoDeal("Invalid transaction allowed amount");
-            payee.safeTransfer(allowed, tx_.currency);
-            return allowed;
-        }
-    }
-
-    function _calculateAndRegisterRoyalties(
-        uint256 amount,
-        uint256 split,
-        address target,
-        address currency
-    ) internal onlyBasePointsAllowed(split) returns (uint256) {
-        uint256 total = amount.perOf(split);
-        // set in ledger the amount to target..
-        _sumLedgerEntry(target, total, currency);
-        return total;
-    }
-
-    function _distributeRoyalties(
-        uint256 amount,
-        address currency,
-        T.Allocation[] memory allocations
-    ) internal returns (uint256) {
-        // 1% for each distributor is the min!
-        if (allocations.length == 0) return amount;
-        if (allocations.length > 100) {
-            revert NoDeal("Invalid allocations. Cannot be more than 100.");
-        }
-
-        uint8 i = 0;
-        uint256 accBps = 0;
-        uint256 total = amount;
-
-        while (i < allocations.length) {
-            // set in ledger the amount to target..
-            uint256 bps = allocations[i].bps;
-            address target = allocations[i].target;
-            uint256 split = _calculateAndRegisterRoyalties(
-                amount,
-                bps,
-                target,
-                currency
-            );
-
-            total -= split;
-            accBps += bps;
-
-            unchecked {
-                ++i;
-            }
-        }
-
-        if (accBps > C.BPS_MAX || total < 0)
-            revert NoDeal("Invalid split base points.");
-        return total;
-    }
-
     /// @inheritdoc IRightsAccessController
     /// @notice Grants access to a specific account for a certain content ID based on given conditions.
     /// @param account The address of the account to be granted access.
@@ -419,7 +414,7 @@ contract RightsManager is
         address account,
         uint256 contentId
     )
-        public
+        external
         payable
         nonReentrant
         onlyRegisteredContent(contentId)
@@ -428,41 +423,36 @@ contract RightsManager is
         // in some cases the content or distributor could be revoked..
         if (!isEligibleForDistribution(contentId))
             revert InvalidNotAllowedContent();
-        
-        IStrategy strategy = IStrategy(_msgSender());
+
+        // the sender MUST be a IStrategy license advocate/validator
+        address advocate = _msgSender();
+        IStrategy strategy = IStrategy(advocate);
         IDistributor distributor = IDistributor(getCustodial(contentId));
-        T.Transaction memory req = strategy.transaction(account, contentId);
+        T.Allocation memory alloc = strategy.allocation(account, contentId);
+
+        // transaction details
+        uint256 amount = alloc.t9n.amount;
+        address currency = alloc.t9n.currency;
+
         // The user, owner or delegated validator must ensure that the necessary steps
         // are taken to handle the transaction value or set the appropriate
         // approve/allowance for the DRM (Digital Rights Management) contract.
-        uint256 total = _verifyAndProcessTx(req, _msgSender());
-
+        uint256 total = advocate.safeDeposit(amount, currency);
         //!IMPORTANT if distributor or trasury does not support the currency, will revert..
         // the max bps integrity is warrantied by treasure fees only bps modifier
-        uint256 treasurySplit = total.perOf(getFees(req.currency)); // bps
-        uint256 acceptedSplit = distributor.negotiate(total, req.currency);
-        uint256 ownerSplit = total - (treasurySplit + acceptedSplit);
+        uint256 treasurySplit = total.perOf(getFees(currency)); // bps
+        uint256 acceptedSplit = distributor.negotiate(total, currency);
+        uint256 deductions = treasurySplit + acceptedSplit;
 
-        T.Allocation[] memory alloc = strategy.allocation(req);
-        uint256 remaining = _distributeRoyalties(
-            ownerSplit,
-            req.currency,
-            alloc
-        );
-
-        // if the owner decide get 0 fees its ok!!
-        // we need warranty the distributor fees only :)
-        if (remaining < 0) {
-            revert NoDeal("Owner fees cannot be negative");
-        }
+        if (deductions > total) revert NoDeal("The fees are too high.");
+        uint256 remaining = _allocate(total - deductions, currency, alloc.d10n);
 
         address owner = ownerOf(contentId);
         address manager = distributor.getManager();
-        // a new value is added to ledger to
-        // TODO allow withdraw
-        _sumLedgerEntry(owner, remaining, req.currency);
-        _sumLedgerEntry(manager, acceptedSplit, req.currency);
-        _grantAccess(account, contentId, _msgSender());
+        // register amounts in ledger..
+        _sumLedgerEntry(owner, remaining, currency);
+        _sumLedgerEntry(manager, acceptedSplit, currency);
+        _grantAccess(account, contentId, advocate);
         emit GrantedAccess(account, contentId);
     }
 
@@ -477,7 +467,7 @@ contract RightsManager is
     function isAccessGranted(
         address account,
         uint256 contentId
-    ) public nonReentrant onlyRegisteredContent(contentId) returns (bool) {
+    ) external nonReentrant onlyRegisteredContent(contentId) returns (bool) {
         // content is active and has access to content..
         return
             _checkActiveContent(contentId) &&

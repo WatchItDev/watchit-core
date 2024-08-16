@@ -60,7 +60,7 @@ contract Distributor is
     /// @inheritdoc IDistributor
     /// @notice Gets the manager of the distributor, which is the owner of the contract.
     /// @return The address of the manager (owner) of the contract.
-    function getManager() public view returns (address) {
+    function getManager() external view returns (address) {
         return owner();
     }
 
@@ -90,7 +90,7 @@ contract Distributor is
     function setFees(
         uint256 newTreasuryFee,
         address token
-    ) public onlyOwner onlyBasePointsAllowed(newTreasuryFee) {
+    ) external onlyOwner onlyBasePointsAllowed(newTreasuryFee) {
         _setFees(newTreasuryFee, token);
         _addCurrency(token);
     }
@@ -100,7 +100,7 @@ contract Distributor is
     /// @param newTreasuryFee The new fee expresed as base points to be set.
     function setFees(
         uint256 newTreasuryFee
-    ) public onlyOwner onlyBasePointsAllowed(newTreasuryFee) {
+    ) external onlyOwner onlyBasePointsAllowed(newTreasuryFee) {
         _setFees(newTreasuryFee, address(0));
         _addCurrency(address(0));
     }
@@ -125,7 +125,7 @@ contract Distributor is
     function negotiate(
         uint256 fees,
         address currency
-    ) external returns (uint256) {
+    ) external view returns (uint256) {
         uint256 bps = getFees(currency);
         uint256 proposedFees = fees.perOf(bps);
         uint256 acceptedFees = proposedFees < floor[currency]
