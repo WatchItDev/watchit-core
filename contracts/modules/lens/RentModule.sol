@@ -20,7 +20,7 @@ import "contracts/libraries/Types.sol";
 
 /**
  * @title RentModule
- * @dev Contract that manages rental actions for publications.
+ * @dev Contract that manages rental actions for publications and enforces licensing terms based on rental conditions.
  * It inherits from Ownable, IPublicationActionModule, LensModuleMetadata,
  * LensModuleRegistrant, and HubRestricted.
  */
@@ -197,14 +197,13 @@ contract RentModule is
     }
 
     /// @inheritdoc IStrategy
-    /// @notice Approves a specific condition for an account and content ID.
-    /// @dev This function checks if the current timestamp is greater than 
-    /// the timelock for the specified account and content ID.
-    /// If true, the condition is considered approved.
-    /// @param account The address of the account to approve.
-    /// @param contentId The content ID to approve against.
-    /// @return bool True if the condition is approved, false otherwise.
-    function access(
+    /// @notice Checks whether the license (rental period) for an account and content ID is still valid.
+    /// @dev This function checks if the current timestamp is within the valid rental period (timelock) for the specified account and content ID.
+    /// If the current time is within the allowed period, the license is considered valid.
+    /// @param account The address of the account being checked.
+    /// @param contentId The content ID associated with the license.
+    /// @return bool True if the license is still valid, false otherwise.
+    function license(
         address account,
         uint256 contentId
     ) external view returns (bool) {
@@ -214,9 +213,9 @@ contract RentModule is
     }
 
     /// @inheritdoc IStrategy
-    /// @notice Executes a transaction for a given account and content ID.
-    /// @dev This function transfers the specified amount of tokens from the account 
-    /// to the contract and then increases the allowance for the DRM contract.
+    /// @notice Manages the transfer of rental payments and sets up royalty allocation for a given account and content ID.
+    /// @dev This function transfers the specified amount of tokens from the account
+    /// to the contract and increases the allowance for the DRM contract, facilitating royalty payments and access rights.
     /// It expects that the account has previously approved the contract to spend the specified amount of tokens.
     /// @param account The address of the account initiating the transaction.
     function allocation(
@@ -234,14 +233,15 @@ contract RentModule is
             IERC20(currency).approve(drmAddress, total);
         }
 
-        return T.Allocation(
-            T.Transaction(currency, total),
-            // An empty distribution means all royalties go to the owner.
-            // If a distribution is set, e.g., a=>5%, b=>5%, owner=>remaining 90%,
-            // if the distribution sums to 100%, the owner receives 0.
-            // This can be used to manage various business logic for content distribution.
-            new T.Distribution[](0)
-        );
+        return
+            T.Allocation(
+                T.Transaction(currency, total),
+                // An empty distribution means all royalties go to the owner.
+                // If a distribution is set, e.g., a=>5%, b=>5%, owner=>remaining 90%,
+                // if the distribution sums to 100%, the owner receives 0.
+                // This can be used to manage various business logic for content distribution.
+                new T.Distribution[](0)
+            );
     }
 
     /**

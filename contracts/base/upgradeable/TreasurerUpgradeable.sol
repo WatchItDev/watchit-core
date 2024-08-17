@@ -51,7 +51,6 @@ abstract contract TreasurerUpgradeable is Initializable, ITreasurer {
         _setTreasuryAddress(treasureAddress);
     }
 
-
     /// @notice Internal function to set the address of the treasury.
     /// @param newTreasuryAddress The new address of the treasury.
     function _setTreasuryAddress(address newTreasuryAddress) internal {
