@@ -6,7 +6,7 @@ interface IRightsDelegable {
     /// @notice Delegates rights for a specific content ID to a grantee.
     /// @param grantee The address of the account or contract to delegate rights to.
     /// @param contentId The content ID for which rights are being delegated.
-    function grantRights(address grantee, uint256 contentId) external;
+    function delegateRights(address grantee, uint256 contentId) external;
 
     /// @notice Revokes the delegation of rights for a grantee.
      /// @param grantee The address of the account or contract to revoke rights to.

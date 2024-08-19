@@ -63,7 +63,7 @@ abstract contract RightsManagerDelegationUpgradeable is
      * @param grantee The address of the account or contract to delegate rights to.
      * @param contentId The content ID for which rights are being delegated.
      */
-    function _grantRights(address grantee, uint256 contentId) internal {
+    function _delegateRights(address grantee, uint256 contentId) internal {
         RightsStorage storage $ = _getRightsStorage();
         $._delegation[grantee][contentId] = true;
     }

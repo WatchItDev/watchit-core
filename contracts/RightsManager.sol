@@ -177,6 +177,22 @@ contract RightsManager is
         return amount.perOf(split);
     }
 
+    /// @dev Grants bulk access to a set of contents for a specific account.
+    /// @param account The address of the account to which access will be granted.
+    /// @param contentIds An array of content IDs representing the resources to be granted access to.
+    /// @param license The address of the license facilitating the access process.
+    function _grantAccessBulk(
+        uint256[] contentIds,
+        address account,
+        address license
+    ) private {
+        uint256 contentLength = contentIds.length;
+        for (uint256 i = 0; i < contentLength; i++) {
+            _grantAccess(account, contentIds[i], license);
+            emit GrantedAccess(account, contentIds[i]);
+        }
+    }
+
     /// @notice Allocates the specified amount across a distribution array and returns the remaining unallocated amount.
     /// @dev Distributes the amount based on the provided distribution array.
     /// Ensures no more than 100 allocations and a minimum of 1% per distributor.
@@ -203,18 +219,18 @@ contract RightsManager is
             // Retrieve base points and target address from the distribution array.
             uint256 bps = distribution[i].bps;
             address target = distribution[i].target;
-            if (bps == 0) continue;
+            // safely increment i uncheck overflow
+            unchecked {
+                i++;
+            }
 
+            if (bps == 0) continue;
             // Calculate and register the allocation for each distribution.
             uint256 registeredAmount = _calculateSplit(amount, bps);
             _sumLedgerEntry(target, registeredAmount, currency);
 
             accTotal += registeredAmount;
             accBps += bps;
-
-            unchecked {
-                ++i;
-            }
         }
 
         // Ensure the total base points do not exceed the maximum allowed (100%).
@@ -392,11 +408,11 @@ contract RightsManager is
     /// @notice Delegates rights for a specific content ID to a license validator.
     /// @param validator The address of strategy license validator contract to delegate rights to.
     /// @param contentId The content ID for which rights are being delegated.
-    function grantRights(
+    function delegateRights(
         address validator,
         uint256 contentId
     ) external onlyHolder(contentId) onlyLicenseContract(validator) {
-        _grantRights(validator, contentId);
+        _delegateRights(validator, contentId);
         emit RightsDelegated(validator, contentId);
     }
 
@@ -425,6 +441,7 @@ contract RightsManager is
         payable
         nonReentrant
         onlyRegisteredContent(contentId)
+        // TODO _grantAccessBulk(contentId, account, licenseAddress);
         onlyWhenRightsDelegated(_msgSender(), contentId)
     {
         // in some cases the content or distributor could be revoked..
@@ -432,8 +449,8 @@ contract RightsManager is
             revert InvalidNotAllowedContent();
 
         // the sender MUST be a ILicense advocate/validator
-        address advocate = _msgSender();
-        ILicense license = ILicense(advocate);
+        address licenseAddress = _msgSender();
+        ILicense license = ILicense(licenseAddress);
         IDistributor distributor = IDistributor(getCustodial(contentId));
         T.Allocation memory alloc = license.allocation(account, contentId);
 
@@ -443,7 +460,7 @@ contract RightsManager is
         // The user, owner or delegated validator must ensure that the necessary steps
         // are taken to handle the transaction value or set the appropriate
         // approve/allowance for the DRM (Digital Rights Management) contract.
-        uint256 total = advocate.safeDeposit(amount, currency);
+        uint256 total = licenseAddress.safeDeposit(amount, currency);
         //!IMPORTANT if distributor or trasury does not support the currency, will revert..
         // the max bps integrity is warrantied by treasure fees only bps modifier
         uint256 treasurySplit = total.perOf(getFees(currency)); // bps
@@ -457,6 +474,7 @@ contract RightsManager is
         _sumLedgerEntry(ownerOf(contentId), remaining, currency);
         _sumLedgerEntry(distributor.getManager(), acceptedSplit, currency);
         _grantAccess(account, contentId, advocate);
+
         emit GrantedAccess(account, contentId);
     }
 

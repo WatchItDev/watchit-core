@@ -125,7 +125,7 @@
 //             gateParams.encryptedContent
 //         );
 
-//         drm.grantRights(address(this), gateParams.contentId);
+//         drm.delegateRights(address(this), gateParams.contentId);
 //         registerGatingCondition(gateParams.contentId, gateParams.gate);
 
 //         return data;

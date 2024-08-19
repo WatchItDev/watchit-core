@@ -124,7 +124,7 @@ contract RentModule is
 
             // Avoid overflow check and optimize gas
             unchecked {
-                ++i;
+                i++;
             }
         }
     }
@@ -156,7 +156,7 @@ contract RentModule is
         // eg: LIT cypertext + hash, public key enceypted data, shared key encrypted data..
         // Grant initial custody to the distributor
         drm.grantCustodial(rent.contentId, rent.distributor, rent.secured);
-        drm.grantRights(address(this), rent.contentId);
+        drm.delegateRights(address(this), rent.contentId);
         // Store renting parameters
         _setPublicationRentSetting(rent, pubId);
         // TODO mirror content
@@ -192,7 +192,7 @@ contract RentModule is
             Time.timestamp() + (_days * 1 days)
         );
 
-        IRightsManager(drmAddress).registerLicense(rentalWatcher, contentId);
+        IRightsManager(drmAddress).grantAccess(rentalWatcher, contentId);
         return abi.encode(rentRegistry[contentId][rentalWatcher], currency);
     }
 
