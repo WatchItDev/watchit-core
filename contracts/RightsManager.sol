@@ -23,7 +23,7 @@ import "contracts/base/upgradeable/extensions/RightsManagerDelegationUpgradeable
 import "contracts/interfaces/IRegistrableVerifiable.sol";
 import "contracts/interfaces/IReferendumVerifiable.sol";
 import "contracts/interfaces/IRightsManager.sol";
-import "contracts/interfaces/IStrategy.sol";
+import "contracts/interfaces/ILicense.sol";
 import "contracts/interfaces/IDistributor.sol";
 import "contracts/interfaces/IRepository.sol";
 import "contracts/libraries/TreasuryHelper.sol";
@@ -86,6 +86,7 @@ contract RightsManager is
     error InvalidNotApprovedContent();
     error InvalidNotAllowedContent();
     error InvalidUnknownContent();
+    error InvalidAlreadyRegisteredContent();
     error NoFundsToWithdraw(address);
     error NoDeal(string reason);
 
@@ -177,7 +178,7 @@ contract RightsManager is
     }
 
     /// @notice Allocates the specified amount across a distribution array and returns the remaining unallocated amount.
-    /// @dev Distributes the amount based on the provided distribution array. 
+    /// @dev Distributes the amount based on the provided distribution array.
     /// Ensures no more than 100 allocations and a minimum of 1% per distributor.
     /// @param amount The total amount to be allocated.
     /// @param currency The address of the currency being allocated.
@@ -356,6 +357,11 @@ contract RightsManager is
         address to,
         uint256 contentId
     ) external onlyApprovedContent(to, contentId) {
+        // if(ownerOf(contentId) == to){
+        //     // if the owner is trying to re-mint, nothing happens..
+        //     return;
+        // }
+
         _mint(to, contentId);
         emit RegisteredContent(contentId);
     }
@@ -383,25 +389,25 @@ contract RightsManager is
     }
 
     /// @inheritdoc IRightsDelegable
-    /// @notice Delegates rights for a specific content ID to a grantee.
+    /// @notice Delegates rights for a specific content ID to a license validator.
     /// @param validator The address of strategy license validator contract to delegate rights to.
     /// @param contentId The content ID for which rights are being delegated.
     function grantRights(
         address validator,
         uint256 contentId
-    ) external onlyHolder(contentId) onlyStrategyContract(validator) {
+    ) external onlyHolder(contentId) onlyLicenseContract(validator) {
         _grantRights(validator, contentId);
         emit RightsDelegated(validator, contentId);
     }
 
     /// @inheritdoc IRightsDelegable
-    /// @notice Delegates rights for a specific content ID to a grantee.
+    /// @notice Delegates rights for a specific content ID to a license validator.
     /// @param validator The address of strategy license validator contract to revoke rights to.
     /// @param contentId The content ID for which rights are being revoked.
     function revokeRights(
         address validator,
         uint256 contentId
-    ) external onlyHolder(contentId) onlyStrategyContract(validator) {
+    ) external onlyHolder(contentId) onlyLicenseContract(validator) {
         _revokeRights(validator, contentId);
         emit RightsRevoked(validator, contentId);
     }
@@ -425,16 +431,15 @@ contract RightsManager is
         if (!isEligibleForDistribution(contentId))
             revert InvalidNotAllowedContent();
 
-        // the sender MUST be a IStrategy license advocate/validator
+        // the sender MUST be a ILicense advocate/validator
         address advocate = _msgSender();
-        IStrategy strategy = IStrategy(advocate);
+        ILicense license = ILicense(advocate);
         IDistributor distributor = IDistributor(getCustodial(contentId));
-        T.Allocation memory alloc = strategy.allocation(account, contentId);
+        T.Allocation memory alloc = license.allocation(account, contentId);
 
         // transaction details
         uint256 amount = alloc.t9n.amount;
         address currency = alloc.t9n.currency;
-
         // The user, owner or delegated validator must ensure that the necessary steps
         // are taken to handle the transaction value or set the appropriate
         // approve/allowance for the DRM (Digital Rights Management) contract.
@@ -448,11 +453,9 @@ contract RightsManager is
         if (deductions > total) revert NoDeal("The fees are too high.");
         uint256 remaining = _allocate(total - deductions, currency, alloc.d10n);
 
-        address owner = ownerOf(contentId);
-        address manager = distributor.getManager();
-        // register amounts in ledger..
-        _sumLedgerEntry(owner, remaining, currency);
-        _sumLedgerEntry(manager, acceptedSplit, currency);
+        // register split distribution in ledger..
+        _sumLedgerEntry(ownerOf(contentId), remaining, currency);
+        _sumLedgerEntry(distributor.getManager(), acceptedSplit, currency);
         _grantAccess(account, contentId, advocate);
         emit GrantedAccess(account, contentId);
     }

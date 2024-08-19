@@ -65,8 +65,6 @@ abstract contract FeesManagerUpgradeable is Initializable, IFeesManager {
     /// @param token The address of the token to check.
     modifier onlySupportedToken(address token) {
         FeesStorage storage $ = _getFeesStorage();
-        // fees == 0 is default for uint256.
-        // address(0) is equivalent to native token if fees > 0
         if (!$._tokenSupported[token]) revert InvalidUnsupportedToken(token);
         _;
     }
@@ -74,8 +72,8 @@ abstract contract FeesManagerUpgradeable is Initializable, IFeesManager {
     /// @notice Modifier to ensure only valid basis points are used.
     /// @param fees The fee amount to check.
     modifier onlyBasePointsAllowed(uint256 fees) {
-        // if fees < 1 = 0.01% || fees basis > 10_000 = 100%
-        if (fees < 1 || fees > C.BPS_MAX)
+        // fees basis > 10_000 = 100%
+        if (fees > C.BPS_MAX)
             revert InvalidBasisPointRange();
         _;
     }
@@ -83,8 +81,8 @@ abstract contract FeesManagerUpgradeable is Initializable, IFeesManager {
     /// @notice Modifier to ensure only valid nominal fees are used.
     /// @param fees The fee amount to check.
     modifier onlyNominalAllowed(uint256 fees) {
-        // if fees < 1% || fees > 100%
-        if (fees < 1 || fees > C.SCALE_FACTOR)
+        // fees > 100%
+        if (fees > C.SCALE_FACTOR)
             revert InvalidNominalRange();
         _;
     }

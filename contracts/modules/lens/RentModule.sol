@@ -13,7 +13,7 @@ import "contracts/modules/lens/base/HubRestricted.sol";
 import "contracts/modules/lens/libraries/Types.sol";
 
 import "contracts/base/DRMRestricted.sol";
-import "contracts/interfaces/IStrategy.sol";
+import "contracts/interfaces/ILicense.sol";
 import "contracts/interfaces/IRightsManager.sol";
 import "contracts/libraries/Constants.sol";
 import "contracts/libraries/Types.sol";
@@ -31,7 +31,7 @@ contract RentModule is
     HubRestricted,
     DRMRestricted,
     IPublicationActionModule,
-    IStrategy
+    ILicense
 {
     using SafeERC20 for IERC20;
 
@@ -192,18 +192,21 @@ contract RentModule is
             Time.timestamp() + (_days * 1 days)
         );
 
-        IRightsManager(drmAddress).grantAccess(rentalWatcher, contentId);
+        IRightsManager(drmAddress).registerLicense(rentalWatcher, contentId);
         return abi.encode(rentRegistry[contentId][rentalWatcher], currency);
     }
 
-    /// @inheritdoc IStrategy
-    /// @notice Checks whether the license (rental period) for an account and content ID is still valid.
-    /// @dev This function checks if the current timestamp is within the valid rental period (timelock) for the specified account and content ID.
-    /// If the current time is within the allowed period, the license is considered valid.
+    // TODO El mint si no existe hacer el mint, si existe y es el dueño que manda, solo omitir, de lo contrario lanzar un error de que ya existe
+    // mintWithSignature?
+
+    /// @inheritdoc ILicense
+    /// @notice Checks whether the terms (such as rental period) for an account and content ID are still valid.
+    /// @dev This function checks if the current timestamp is within the valid period (timelock) for the specified account and content ID.
+    /// If the current time is within the allowed period, the terms are considered satisfied.
     /// @param account The address of the account being checked.
-    /// @param contentId The content ID associated with the license.
-    /// @return bool True if the license is still valid, false otherwise.
-    function license(
+    /// @param contentId The content ID associated with the access terms.
+    /// @return bool True if the terms are satisfied, false otherwise.
+    function terms(
         address account,
         uint256 contentId
     ) external view returns (bool) {
@@ -212,7 +215,7 @@ contract RentModule is
         return Time.timestamp() > expireAt;
     }
 
-    /// @inheritdoc IStrategy
+    /// @inheritdoc ILicense
     /// @notice Manages the transfer of rental payments and sets up royalty allocation for a given account and content ID.
     /// @dev This function transfers the specified amount of tokens from the account
     /// to the contract and increases the allowance for the DRM contract, facilitating royalty payments and access rights.
@@ -254,7 +257,7 @@ contract RentModule is
     ) public pure override returns (bool) {
         return
             interfaceID == type(IPublicationActionModule).interfaceId ||
-            interfaceID == type(IStrategy).interfaceId ||
+            interfaceID == type(ILicense).interfaceId ||
             super.supportsInterface(interfaceID);
     }
 }

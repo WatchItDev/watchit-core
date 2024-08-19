@@ -84,7 +84,6 @@ describe('Syndication', function () {
       const syndication = await deploySyndicationWithFakeGovernor()
       // min = 1 = 0.01; max = 10_000 = 100%
       await expect(syndication.setPenaltyRate(10_001)).to.revertedWithCustomError(syndication, 'InvalidBasisPointRange')
-      await expect(syndication.setPenaltyRate(0)).to.revertedWithCustomError(syndication, 'InvalidBasisPointRange')
     })
 
     it('Should fail setting penalty rate if not called by governor', async () => {

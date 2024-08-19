@@ -51,7 +51,7 @@ contract Distributor is
         __ERC165_init();
         __Ownable_init(_owner);
         __CurrencyManager_init();
-        __Fees_init(1, address(0));
+        __Fees_init(0, address(0));
 
         if (bytes(_endpoint).length == 0) revert InvalidEndpoint();
         endpoint = _endpoint;

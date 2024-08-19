@@ -6,21 +6,21 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
 import "contracts/interfaces/IRightsAccessController.sol";
-import "contracts/interfaces/IStrategy.sol";
+import "contracts/interfaces/ILicense.sol";
 import "contracts/libraries/Types.sol";
 
 /// @title Rights Manager Content Access Upgradeable
 /// @notice This abstract contract manages content access control using a license 
-/// validator contract that must implement the IStrategy interface.
+/// validator contract that must implement the ILicense interface.
 abstract contract RightsManagerContentAccessUpgradeable is
     Initializable,
     IRightsAccessController
 {
     using ERC165Checker for address;
 
-    /// @dev The interface ID for IStrategy, used to verify that a validator contract implements the correct interface.
+    /// @dev The interface ID for ILicense, used to verify that a validator contract implements the correct interface.
     bytes4 private constant INTERFACE_STRATEGY_VALIDATOR =
-        type(IStrategy).interfaceId;
+        type(ILicense).interfaceId;
 
     /// @custom:storage-location erc7201:rightscontentaccess.upgradeable
     /// @dev Storage struct for the access control list (ACL) that maps content IDs and accounts to validator contracts.
@@ -45,17 +45,17 @@ abstract contract RightsManagerContentAccessUpgradeable is
         }
     }
 
-    /// @dev Error thrown when the validator contract does not implement the IStrategy interface.
+    /// @dev Error thrown when the validator contract does not implement the ILicense interface.
     error InvalidStrategyContract(address strategy);
 
     /**
-     * @dev Modifier to check that a strategy validator contract implements the IStrategy interface.
-     * @param strategy The address of the strategy validator contract.
+     * @dev Modifier to check that a license contract implements the ILicense interface.
+     * @param license The address of the license validator contract.
      * Reverts if the validator does not implement the required interface.
      */
-    modifier onlyStrategyContract(address strategy) {
-        if (!strategy.supportsInterface(INTERFACE_STRATEGY_VALIDATOR)) {
-            revert InvalidStrategyContract(strategy);
+    modifier onlyLicenseContract(address license) {
+        if (!license.supportsInterface(INTERFACE_STRATEGY_VALIDATOR)) {
+            revert InvalidStrategyContract(license);
         }
         _;
     }
@@ -65,7 +65,7 @@ abstract contract RightsManagerContentAccessUpgradeable is
      * @dev The function associates a content ID and account with a validator contract in the ACL storage.
      * @param account The address of the account to be granted access.
      * @param contentId The ID of the content for which access is being granted.
-     * @param validator The address of the validator contract that will be used to validate access.
+     * @param validator The address of the license validator contract that will be used to validate access.
      */
     function _grantAccess(
         address account,
@@ -92,7 +92,7 @@ abstract contract RightsManagerContentAccessUpgradeable is
         address strategyValidator = $._acl[contentId][account];
         // if the access is not registered, return false.
         if (strategyValidator == address(0)) return false;
-        // The approved method is called and executed according to the IStrategy specification.
-        return IStrategy(strategyValidator).license(account, contentId);
+        // The approved method is called and executed according to the ILicense specification.
+        return ILicense(strategyValidator).terms(account, contentId);
     }
 }
