@@ -66,7 +66,7 @@ contract RightsManager is
     event FeesDisbursed(
         address indexed treasury,
         uint256 amount,
-        address token
+        address currency
     );
 
     event GrantedAccess(address account, uint256 contentId);
@@ -184,14 +184,19 @@ contract RightsManager is
     /// @notice This function loops through each account and grants access to the specified content.
     /// It emits a `GrantedAccess` event for each account upon successful access.
     function _grantAccessBulk(
-        address[] accounts,
+        address[] memory accounts,
         uint256 contentId,
         address license
     ) private {
         uint256 accountsLength = accounts.length;
-        for (uint256 i = 0; i < accountsLength; i++) {
+        for (uint256 i = 0; i < accountsLength; ) {
             _grantAccess(accounts[i], contentId, license);
             emit GrantedAccess(accounts[i], contentId);
+
+            // safely increment i uncheck overflow
+            unchecked {
+                ++i;
+            }
         }
     }
 
@@ -210,7 +215,9 @@ contract RightsManager is
         // Ensure there's a distribution or return the full amount.
         if (splits.length == 0) return amount;
         if (splits.length > 100) {
-            revert NoDeal("Invalid allocations. Cannot be more than 100.");
+            revert NoDeal(
+                "Invalid split allocations. Cannot be more than 100."
+            );
         }
 
         uint8 i = 0;
@@ -223,7 +230,7 @@ contract RightsManager is
             address target = splits[i].target;
             // safely increment i uncheck overflow
             unchecked {
-                i++;
+                ++i;
             }
 
             if (bps == 0) continue;
@@ -237,7 +244,7 @@ contract RightsManager is
 
         // Ensure the total base points do not exceed the maximum allowed (100%).
         if (accBps > C.BPS_MAX)
-            revert NoDeal("Invalid split base points distribution.");
+            revert NoDeal("Invalid split base points overflow.");
         return amount - accTotal; // Return the remaining unallocated amount.
     }
 
@@ -283,19 +290,24 @@ contract RightsManager is
     }
 
     /// @inheritdoc IFeesManager
-    /// @notice Sets a new treasury fee for a specific token.
+    /// @notice Sets a new treasury fee for a specific currency.
     /// @param newTreasuryFee The new fee amount to be set.
-    /// @param token The address of the token for which the fee is to be set.
+     /// @param currency The currency to associate fees with. Use address(0) for the native coin.
     function setFees(
         uint256 newTreasuryFee,
-        address token
-    ) external onlyGov onlyBasePointsAllowed(newTreasuryFee) {
-        _setFees(newTreasuryFee, token);
-        _addCurrency(token);
+        address currency
+    )
+        external
+        onlyGov
+        onlyValidCurrency(currency)
+        onlyBasePointsAllowed(newTreasuryFee)
+    {
+        _setFees(newTreasuryFee, currency);
+        _addCurrency(currency);
     }
 
     /// @inheritdoc IFeesManager
-    /// @notice Sets a new treasury fee for the native token.
+    /// @notice Sets a new treasury fee for the native coin.
     /// @param newTreasuryFee The new fee amount to be set.
     function setFees(
         uint256 newTreasuryFee
@@ -313,22 +325,25 @@ contract RightsManager is
     }
 
     /// @inheritdoc IDisburser
-    /// @notice Disburses tokens from the contract to a specified address.
-    /// @param amount The amount of tokens to disburse.
-    /// @param token The address of the ERC20 token to disburse tokens.
+    /// @notice Disburses funds from the contract to a specified address.
+    /// @param amount The amount of currencies to disburse.
+    /// @param currency The address of the ERC20 token to disburse tokens.
     /// @dev This function can only be called by governance or an authorized entity.
-    function disburse(uint256 amount, address token) external onlyGov {
+    function disburse(
+        uint256 amount,
+        address currency
+    ) external onlyGov onlyValidCurrency(currency) {
         address treasury = getTreasuryAddress();
-        treasury.transfer(amount, token);
-        emit FeesDisbursed(treasury, amount, token);
+        treasury.transfer(amount, currency);
+        emit FeesDisbursed(treasury, amount, currency);
     }
 
     /// @inheritdoc IDisburser
-    /// @notice Disburses tokens from the contract to a specified address.
-    /// @param amount The amount of tokens to disburse.
+    /// @notice Disburses funds from the contract to a specified address.
+    /// @param amount The amount of coins to disburse.
     /// @dev This function can only be called by governance or an authorized entity.
     function disburse(uint256 amount) external onlyGov {
-        // collect native token and send it to treasury
+        // collect native coins and send it to treasury
         address treasury = getTreasuryAddress();
         // if no balance revert..
         treasury.transfer(amount);
@@ -336,19 +351,19 @@ contract RightsManager is
     }
 
     /// @inheritdoc IFundsManager
-    /// @notice Withdraws tokens from the contract to a specified recipient's address.
-    /// @param recipient The address that will receive the withdrawn tokens.
-    /// @param amount The amount of tokens to withdraw.
-    /// @param token The address of the ERC20 token to withdraw, or address(0) to withdraw native tokens.
+    /// @notice Withdraws funds from the contract to a specified recipient's address.
+    /// @param recipient The address that will receive the withdrawn funds.
+    /// @param amount The amount of funds to withdraw.
+    /// @param currency The address of the ERC20 token to withdraw, or address(0) to withdraw native coins.
     function withdraw(
         address recipient,
         uint256 amount,
-        address token
-    ) external {
-        uint256 available = getLedgerEntry(recipient, token);
+        address currency
+    ) external onlyValidCurrency(currency) {
+        uint256 available = getLedgerEntry(recipient, currency);
         if (available < amount) revert NoFundsToWithdraw(recipient);
-        recipient.transfer(amount, token);
-        _subLedgerEntry(recipient, amount, token);
+        recipient.transfer(amount, currency);
+        _subLedgerEntry(recipient, amount, currency);
     }
 
     /// @inheritdoc IRightsManager
@@ -434,10 +449,12 @@ contract RightsManager is
     /// @notice Grants access to specific accounts for a certain content ID based on given conditions.
     /// @param accounts The addresses of the accounts to be granted access.
     /// @param contentId The ID of the content for which access is being granted.
+    /// @param alloc The allocation specification to distribute the royalties or fees.
     /// @dev Access can be granted only if the validator contract is valid and has been granted delegation rights.
     function grantAccess(
-        address[] accounts,
-        uint256 contentId
+        uint256 contentId,
+        address[] calldata accounts,
+        T.Allocation calldata alloc
     )
         external
         payable
@@ -453,7 +470,6 @@ contract RightsManager is
         address licenseAddress = _msgSender();
         ILicense license = ILicense(licenseAddress);
         IDistributor distributor = IDistributor(getCustodial(contentId));
-        T.Allocation memory alloc = license.allocation(account, contentId);
 
         // transaction details
         uint256 amount = alloc.t9n.amount;
@@ -463,7 +479,7 @@ contract RightsManager is
         // approve/allowance for the DRM (Digital Rights Management) contract.
         uint256 total = licenseAddress.safeDeposit(amount, currency);
         //!IMPORTANT if distributor or trasury does not support the currency, will revert..
-        // the max bps integrity is warrantied by treasure fees only bps modifier
+        // the max bps integrity is warrantied by treasure fees
         uint256 treasurySplit = total.perOf(getFees(currency)); // bps
         uint256 acceptedSplit = distributor.negotiate(total, currency);
         uint256 deductions = treasurySplit + acceptedSplit;

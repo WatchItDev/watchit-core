@@ -84,19 +84,24 @@ contract Distributor is
     }
 
     /// @inheritdoc IFeesManager
-    /// @notice Sets a new treasury fee for a specific token.
+    /// @notice Sets a new treasury fee for a specific currency.
     /// @param newTreasuryFee The new fee expresed as base points to be set.
-    /// @param token The address of the token for which the fee is to be set.
+    /// @param currency The currency to associate fees with. Use address(0) for the native coin.
     function setFees(
         uint256 newTreasuryFee,
-        address token
-    ) external onlyOwner onlyBasePointsAllowed(newTreasuryFee) {
-        _setFees(newTreasuryFee, token);
-        _addCurrency(token);
+        address currency
+    )
+        external
+        onlyOwner
+        onlyValidCurrency(currency)
+        onlyBasePointsAllowed(newTreasuryFee)
+    {
+        _setFees(newTreasuryFee, currency);
+        _addCurrency(currency);
     }
 
     /// @inheritdoc IFeesManager
-    /// @notice Sets a new treasury fee for the native token.
+    /// @notice Sets a new treasury fee for the native coin.
     /// @param newTreasuryFee The new fee expresed as base points to be set.
     function setFees(
         uint256 newTreasuryFee
@@ -107,13 +112,13 @@ contract Distributor is
 
     /// @inheritdoc IDistributor
     /// @notice Sets the minimum floor value for fees associated with a specific currency.
-    /// @dev This function can only be called by the owner and for supported tokens.
-    /// @param currency The address of the token for which the floor value is being set.
+    /// @dev This function can only be called by the owner and for supported currencies.
+    /// @param currency The address of the currency for which the floor value is being set.
     /// @param minimum The minimum fee that can be proposed for the given currency.
     function setFloor(
         address currency,
         uint256 minimum
-    ) external onlyOwner onlySupportedToken(currency) {
+    ) external onlyOwner onlySupportedCurrency(currency) {
         floor[currency] = minimum;
     }
 

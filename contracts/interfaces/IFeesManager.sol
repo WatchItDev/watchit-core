@@ -9,12 +9,12 @@ interface IFeesManager {
 
     /// @notice Sets a new treasury fee.
     /// @param newTreasuryFee The new treasury fee %.
-    /// @param token The token to set the fees.
+    /// @param currency The currency to associate fees with. Use address(0) for the native coin.
     /// @notice Only the owner can call this function.
-    function setFees(uint256 newTreasuryFee, address token) external;
+    function setFees(uint256 newTreasuryFee, address currency) external;
 
     /// @notice Returns the current treasury fee %. 
-    /// @param token The address of the token.
+    /// @param currency The address of the currency for which to retrieve the fees fee.
     /// @return The treasury fee.
-    function getFees(address token) external view returns (uint256);
+    function getFees(address currency) external view returns (uint256);
 }

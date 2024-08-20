@@ -145,12 +145,10 @@ contract Syndication is
     }
 
     /// @inheritdoc IDisburser
-    /// @notice Disburses tokens from the contract to a specified address.
-    /// @param amount The amount of tokens to disburse.
+    /// @notice Disburses funds from the contract to a specified address.
+    /// @param amount The amount of coins to disburse.
     /// @dev This function can only be called by governance or an authorized entity.
     function disburse(uint256 amount) external onlyGov {
-        // collect tokens/coin token and send it to treasury
-        // collect native token and send it to treasury
         address treasury = getTreasuryAddress();
         treasury.transfer(amount); // sent..
         emit FeesDisbursed(treasury, amount);
@@ -258,16 +256,16 @@ contract Syndication is
     /// @inheritdoc IFeesManager
     /// @notice Sets a new treasury fee for a specific token.
     /// @param newTreasuryFee The new treasury fee to be set.
-    /// @param token The address of the token.
+    /// @param currency The currency to associate fees with. Use address(0) for the native coin.
     function setFees(
         uint256 newTreasuryFee,
-        address token
+        address currency
     ) external override onlyGov {}
 
     /// @inheritdoc IDisburser
     /// @notice Disburses tokens from the contract to a specified address.
     /// @param amount The amount of tokens to disburse.
-    /// @param token The address of the ERC20 token to disburse tokens.
+    /// @param currency The address of the ERC20 token to disburse tokens.
     /// @dev This function can only be called by governance or an authorized entity.
-    function disburse(uint256 amount, address token) external onlyGov {}
+    function disburse(uint256 amount, address currency) external onlyGov {}
 }

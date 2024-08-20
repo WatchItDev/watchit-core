@@ -35,57 +35,57 @@ abstract contract LedgerUpgradeable is Initializable, ILedger {
 
     function __Ledger_init_unchained() internal onlyInitializing {}
 
-    /// @notice Internal function to store the token fees for account.
+    /// @notice Internal function to store the currency fees for account.
     /// @param account The address of the account.
     /// @param amount The amount to register to account.
-    /// @param token The token to register to account.
+    /// @param currency The currency to register to account.
     /// @dev This function is used to store the fees for acount.
     function _setLedgerEntry(
         address account,
         uint256 amount,
-        address token
+        address currency
     ) internal {
         LedgerStorage storage $ = _getLedgerStorage();
-        $._ledger[account][token] = amount;
+        $._ledger[account][currency] = amount;
     }
 
-    /// @notice Internal function to accumulate token fees for account.
+    /// @notice Internal function to accumulate currency fees for account.
     /// @param account The address of the account.
     /// @param amount The amount to register to account.
-    /// @param token The token to register to account.
+    /// @param currency The currency to register to account.
     /// @dev This function is used to store the fees for acount.
     function _sumLedgerEntry(
         address account,
         uint256 amount,
-        address token
+        address currency
     ) internal {
         LedgerStorage storage $ = _getLedgerStorage();
-        $._ledger[account][token] += amount;
+        $._ledger[account][currency] += amount;
     }
 
-    /// @notice Internal function to subtract token fees for account.
+    /// @notice Internal function to subtract currency fees for account.
     /// @param account The address of the account.
     /// @param amount The amount to register to account.
-    /// @param token The token to register to account.
+    /// @param currency The currency to register to account.
     /// @dev This function is used to store the fees for acount.
     function _subLedgerEntry(
         address account,
         uint256 amount,
-        address token
+        address currency
     ) internal {
         LedgerStorage storage $ = _getLedgerStorage();
-        $._ledger[account][token] -= amount;
+        $._ledger[account][currency] -= amount;
     }
 
     /// @inheritdoc ILedger
-    /// @notice Retrieves the registered token amount for the specified account.
+    /// @notice Retrieves the registered currency amount for the specified account.
     /// @param account The address of the account.
-    /// @param token The token to retrieve ledger amount.
+    /// @param currency The currency to retrieve ledger amount.
     function getLedgerEntry(
         address account,
-        address token
+        address currency
     ) public view returns (uint256) {
         LedgerStorage storage $ = _getLedgerStorage();
-        return $._ledger[account][token];
+        return $._ledger[account][currency];
     }
 }

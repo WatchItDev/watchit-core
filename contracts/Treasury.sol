@@ -49,15 +49,15 @@ contract Treasury is
         __Governable_init();
     }
 
-    /// @notice Withdraws tokens from the contract to a specified recipient's address.
-    /// @param recipient The address that will receive the withdrawn tokens.
+    /// @notice Withdraws funds from the contract to a specified recipient's address.
+    /// @param recipient The address that will receive the withdrawn funds.
     /// @param amount The amount of tokens to withdraw.
-    /// @param token The address of the ERC20 token to withdraw, or address(0) to withdraw native tokens.
+    /// @param currency The currency to associate fees with. Use address(0) for the native coin.
     /// @dev This function can only be called by the owner of the contract or an authorized entity.
     function withdraw(
         address recipient,
         uint256 amount,
-        address token
+        address currency
     ) public override onlyGov {}
 
     // TODO multisignature withdraw

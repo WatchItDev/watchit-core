@@ -9,7 +9,7 @@ import "contracts/interfaces/ICurrencyManager.sol";
 /// @notice Abstract contract for managing supported currencies
 /// @dev This contract provides internal functions for adding and removing supported currencies
 abstract contract CurrencyManager is Initializable, ICurrencyManager {
-    /// @dev Mapping from currency address to its index in the supportedTokens array
+    /// @dev Mapping from currency address to its index in the supportedCurrencies array
     mapping(address => uint256) private _supportedCurrenciesMap;
     /// @dev Array of supported currency addresses
     address[] private _supportedCurrencies;

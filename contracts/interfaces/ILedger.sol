@@ -2,14 +2,13 @@
 pragma solidity ^0.8.24;
 
 interface ILedger {
-    /**
-     * @notice Retrieves the registered token amount for the specified account.
-     * @param account The address of the account.
-     * @param token The token to retrieve ledger amount.
-     * @return The amount of registered tokens for the account and specified token.
-     */
+
+    /// @notice Retrieves the registered currency amount for the specified account.
+    /// @param account The address of the account.
+    /// @param currency The currency to retrieve ledger amount.
+    /// @return The amount of registered fund for the account.
     function getLedgerEntry(
         address account,
-        address token
+        address currency
     ) external view returns (uint256);
 }

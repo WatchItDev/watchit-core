@@ -40,16 +40,9 @@ contract RentModule is
     error InvalidNotSupportedCurrency();
     error InvalidRentPrice();
 
-    struct Registry {
-        uint256 total;
-        address currency;
-        uint256 timelock;
-    }
-
     // Mapping from publication ID to content ID
-    // TODO se puede simplificar estas estructuras?
     mapping(uint256 => uint256) contentRegistry;
-    mapping(uint256 => mapping(address => Registry)) rentRegistry;
+    mapping(uint256 => mapping(address => uint256)) rentRegistry;
     mapping(uint256 => mapping(address => uint256)) private prices;
 
     /**
@@ -124,7 +117,7 @@ contract RentModule is
 
             // Avoid overflow check and optimize gas
             unchecked {
-                i++;
+                ++i;
             }
         }
     }
@@ -183,18 +176,31 @@ contract RentModule is
         // Calculate the total fees based on the price per day and the number of days
         uint256 total = pricePerDay * _days;
         uint256 contentId = contentRegistry[params.publicationActedId];
-        address rentalWatcher = params.transactionExecutor;
+        address account = params.transactionExecutor;
 
         // hold rent time in module to later validate it in access control...
-        rentRegistry[contentId][rentalWatcher] = Registry(
-            total,
-            currency,
-            Time.timestamp() + (_days * 1 days)
-        );
+        rentRegistry[contentId][account] = Time.timestamp() + (_days * 1 days);
+        // Transfers the specified amount of funds from the account to this contract
+        // Requires that the account has previously approved this contract to spend the specified amount
+        IERC20(currency).safeTransferFrom(account, address(this), total);
+        // Increases the allowance for the DRM contract by the total amount
+        IERC20(currency).approve(drmAddress, total);
 
-        address[1] memory watchers = [rentalWatcher];
-        IRightsManager(drmAddress).grantAccess(watchers, contentId);
-        return abi.encode(rentRegistry[contentId][rentalWatcher], currency);
+        T.Allocation memory alloc = T.Allocation(
+            T.Transaction(currency, total),
+            // An empty distribution means all royalties go to the owner.
+            // If a distribution is set, e.g., a=>5%, b=>5%, owner=>remaining 90%,
+            // if the distribution sums to 100%, the owner receives 0.
+            // This can be used to manage various business logic for content distribution.
+            new T.Splits[](0)
+        );
+        
+        // grantees
+        address[] memory accounts = new address[](1);
+        accounts[0] = account;
+
+        IRightsManager(drmAddress).grantAccess(contentId, accounts, alloc);
+        return abi.encode(rentRegistry[contentId][account], currency);
     }
 
     // TODO El mint si no existe hacer el mint, si existe y es el dueño que manda, solo omitir, de lo contrario lanzar un error de que ya existe
@@ -212,47 +218,13 @@ contract RentModule is
         uint256 contentId
     ) external view returns (bool) {
         // Checks if the current timestamp is greater than the timelock for the given account and contentId
-        uint256 expireAt = rentRegistry[contentId][account].timelock;
+        uint256 expireAt = rentRegistry[contentId][account];
         return Time.timestamp() > expireAt;
     }
 
-    /// @inheritdoc ILicense
-    /// @notice Manages the transfer of rental payments and sets up royalty allocation for a given account and content ID.
-    /// @dev This function transfers the specified amount of tokens from the account
-    /// to the contract and increases the allowance for the DRM contract, facilitating royalty payments and access rights.
-    /// It expects that the account has previously approved the contract to spend the specified amount of tokens.
-    /// @param account The address of the account initiating the transaction.
-    function allocation(
-        address account,
-        uint256 contentId
-    ) external onlyDrm returns (T.Allocation memory) {
-        uint256 total = rentRegistry[contentId][account].total;
-        address currency = rentRegistry[contentId][account].currency;
-
-        if (currency != address(0)) {
-            // Transfers the specified amount of tokens from the account to this contract
-            // Requires that the account has previously approved this contract to spend the specified amount
-            IERC20(currency).safeTransferFrom(account, address(this), total);
-            // Increases the allowance for the DRM contract by the total amount
-            IERC20(currency).approve(drmAddress, total);
-        }
-
-        return
-            T.Allocation(
-                T.Transaction(currency, total),
-                // An empty distribution means all royalties go to the owner.
-                // If a distribution is set, e.g., a=>5%, b=>5%, owner=>remaining 90%,
-                // if the distribution sums to 100%, the owner receives 0.
-                // This can be used to manage various business logic for content distribution.
-                new T.Distribution[](0)
-            );
-    }
-
-    /**
-     * @dev Checks if the contract supports a specific interface.
-     * @param interfaceID The ID of the interface to check.
-     * @return bool True if the contract supports the interface, false otherwise.
-     */
+    /// @dev Checks if the contract supports a specific interface.
+    /// @param interfaceID The ID of the interface to check.
+    /// @return bool True if the contract supports the interface, false otherwise.
     function supportsInterface(
         bytes4 interfaceID
     ) public pure override returns (bool) {

@@ -26,7 +26,7 @@ library T {
 
     /// @title Transaction
     /// @dev Represents the details of a transaction involving a specific currency and amount.
-    /// @param currency The address of the token or currency used in the transaction.
+    /// @param currency The address of the currency used in the transaction.
     /// @param amount The amount of the currency required for the transaction,
     /// specified in the smallest unit (e.g., wei for ETH).
     struct Transaction {

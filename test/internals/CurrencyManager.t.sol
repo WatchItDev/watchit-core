@@ -65,7 +65,7 @@ contract CurrencyManagerTest is Test, CurrencyManagerUpgradeable {
     }
 
     function testFail_RevertWhen_removeNotExisting() public {
-        vm.expectRevert(InvalidUnsupportedCurrency.selector);
+        vm.expectRevert(InvalidCurrency.selector);
         address currency = vm.addr(1); // example address
         _removeCurrency(currency);
     }

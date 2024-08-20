@@ -3,6 +3,8 @@
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "contracts/interfaces/ICurrencyManager.sol";
 
 /// @title Currency Manager Upgradeable
@@ -12,22 +14,34 @@ abstract contract CurrencyManagerUpgradeable is
     Initializable,
     ICurrencyManager
 {
+    using ERC165Checker for address;
+
     /// @custom:storage-location erc7201:currencymanagarupgradeable
     struct CurrencyManagerStorage {
-        // Maps currency addresses to their index in the supported tokens array
+        // Maps currency addresses to their index in the supported currencies array
         mapping(address => uint256) _supportedCurrencyMap;
         // Array of supported currency addresses
         address[] _supportedCurrencies;
     }
 
+    bytes4 private constant INTERFACE_ID_ERC20 = type(IERC20).interfaceId;
     /// @notice Error thrown when trying to remove an unsupported currency.
     /// @param currency The address of the unsupported currency.
-    error InvalidUnsupportedCurrency(address currency);
+    error InvalidCurrency(address currency);
 
     // ERC-7201: Namespaced Storage Layout is another convention that can be used to avoid storage layout errors
-    // keccak256(abi.encode(uint256(keccak256("watchit.currencybroker.supportedtokens")) - 1)) & ~bytes32(uint256(0xff))
+    // keccak256(abi.encode(uint256(keccak256("watchit.currencymanager.supportedcurrencies")) - 1)) & ~bytes32(uint256(0xff))
     bytes32 private constant CURRENCY_MANAGER_SLOT =
-        0xeef4c6e07c8c48aa12ec4689202072497f770ef14b71c2b38f8bc57ade760c00;
+        0x56b3138e9d26d4b1bbb7eb44261bf9a02d56af8c0799b6892290ca1ba7b2e700;
+
+    /// @notice Modifier to ensure only valid ERC20 or native coins are used.
+    /// @param currency The address of the currency to check.
+    modifier onlyValidCurrency(address currency) {
+        // if not native coin then should be a valid erc20 token
+        if (currency != address(0) && !currency.supportsInterface(INTERFACE_ID_ERC20))
+            revert InvalidCurrency(currency);
+        _;
+    }
 
     /**
      * @notice Internal function to get the currency manager storage.
@@ -63,7 +77,7 @@ abstract contract CurrencyManagerUpgradeable is
     /// @param currency The address of the currency to remove.
     function _removeCurrency(address currency) internal {
         if (!isCurrencySupported(currency))
-            revert InvalidUnsupportedCurrency(currency);
+            revert InvalidCurrency(currency);
 
         CurrencyManagerStorage storage $ = _getCurrencyManagerStorage();
         uint256 index = $._supportedCurrencyMap[currency] - 1;

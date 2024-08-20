@@ -12,24 +12,25 @@ import "contracts/libraries/Constants.sol";
  * It inherits from Initializable and IFeesManager interfaces.
  */
 abstract contract FeesManagerUpgradeable is Initializable, IFeesManager {
+
     /// @custom:storage-location erc7201:feesupgradeable
     struct FeesStorage {
-        mapping(address => uint256) _tokenFees;
-        mapping(address => bool) _tokenSupported;
+        mapping(address => uint256) _currencyFees;
+        mapping(address => bool) _currencySupported;
     }
 
-    /// @notice Error to be thrown when an unsupported token is used.
-    /// @param token The address of the unsupported token.
-    error InvalidUnsupportedToken(address token);
+    /// @notice Error to be thrown when an unsupported currency is used.
+    /// @param currency The address of the unsupported currency.
+    error InvalidUnsupportedCurrency(address currency);
     /// @notice Error to be thrown when basis point fees are invalid.
     error InvalidBasisPointRange();
     /// @notice Error to be thrown when nominal fees are invalid.
     error InvalidNominalRange();
 
     // ERC-7201: Namespaced Storage Layout is another convention that can be used to avoid storage layout errors
-    // keccak256(abi.encode(uint256(keccak256("watchit.fees.tokenfees")) - 1)) & ~bytes32(uint256(0xff))
+    // keccak256(abi.encode(uint256(keccak256("watchit.fees.currencyfees")) - 1)) & ~bytes32(uint256(0xff))
     bytes32 private constant FEES_SLOT =
-        0x87da7b105ee6d8640c69f620aa1ac0a4cea27ca8bc07f4213d3776b156a65a00;
+         0x5575547e2bbff3f801051e8dc7ed5ba1cab8b335003bad8f456347ac015ff600;
 
     /**
      * @notice Internal function to get the fees storage.
@@ -41,31 +42,31 @@ abstract contract FeesManagerUpgradeable is Initializable, IFeesManager {
         }
     }
 
-    /// @notice Initializes the fees with the given initial fee and token.
+    /// @notice Initializes the fees with the given initial fee and currency.
     /// @param initialFee The initial fee for the fees.
-    /// @param token The address of the token.
+    /// @param currency The address of the currency.
     function __Fees_init(
         uint256 initialFee,
-        address token
+        address currency
     ) internal onlyInitializing {
-        __Fees_init_unchained(initialFee, token);
+        __Fees_init_unchained(initialFee, currency);
     }
 
-    /// @notice Unchained initializer for the fees with the given initial fee and token.
+    /// @notice Unchained initializer for the fees with the given initial fee and currency.
     /// @param initialFee The initial fee for the fees.
-    /// @param token The address of the token.
+    /// @param currency The address of the currency.
     function __Fees_init_unchained(
         uint256 initialFee,
-        address token
+        address currency
     ) internal onlyInitializing {
-        _setFees(initialFee, token);
+        _setFees(initialFee, currency);
     }
 
-    /// @notice Modifier to ensure only supported tokens are used.
-    /// @param token The address of the token to check.
-    modifier onlySupportedToken(address token) {
+    /// @notice Modifier to ensure only supported currency are used.
+    /// @param currency The address of the currency to check.
+    modifier onlySupportedCurrency(address currency) {
         FeesStorage storage $ = _getFeesStorage();
-        if (!$._tokenSupported[token]) revert InvalidUnsupportedToken(token);
+        if (!$._currencySupported[currency]) revert InvalidUnsupportedCurrency(currency);
         _;
     }
 
@@ -91,26 +92,26 @@ abstract contract FeesManagerUpgradeable is Initializable, IFeesManager {
     receive() external payable {}
 
     /// @inheritdoc IFeesManager
-    /// @notice Gets the fees fee for the specified token.
+    /// @notice Gets the fees fee for the specified currency.
     /// @dev This method could return a basis points (bps) fee or a flat fee depending on the context of use.
-    /// @param token The address of the token for which to retrieve the fees fee.
-    /// @return uint256 The fees fee for the specified token.
+    /// @param currency The address of the currency for which to retrieve the fees fee.
+    /// @return uint256 The fees fee for the specified currency.
     function getFees(
-        address token
-    ) public view override onlySupportedToken(token) returns (uint256) {
+        address currency
+    ) public view override onlySupportedCurrency(currency) returns (uint256) {
         FeesStorage storage $ = _getFeesStorage();
-        return $._tokenFees[token];
+        return $._currencyFees[currency];
     }
 
     /// @notice Sets a new fees fee.
-    /// @dev Sets the fee for a specific token or native currency.
+    /// @dev Sets the fee for a specific currency or native currency.
     /// Depending on the context, the fee could be in basis points (bps) or a flat fee.
     /// @param fee The new fees fee to set.
-    /// @param token The token to associate fees with. Use address(0) for the native token.
+    /// @param currency The currency to associate fees with. Use address(0) for the native coin.
     /// @notice Only the owner can call this function.
-    function _setFees(uint256 fee, address token) internal {
+    function _setFees(uint256 fee, address currency) internal {
         FeesStorage storage $ = _getFeesStorage();
-        $._tokenFees[token] = fee;
-        $._tokenSupported[token] = true;
+        $._currencyFees[currency] = fee;
+        $._currencySupported[currency] = true;
     }
 }
