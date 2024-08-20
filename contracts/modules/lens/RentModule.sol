@@ -192,7 +192,8 @@ contract RentModule is
             Time.timestamp() + (_days * 1 days)
         );
 
-        IRightsManager(drmAddress).grantAccess(rentalWatcher, contentId);
+        address[1] memory watchers = [rentalWatcher];
+        IRightsManager(drmAddress).grantAccess(watchers, contentId);
         return abi.encode(rentRegistry[contentId][rentalWatcher], currency);
     }
 

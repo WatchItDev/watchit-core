@@ -6,7 +6,6 @@ pragma solidity ^0.8.24;
 /// @notice This library provides common type definitions for use in other contracts.
 /// @dev This library defines types and structures that can be imported and used in other contracts.
 library T {
-
     enum ContractTypes {
         __, // Undefined type
         SYNDICATION, // Syndication contract
@@ -16,13 +15,11 @@ library T {
         WVC
     }
 
-    /**
-     * @title Distribution
-     * @dev Represents the distribution of royalties to a specific address.
-     * @param target The address that will receive a share of the royalties.
-     * @param bps The basis points (bps) assigned to the target address, where 10,000 bps = 100%.
-     */
-    struct Distribution {
+    /// @title Splits
+    /// @dev Represents the distribution of royalties to a specific address.
+    /// @param target The address that will receive a share of the royalties.
+    /// @param bps The basis points (bps) assigned to the target address, where 10,000 bps = 100%.
+    struct Splits {
         address target;
         uint256 bps; // Basis points, with 10000 bps being equivalent to 100%.
     }
@@ -30,22 +27,21 @@ library T {
     /// @title Transaction
     /// @dev Represents the details of a transaction involving a specific currency and amount.
     /// @param currency The address of the token or currency used in the transaction.
-    /// @param amount The amount of the currency required for the transaction, 
+    /// @param amount The amount of the currency required for the transaction,
     /// specified in the smallest unit (e.g., wei for ETH).
     struct Transaction {
         address currency;
         uint256 amount;
     }
 
-    /// @title Royalties
+    /// @title Allocation
     /// @notice Represents the currency, amount, and distribution of royalties for a transaction.
     /// @dev This struct encapsulates the transaction details and the distribution of royalties to various addresses.
-    /// @param transaction The details of the transaction, including the currency and amount.
-    /// @param distribution An array of Distribution structs, each representing an address 
-    /// and its corresponding share of the royalties in basis points.
+    /// @param t9n The details of the transaction, including the currency and amount.
+    /// @param s4s An array of Splits structs, each representing an address and its corresponding share of the royalties in basis points.
     struct Allocation {
         Transaction t9n;
-        Distribution[] d10n;
+        Splits[] s4s;
     }
 
     /**

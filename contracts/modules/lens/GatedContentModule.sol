@@ -157,7 +157,7 @@
 //         return
 //             T.Allocation(
 //                 T.Transaction(address(0), 0), 
-//                 new T.Distribution 
+//                 new T.Splits
 //             );
 //     }
 

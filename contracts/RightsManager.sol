@@ -177,19 +177,21 @@ contract RightsManager is
         return amount.perOf(split);
     }
 
-    /// @dev Grants bulk access to a set of contents for a specific account.
-    /// @param account The address of the account to which access will be granted.
-    /// @param contentIds An array of content IDs representing the resources to be granted access to.
+    /// @dev Grants bulk access to a specific content for multiple accounts.
+    /// @param accounts An array of addresses to which access will be granted.
+    /// @param contentId The content ID representing the resource to be accessed.
     /// @param license The address of the license facilitating the access process.
+    /// @notice This function loops through each account and grants access to the specified content.
+    /// It emits a `GrantedAccess` event for each account upon successful access.
     function _grantAccessBulk(
-        uint256[] contentIds,
-        address account,
+        address[] accounts,
+        uint256 contentId,
         address license
     ) private {
-        uint256 contentLength = contentIds.length;
-        for (uint256 i = 0; i < contentLength; i++) {
-            _grantAccess(account, contentIds[i], license);
-            emit GrantedAccess(account, contentIds[i]);
+        uint256 accountsLength = accounts.length;
+        for (uint256 i = 0; i < accountsLength; i++) {
+            _grantAccess(accounts[i], contentId, license);
+            emit GrantedAccess(accounts[i], contentId);
         }
     }
 
@@ -198,16 +200,16 @@ contract RightsManager is
     /// Ensures no more than 100 allocations and a minimum of 1% per distributor.
     /// @param amount The total amount to be allocated.
     /// @param currency The address of the currency being allocated.
-    /// @param distribution An array of distributions specifying the split percentages and target addresses.
+    /// @param splits An array of Splits structs specifying the split percentages and target addresses.
     /// @return The remaining unallocated amount after distribution.
     function _allocate(
         uint256 amount,
         address currency,
-        T.Distribution[] memory distribution
+        T.Splits[] memory splits
     ) private returns (uint256) {
         // Ensure there's a distribution or return the full amount.
-        if (distribution.length == 0) return amount;
-        if (distribution.length > 100) {
+        if (splits.length == 0) return amount;
+        if (splits.length > 100) {
             revert NoDeal("Invalid allocations. Cannot be more than 100.");
         }
 
@@ -215,10 +217,10 @@ contract RightsManager is
         uint256 accBps = 0; // Accumulated base points
         uint256 accTotal = 0; // Accumulated total allocation
 
-        while (i < distribution.length) {
+        while (i < splits.length) {
             // Retrieve base points and target address from the distribution array.
-            uint256 bps = distribution[i].bps;
-            address target = distribution[i].target;
+            uint256 bps = splits[i].bps;
+            address target = splits[i].target;
             // safely increment i uncheck overflow
             unchecked {
                 i++;
@@ -429,19 +431,18 @@ contract RightsManager is
     }
 
     /// @inheritdoc IRightsAccessController
-    /// @notice Grants access to a specific account for a certain content ID based on given conditions.
-    /// @param account The address of the account to be granted access.
+    /// @notice Grants access to specific accounts for a certain content ID based on given conditions.
+    /// @param accounts The addresses of the accounts to be granted access.
     /// @param contentId The ID of the content for which access is being granted.
     /// @dev Access can be granted only if the validator contract is valid and has been granted delegation rights.
     function grantAccess(
-        address account,
+        address[] accounts,
         uint256 contentId
     )
         external
         payable
         nonReentrant
         onlyRegisteredContent(contentId)
-        // TODO _grantAccessBulk(contentId, account, licenseAddress);
         onlyWhenRightsDelegated(_msgSender(), contentId)
     {
         // in some cases the content or distributor could be revoked..
@@ -468,14 +469,12 @@ contract RightsManager is
         uint256 deductions = treasurySplit + acceptedSplit;
 
         if (deductions > total) revert NoDeal("The fees are too high.");
-        uint256 remaining = _allocate(total - deductions, currency, alloc.d10n);
+        uint256 remaining = _allocate(total - deductions, currency, alloc.s4s);
 
         // register split distribution in ledger..
         _sumLedgerEntry(ownerOf(contentId), remaining, currency);
         _sumLedgerEntry(distributor.getManager(), acceptedSplit, currency);
-        _grantAccess(account, contentId, advocate);
-
-        emit GrantedAccess(account, contentId);
+        _grantAccessBulk(accounts, contentId, licenseAddress);
     }
 
     /// @inheritdoc IRightsAccessController
