@@ -10,7 +10,7 @@ import "contracts/interfaces/ILicense.sol";
 import "contracts/libraries/Types.sol";
 
 /// @title Rights Manager Content Access Upgradeable
-/// @notice This abstract contract manages content access control using a license 
+/// @notice This abstract contract manages content access control using a license
 /// validator contract that must implement the ILicense interface.
 abstract contract RightsManagerContentAccessUpgradeable is
     Initializable,
@@ -19,9 +19,7 @@ abstract contract RightsManagerContentAccessUpgradeable is
     using ERC165Checker for address;
 
     /// @dev The interface ID for ILicense, used to verify that a validator contract implements the correct interface.
-    bytes4 private constant INTERFACE_STRATEGY_VALIDATOR =
-        type(ILicense).interfaceId;
-
+    bytes4 private constant INTERFACE_LICENSE = type(ILicense).interfaceId;
     /// @custom:storage-location erc7201:rightscontentaccess.upgradeable
     /// @dev Storage struct for the access control list (ACL) that maps content IDs and accounts to validator contracts.
     struct ACLStorage {
@@ -46,7 +44,7 @@ abstract contract RightsManagerContentAccessUpgradeable is
     }
 
     /// @dev Error thrown when the validator contract does not implement the ILicense interface.
-    error InvalidStrategyContract(address strategy);
+    error InvalidLicenseContract(address strategy);
 
     /**
      * @dev Modifier to check that a license contract implements the ILicense interface.
@@ -54,8 +52,8 @@ abstract contract RightsManagerContentAccessUpgradeable is
      * Reverts if the validator does not implement the required interface.
      */
     modifier onlyLicenseContract(address license) {
-        if (!license.supportsInterface(INTERFACE_STRATEGY_VALIDATOR)) {
-            revert InvalidStrategyContract(license);
+        if (!license.supportsInterface(INTERFACE_LICENSE)) {
+            revert InvalidLicenseContract(license);
         }
         _;
     }
@@ -77,22 +75,36 @@ abstract contract RightsManagerContentAccessUpgradeable is
         $._acl[contentId][account] = validator;
     }
 
-    /**
-     * @notice Checks if access is allowed for a specific account and content.
-     * @dev The function calls the `approved` method on the validator contract to determine if access is granted.
-     * @param account The address of the account to check access for.
-     * @param contentId The ID of the content to check access for.
-     * @return bool True if access is allowed, false otherwise.
-     */
+    /// @notice Verifies whether access is allowed for a specific account and content based on a given license.
+    /// @param account The address of the account to verify access for.
+    /// @param contentId The ID of the content for which access is being checked.
+    /// @param licenseAddress The address of the license contract used to verify access.
+    /// @return Returns true if the account is granted access to the content based on the license, false otherwise.
+    function _verify(
+        address acount,
+        uint256 contentId,
+        address licenseAddress
+    ) private returns (bool) {
+        // if not registered license..
+        if (licenseAddress == address(0)) return false;
+        ILicense license = ILicense(licenseAddress);
+        return license.terms(account, contentId);
+    }
+
+    /// @notice Checks if access is allowed for a specific user and content.
+    /// @param account The address of the account to verify access.
+    /// @param contentId The content ID to check access for.
+    /// @return True if access is allowed, false otherwise.
     function _isAccessGranted(
         address account,
         uint256 contentId
     ) internal view returns (bool) {
         ACLStorage storage $ = _getACLStorage();
-        address strategyValidator = $._acl[contentId][account];
-        // if the access is not registered, return false.
-        if (strategyValidator == address(0)) return false;
-        // The approved method is called and executed according to the ILicense specification.
-        return ILicense(strategyValidator).terms(account, contentId);
+        // verify access on account license or general license..
+        // eg: if has access for renting content or gated content..
+        // one of the conditions should be true..
+        return
+            _verify(account, contentId, $._acl[contentId][account]) ||
+            _verify(account, contentId, $._acl[contentId][address(0)]);
     }
 }

@@ -15,8 +15,8 @@ interface IRightsAccessController {
     ) external payable;
 
     /// @notice Checks if access is allowed for a specific user and content.
-    /// @param account The address of the user.
-    /// @param contentId The content ID to check access.
+    /// @param account The address of the account to verify access.
+    /// @param contentId The content ID to check access for.
     /// @return True if access is allowed, false otherwise.
     function isAccessGranted(
         address account,

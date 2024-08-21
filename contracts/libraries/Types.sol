@@ -15,6 +15,11 @@ library T {
         WVC
     }
 
+    struct Terms {
+        address target;
+        bytes method; // a packed version of the method
+    }
+
     /// @title Splits
     /// @dev Represents the distribution of royalties to a specific address.
     /// @param target The address that will receive a share of the royalties.

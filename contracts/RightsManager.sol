@@ -86,6 +86,7 @@ contract RightsManager is
     error InvalidNotApprovedContent();
     error InvalidNotAllowedContent();
     error InvalidUnknownContent();
+    error InvalidAccessValidation(string reason);
     error InvalidAlreadyRegisteredContent();
     error NoFundsToWithdraw(address);
     error NoDeal(string reason);
@@ -292,7 +293,7 @@ contract RightsManager is
     /// @inheritdoc IFeesManager
     /// @notice Sets a new treasury fee for a specific currency.
     /// @param newTreasuryFee The new fee amount to be set.
-     /// @param currency The currency to associate fees with. Use address(0) for the native coin.
+    /// @param currency The currency to associate fees with. Use address(0) for the native coin.
     function setFees(
         uint256 newTreasuryFee,
         address currency
@@ -390,15 +391,11 @@ contract RightsManager is
         address to,
         uint256 contentId
     ) external onlyApprovedContent(to, contentId) {
-        // if(ownerOf(contentId) == to){
-        //     // if the owner is trying to re-mint, nothing happens..
-        //     return;
-        // }
-
         _mint(to, contentId);
         emit RegisteredContent(contentId);
     }
 
+    // TODO grantCustodial with signature
     /// @inheritdoc IRightsCustodial
     /// @notice Grants custodial rights for the content to a distributor.
     /// @param distributor The address of the distributor.
@@ -428,7 +425,12 @@ contract RightsManager is
     function delegateRights(
         address validator,
         uint256 contentId
-    ) external onlyHolder(contentId) onlyLicenseContract(validator) {
+    )
+        external
+        onlyHolder(contentId)
+        onlyRegisteredContent(contentId)
+        onlyLicenseContract(validator)
+    {
         _delegateRights(validator, contentId);
         emit RightsDelegated(validator, contentId);
     }
@@ -440,10 +442,21 @@ contract RightsManager is
     function revokeRights(
         address validator,
         uint256 contentId
-    ) external onlyHolder(contentId) onlyLicenseContract(validator) {
+    )
+        external
+        onlyHolder(contentId)
+        onlyRegisteredContent(contentId)
+        onlyLicenseContract(validator)
+    {
         _revokeRights(validator, contentId);
         emit RightsRevoked(validator, contentId);
     }
+
+
+    // TODO pensar si useGeneralLicense es la mejor opcion
+    // TODO en este contexto registerLicense seria mejor que grantAccess?
+    // o se podria entender como "grant access a esta cuenta con esta licencia"
+    // address(0) seria conceder acceso a todos a este contenido con esta licencia.
 
     /// @inheritdoc IRightsAccessController
     /// @notice Grants access to specific accounts for a certain content ID based on given conditions.
@@ -494,21 +507,17 @@ contract RightsManager is
     }
 
     /// @inheritdoc IRightsAccessController
-    /// @notice Checks if access is allowed for a specific account and content.
-    /// @param account The address of the account.
+    /// @notice Checks if access is allowed for a specific user and content.
+    /// @param account The address of the account to verify access.
     /// @param contentId The content ID to check access for.
-    /// @return True if access is allowed, false otherwise.
-    /// @dev This function is marked as noReentrant because the access check calls an external contract
-    /// to verify the conditions. A malicious attacker could attempt a reentrancy attack or an infinite
-    /// callback loop, so the reentrancy guard is necessary.
     function isAccessGranted(
         address account,
         uint256 contentId
     ) external nonReentrant onlyRegisteredContent(contentId) returns (bool) {
-        // content is active and has access to content..
-        return
-            _checkActiveContent(contentId) &&
+        bool isGrantedForOwner = ownerOf(contentId) == account;
+        bool accessGranted = isGrantedForOwner ||
             _isAccessGranted(account, contentId);
+        return _checkActiveContent(contentId) && accessGranted;
     }
 
     /// @notice Checks if the contract supports a specific interface.
