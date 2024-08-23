@@ -85,8 +85,8 @@ abstract contract RightsManagerContentAccessUpgradeable is
     ) private returns (bool) {
         // if not registered license validator..
         if (validator == address(0)) return false;
-        IValidator license = IValidator(validator);
-        return license.verify(account, contentId);
+        IValidator validator = IValidator(validator);
+        return validator.verify(account, contentId);
     }
 
     /// @notice Checks if access is allowed for a specific user and content.

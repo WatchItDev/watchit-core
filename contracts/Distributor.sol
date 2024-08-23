@@ -30,12 +30,10 @@ contract Distributor is
     using TreasuryHelper for address;
     using FeesHelper for uint256;
 
-    /// @notice The URL to the distribution.
-    /// Since this is a contract considered as implementation for beacon proxy,
-    /// we need to reserve a gap for endpoint to avoid memory layout getting mixed up.
-    /// https://docs.openzeppelin.com/upgrades-plugins/1.x/writing-upgradeable
-    string private endpoint;
     mapping(address => uint256) private floor;
+    string private endpoint;
+    uint256 scalingFactor; // To sharpen or intensify the increase in fees as demand grows.
+    uint256 flattenFactor; // To smooth or flatten the increase in fees as demand grows.
 
     /// @notice Event emitted when the endpoint is updated.
     /// @param oldEndpoint The old endpoint.
@@ -55,6 +53,9 @@ contract Distributor is
         __Fees_init(0, address(0));
 
         if (bytes(_endpoint).length == 0) revert InvalidEndpoint();
+        // balanced factors
+        scalingFactor = 10;
+        flattenFactor = 10;
         endpoint = _endpoint;
     }
 
@@ -111,6 +112,16 @@ contract Distributor is
         _addCurrency(address(0));
     }
 
+    /// @notice Sets the scaling and flattening factors used to calculate fees.
+    /// @dev This function allows the administrator to adjust how sensitive the fees are to changes in demand
+    ///      (scaling factor) and how flattened the fee increases are (flattening factor).
+    /// @param scale The scaling factor that controls how aggressively fees increase with demand.
+    /// @param flatten The flattening factor that controls how gradual or smooth the fee increase is.
+    function setFactors(uint256 scale, uint256 flatten) onlyAdmin {
+        scalingFactor = scale;
+        flattenFactor = flatten;
+    }
+
     /// @inheritdoc IDistributor
     /// @notice Sets the minimum floor value for fees associated with a specific currency.
     /// @dev This function can only be called by the owner and for supported currencies.
@@ -127,34 +138,33 @@ contract Distributor is
     /// @dev The function adjusts the base floor by adding a proportion that scales with the logarithm of the custodials.
     /// This ensures that the floor value increases gradually as custodials grow.
     /// @param baseFloor The initial base floor value to be adjusted.
-    /// @param custodials The number of custodials, which influences the adjustment.
+    /// @param demand The number of custodials, which influences the adjustment.
     function _getAdjustedFloor(
         uint256 baseFloor,
-        uint256 custodials
+        uint256 demand
     ) internal pure returns (uint256) {
         if (baseFloor == 0) return 0;
-        // Calculate the logarithm of custodials, adding 1 to avoid taking log(0)
-        uint256 safeOp = (custodials == 0 ? (custodials + 1) : custodials);
         // Economies of scale.
-        // Adjust the base floor by adding a fraction of it, scaled by the logarithm of custodials
-        // 10 = scaling factor that controls the sensitivity of the adjustment
-        return baseFloor + ((safeOp.log2() * baseFloor) / 10); 
+        // Calculate the logarithm of custodials, adding 1 to avoid taking log(0)
+        // fees + ((log2(demand) * scale) / flatten) 
+        uint256 safeOp = (demand == 0 ? (demand + 1) : demand);
+        return baseFloor + ((safeOp.log2() * scalingFactor) / flatteningFactor);
     }
 
     /// @inheritdoc IDistributor
     /// @notice Adjusts the proposed fee amount for the distributor according to the custodial charge.
     /// @param fees The initial fee amount proposed by the distributor.
     /// @param currency The currency in which the fees are denominated.
-    /// @param custodials The amount of content under the distributor's custody.
+    /// @param demand The amount of content under the distributor's custody.
     /// @return The final fee amount after adjustment, ensuring it meets or exceeds the minimum floor value.
     function negotiate(
         uint256 fees,
         address currency,
-        uint256 custodials
+        uint256 demand
     ) external view returns (uint256) {
         uint256 bps = getFees(currency);
         uint256 proposedFees = fees.perOf(bps);
-        uint256 adjustedFloor = _getAdjustedFloor(floor[currency], custodials);
+        uint256 adjustedFloor = _getAdjustedFloor(floor[currency], demand);
         return proposedFees < adjustedFloor ? adjustedFloor : proposedFees;
     }
 

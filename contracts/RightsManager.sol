@@ -179,29 +179,6 @@ contract RightsManager is
         return amount.perOf(split);
     }
 
-    /// @dev Grants bulk access to a specific content for multiple accounts.
-    /// @param accounts An array of addresses to which access will be granted.
-    /// @param contentId The content ID representing the resource to be accessed.
-    /// @param validator The address of the contract responsible for enforcing or validating the conditions of the license.
-    /// @notice This function loops through each account and grants access to the specified content.
-    /// It emits a `GrantedAccess` event for each account upon successful access.
-    function _grantAccessBulk(
-        address[] memory accounts,
-        uint256 contentId,
-        address validator
-    ) private {
-        uint256 accountsLength = accounts.length;
-        for (uint256 i = 0; i < accountsLength; ) {
-            _registerAccess(accounts[i], contentId, validator);
-            emit GrantedAccess(accounts[i], contentId);
-
-            // safely increment i uncheck overflow
-            unchecked {
-                ++i;
-            }
-        }
-    }
-
     /// @notice Allocates the specified amount across a distribution array and returns the remaining unallocated amount.
     /// @dev Distributes the amount based on the provided distribution array.
     /// Ensures no more than 100 allocations and a minimum of 1% per distributor.
@@ -480,11 +457,9 @@ contract RightsManager is
         // por ejemplo si un contenido no esta en story, no tendria
         // sentido registrarlo, por lo que una funcion que verifique si es aplicable
         // seria util
-        // TODO renombrar a Validator
+
         // TODO considerar retornar el validador 'getValidator' registrado en lugar de isAccessGranted
         // esto permitiria mayor flecibilidad para determinar las condiciones de acceso,
-
-
         // the sender MUST be a IValidator advocate/validator
         IValidator advocate = IValidator(validator);
         T.Terms calldata terms = advocate.terms(account, contentId);
