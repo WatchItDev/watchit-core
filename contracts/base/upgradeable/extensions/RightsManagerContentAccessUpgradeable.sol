@@ -6,20 +6,20 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
 import "contracts/interfaces/IRightsAccessController.sol";
-import "contracts/interfaces/ILicense.sol";
+import "contracts/interfaces/IValidator.sol";
 import "contracts/libraries/Types.sol";
 
 /// @title Rights Manager Content Access Upgradeable
 /// @notice This abstract contract manages content access control using a license
-/// validator contract that must implement the ILicense interface.
+/// validator contract that must implement the IValidator interface.
 abstract contract RightsManagerContentAccessUpgradeable is
     Initializable,
     IRightsAccessController
 {
     using ERC165Checker for address;
 
-    /// @dev The interface ID for ILicense, used to verify that a validator contract implements the correct interface.
-    bytes4 private constant INTERFACE_LICENSE = type(ILicense).interfaceId;
+    /// @dev The interface ID for IValidator, used to verify that a validator contract implements the correct interface.
+    bytes4 private constant INTERFACE_VALIDATOR = type(IValidator).interfaceId;
     /// @custom:storage-location erc7201:rightscontentaccess.upgradeable
     /// @dev Storage struct for the access control list (ACL) that maps content IDs and accounts to validator contracts.
     struct ACLStorage {
@@ -43,29 +43,27 @@ abstract contract RightsManagerContentAccessUpgradeable is
         }
     }
 
-    /// @dev Error thrown when the validator contract does not implement the ILicense interface.
-    error InvalidLicenseContract(address strategy);
+    /// @dev Error thrown when the validator contract does not implement the IValidator interface.
+    error InvalidValidatorContract(address);
 
     /**
-     * @dev Modifier to check that a license contract implements the ILicense interface.
-     * @param license The address of the license validator contract.
+     * @dev Modifier to check that a validator contract implements the IValidator interface.
+     * @param validator The address of the license validator contract.
      * Reverts if the validator does not implement the required interface.
      */
-    modifier onlyLicenseContract(address license) {
-        if (!license.supportsInterface(INTERFACE_LICENSE)) {
-            revert InvalidLicenseContract(license);
+    modifier onlyValidatorContract(address validator) {
+        if (!validator.supportsInterface(INTERFACE_VALIDATOR)) {
+            revert InvalidValidatorContract(validator);
         }
         _;
     }
 
-    /**
-     * @notice Grants access to a specific account for a certain content ID.
-     * @dev The function associates a content ID and account with a validator contract in the ACL storage.
-     * @param account The address of the account to be granted access.
-     * @param contentId The ID of the content for which access is being granted.
-     * @param validator The address of the license validator contract that will be used to validate access.
-     */
-    function _grantAccess(
+    /// @notice Register access to a specific account for a certain content ID.
+    /// @dev The function associates a content ID and account with a validator contract in the ACL storage.
+    /// @param account The address of the account to be granted access.
+    /// @param contentId The ID of the content for which access is being granted.
+    /// @param validator The address of the contract responsible for enforcing or validating the conditions of the license.
+    function _registerAccess(
         address account,
         uint256 contentId,
         address validator
@@ -78,17 +76,17 @@ abstract contract RightsManagerContentAccessUpgradeable is
     /// @notice Verifies whether access is allowed for a specific account and content based on a given license.
     /// @param account The address of the account to verify access for.
     /// @param contentId The ID of the content for which access is being checked.
-    /// @param licenseAddress The address of the license contract used to verify access.
+    /// @param validator The address of the license validator contract used to verify access.
     /// @return Returns true if the account is granted access to the content based on the license, false otherwise.
     function _verify(
-        address acount,
+        address account,
         uint256 contentId,
-        address licenseAddress
+        address validator
     ) private returns (bool) {
-        // if not registered license..
-        if (licenseAddress == address(0)) return false;
-        ILicense license = ILicense(licenseAddress);
-        return license.terms(account, contentId);
+        // if not registered license validator..
+        if (validator == address(0)) return false;
+        IValidator license = IValidator(validator);
+        return license.verify(account, contentId);
     }
 
     /// @notice Checks if access is allowed for a specific user and content.

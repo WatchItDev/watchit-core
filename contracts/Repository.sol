@@ -10,7 +10,7 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "contracts/interfaces/IRepository.sol";
 import "contracts/libraries/Types.sol";
 
-/// @title Repository Contract
+/// @title Repository Contract (Registry)
 /// @notice Manages the addresses of different contract types and their versions.
 /// @dev This contract uses the UUPS upgradeable pattern and AccessControl for role-based access control.
 contract Repository is

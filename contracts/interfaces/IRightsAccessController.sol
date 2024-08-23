@@ -3,15 +3,16 @@ pragma solidity ^0.8.24;
 import "contracts/libraries/Types.sol";
 
 interface IRightsAccessController {
-    /// @notice Grants access to specific accounts for a certain content ID based on given conditions.
+    /// @notice Register access to specific accounts for a certain content ID based on given conditions.
     /// @param accounts The addresses of the accounts to be granted access.
+    /// @param validator The address of the contract responsible for enforcing or validating the conditions of the license.
     /// @param contentId The ID of the content for which access is being granted.
-    /// @param alloc The allocation specification to distribute the royalties or fees.
-    /// @dev Access can be granted only if the validator contract is valid and has been granted delegation rights.
-    function grantAccess(
+    /// @dev Access can be granted only if the validator contract is valid and has been granted delegation rights. 
+    /// If the conditions are not met, access will not be registered.
+    function enforceAccess(
         uint256 contentId,
-        address[] calldata accounts,
-        T.Allocation calldata alloc
+        address validator,
+        address[] calldata accounts
     ) external payable;
 
     /// @notice Checks if access is allowed for a specific user and content.

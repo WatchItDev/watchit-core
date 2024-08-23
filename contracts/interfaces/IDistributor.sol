@@ -6,10 +6,15 @@ import "./IFeesManager.sol";
 import "./ICurrencyManager.sol";
 
 interface IDistributor is IFeesManager, ICurrencyManager {
-    /// @notice Updates the endpoint of the current distributor.
+    /// @notice Set the endpoint of the distributor.
     /// @dev This function can only be called by the owner of the contract.
     /// @param _endpoint The new distributor's endpoint.
-    function updateEndpoint(string memory _endpoint) external;
+    function setEndpoint(string memory _endpoint) external;
+
+    /// @notice Sets the minimum floor value for fees associated with a specific currency.
+    /// @param currency The address of the token for which the floor value is being set.
+    /// @param minimum The minimum fee that can be proposed for the given currency.
+    function setFloor(address currency, uint256 minimum) external;
 
     /// @notice Retrieves the endpoint of the distributor.
     /// @dev This function allows users to view the current endpoint of the distributor.
@@ -24,14 +29,11 @@ interface IDistributor is IFeesManager, ICurrencyManager {
     /// @notice Proposes a fee to the distributor by adjusting it according to a predefined floor value.
     /// @param fees The initial fee amount proposed.
     /// @param currency The currency in which the fees are proposed.
+    /// @param custodials The amount of content under the distributor's custody.
     /// @return acceptedFees The final fee amount after adjustment, ensuring it meets the floor value.
     function negotiate(
         uint256 fees,
-        address currency
+        address currency,
+        uint256 custodials
     ) external view returns (uint256);
-
-    /// @notice Sets the minimum floor value for fees associated with a specific currency.
-    /// @param currency The address of the token for which the floor value is being set.
-    /// @param minimum The minimum fee that can be proposed for the given currency.
-    function setFloor(address currency, uint256 minimum) external;
 }

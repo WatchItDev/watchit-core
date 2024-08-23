@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+import "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts-upgradeable/utils/introspection/ERC165Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
@@ -8,7 +9,7 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "contracts/base/upgradeable/CurrencyManagerUpgradeable.sol";
 import "contracts/base/upgradeable/FeesManagerUpgradeable.sol";
 import "contracts/libraries/TreasuryHelper.sol";
-import "contracts/libraries/MathHelper.sol";
+import "contracts/libraries/FeesHelper.sol";
 import "contracts/interfaces/IDistributor.sol";
 
 /// @title Content Distributor contract.
@@ -25,8 +26,9 @@ contract Distributor is
     CurrencyManagerUpgradeable,
     IDistributor
 {
+    using Math for uint256;
     using TreasuryHelper for address;
-    using MathHelper for uint256;
+    using FeesHelper for uint256;
 
     /// @notice The URL to the distribution.
     /// Since this is a contract considered as implementation for beacon proxy,
@@ -39,7 +41,6 @@ contract Distributor is
     /// @param oldEndpoint The old endpoint.
     /// @param newEndpoint The new endpoint.
     event EndpointUpdated(string oldEndpoint, string newEndpoint);
-
     /// @notice Error to be thrown when an invalid endpoint is provided.
     error InvalidEndpoint();
 
@@ -72,11 +73,11 @@ contract Distributor is
     }
 
     /// @inheritdoc IDistributor
-    /// @notice Updates the distribution endpoint URL.
+    /// @notice Set the distribution endpoint URL.
     /// @param _endpoint The new endpoint URL to be set.
     /// @dev This function reverts if the provided endpoint is an empty string.
     /// @dev Emits an {EndpointUpdated} event.
-    function updateEndpoint(string calldata _endpoint) external onlyOwner {
+    function setEndpoint(string calldata _endpoint) external onlyOwner {
         if (bytes(_endpoint).length == 0) revert InvalidEndpoint();
         string memory oldEndpoint = endpoint;
         endpoint = _endpoint;
@@ -122,21 +123,39 @@ contract Distributor is
         floor[currency] = minimum;
     }
 
+    /// @notice Calculates an adjusted floor value based on the logarithm of custodials.
+    /// @dev The function adjusts the base floor by adding a proportion that scales with the logarithm of the custodials.
+    /// This ensures that the floor value increases gradually as custodials grow.
+    /// @param baseFloor The initial base floor value to be adjusted.
+    /// @param custodials The number of custodials, which influences the adjustment.
+    function _getAdjustedFloor(
+        uint256 baseFloor,
+        uint256 custodials
+    ) internal pure returns (uint256) {
+        if (baseFloor == 0) return 0;
+        // Calculate the logarithm of custodials, adding 1 to avoid taking log(0)
+        uint256 safeOp = (custodials == 0 ? (custodials + 1) : custodials);
+        // Economies of scale.
+        // Adjust the base floor by adding a fraction of it, scaled by the logarithm of custodials
+        // 10 = scaling factor that controls the sensitivity of the adjustment
+        return baseFloor + ((safeOp.log2() * baseFloor) / 10); 
+    }
+
     /// @inheritdoc IDistributor
-    /// @notice Proposes a fee to the distributor by adjusting it according to a predefined floor value.
-    /// @param fees The initial fee amount proposed.
-    /// @param currency The currency in which the fees are proposed.
-    /// @return acceptedFees The final fee amount after adjustment, ensuring it meets the floor value.
+    /// @notice Adjusts the proposed fee amount for the distributor according to the custodial charge.
+    /// @param fees The initial fee amount proposed by the distributor.
+    /// @param currency The currency in which the fees are denominated.
+    /// @param custodials The amount of content under the distributor's custody.
+    /// @return The final fee amount after adjustment, ensuring it meets or exceeds the minimum floor value.
     function negotiate(
         uint256 fees,
-        address currency
+        address currency,
+        uint256 custodials
     ) external view returns (uint256) {
         uint256 bps = getFees(currency);
         uint256 proposedFees = fees.perOf(bps);
-        uint256 acceptedFees = proposedFees < floor[currency]
-            ? floor[currency]
-            : proposedFees;
-        return acceptedFees;
+        uint256 adjustedFloor = _getAdjustedFloor(floor[currency], custodials);
+        return proposedFees < adjustedFloor ? adjustedFloor : proposedFees;
     }
 
     /// @inheritdoc IERC165

@@ -23,11 +23,11 @@ import "contracts/base/upgradeable/extensions/RightsManagerDelegationUpgradeable
 import "contracts/interfaces/IRegistrableVerifiable.sol";
 import "contracts/interfaces/IReferendumVerifiable.sol";
 import "contracts/interfaces/IRightsManager.sol";
-import "contracts/interfaces/ILicense.sol";
+import "contracts/interfaces/IValidator.sol";
 import "contracts/interfaces/IDistributor.sol";
 import "contracts/interfaces/IRepository.sol";
 import "contracts/libraries/TreasuryHelper.sol";
-import "contracts/libraries/MathHelper.sol";
+import "contracts/libraries/FeesHelper.sol";
 import "contracts/libraries/Constants.sol";
 import "contracts/libraries/Types.sol";
 
@@ -51,7 +51,7 @@ contract RightsManager is
     IRightsManager
 {
     using TreasuryHelper for address;
-    using MathHelper for uint256;
+    using FeesHelper for uint256;
 
     /// @notice Emitted when distribution custodial rights are granted to a distributor.
     /// @param prevCustody The previous distributor custodial address.
@@ -69,11 +69,12 @@ contract RightsManager is
         address currency
     );
 
-    event GrantedAccess(address account, uint256 contentId);
     event RegisteredContent(uint256 contentId);
+    event GrantedAccess(address account, uint256 contentId);
     event RightsDelegated(address indexed validator, uint256 contentId);
     event RightsRevoked(address indexed validator, uint256 contentId);
 
+    // TODO converto to immutable ILicensingModule public immutable LICENSING_MODULE;
     address private syndication;
     address private referendum;
     // This role is granted to any holder representant trusted module. eg: Lens, Farcaster, etc.
@@ -181,17 +182,17 @@ contract RightsManager is
     /// @dev Grants bulk access to a specific content for multiple accounts.
     /// @param accounts An array of addresses to which access will be granted.
     /// @param contentId The content ID representing the resource to be accessed.
-    /// @param license The address of the license facilitating the access process.
+    /// @param validator The address of the contract responsible for enforcing or validating the conditions of the license.
     /// @notice This function loops through each account and grants access to the specified content.
     /// It emits a `GrantedAccess` event for each account upon successful access.
     function _grantAccessBulk(
         address[] memory accounts,
         uint256 contentId,
-        address license
+        address validator
     ) private {
         uint256 accountsLength = accounts.length;
         for (uint256 i = 0; i < accountsLength; ) {
-            _grantAccess(accounts[i], contentId, license);
+            _registerAccess(accounts[i], contentId, validator);
             emit GrantedAccess(accounts[i], contentId);
 
             // safely increment i uncheck overflow
@@ -361,6 +362,7 @@ contract RightsManager is
         uint256 amount,
         address currency
     ) external onlyValidCurrency(currency) {
+        // TODO recipiento todo el mundo podria hacer withdraw?
         uint256 available = getLedgerEntry(recipient, currency);
         if (available < amount) revert NoFundsToWithdraw(recipient);
         recipient.transfer(amount, currency);
@@ -419,8 +421,8 @@ contract RightsManager is
     }
 
     /// @inheritdoc IRightsDelegable
-    /// @notice Delegates rights for a specific content ID to a license validator.
-    /// @param validator The address of strategy license validator contract to delegate rights to.
+    /// @notice Delegates rights for a specific content ID to a license validator/validator.
+    /// @param validator The address of the validator contract to delegate rights to.
     /// @param contentId The content ID for which rights are being delegated.
     function delegateRights(
         address validator,
@@ -429,15 +431,15 @@ contract RightsManager is
         external
         onlyHolder(contentId)
         onlyRegisteredContent(contentId)
-        onlyLicenseContract(validator)
+        onlyValidatorContract(validator)
     {
         _delegateRights(validator, contentId);
         emit RightsDelegated(validator, contentId);
     }
 
     /// @inheritdoc IRightsDelegable
-    /// @notice Delegates rights for a specific content ID to a license validator.
-    /// @param validator The address of strategy license validator contract to revoke rights to.
+    /// @notice Revoke rights for a specific content ID to a license validator/validator.
+    /// @param validator The address of license validator contract to revoke rights to.
     /// @param contentId The content ID for which rights are being revoked.
     function revokeRights(
         address validator,
@@ -446,64 +448,76 @@ contract RightsManager is
         external
         onlyHolder(contentId)
         onlyRegisteredContent(contentId)
-        onlyLicenseContract(validator)
+        onlyValidatorContract(validator)
     {
         _revokeRights(validator, contentId);
         emit RightsRevoked(validator, contentId);
     }
 
-
-    // TODO pensar si useGeneralLicense es la mejor opcion
-    // TODO en este contexto registerLicense seria mejor que grantAccess?
-    // o se podria entender como "grant access a esta cuenta con esta licencia"
-    // address(0) seria conceder acceso a todos a este contenido con esta licencia.
-
     /// @inheritdoc IRightsAccessController
-    /// @notice Grants access to specific accounts for a certain content ID based on given conditions.
-    /// @param accounts The addresses of the accounts to be granted access.
+    /// @notice Register access to specific accounts for a certain content ID based on given conditions.
+    /// @param account The addresse of the account to be granted access.
+    /// @param validator The address of the contract responsible for enforcing or validating the conditions of the license.
     /// @param contentId The ID of the content for which access is being granted.
-    /// @param alloc The allocation specification to distribute the royalties or fees.
     /// @dev Access can be granted only if the validator contract is valid and has been granted delegation rights.
-    function grantAccess(
+    /// If the conditions are not met, access will not be registered.
+    function enforceAccess(
         uint256 contentId,
-        address[] calldata accounts,
-        T.Allocation calldata alloc
+        address account,
+        address validator
     )
         external
         payable
         nonReentrant
         onlyRegisteredContent(contentId)
-        onlyWhenRightsDelegated(_msgSender(), contentId)
+        onlyWhenRightsDelegated(validator, contentId)
     {
         // in some cases the content or distributor could be revoked..
         if (!isEligibleForDistribution(contentId))
             revert InvalidNotAllowedContent();
 
-        // the sender MUST be a ILicense advocate/validator
-        address licenseAddress = _msgSender();
-        ILicense license = ILicense(licenseAddress);
-        IDistributor distributor = IDistributor(getCustodial(contentId));
+        // TODO validar que el validator soporte el contenido
+        // por ejemplo si un contenido no esta en story, no tendria
+        // sentido registrarlo, por lo que una funcion que verifique si es aplicable
+        // seria util
+        // TODO renombrar a Validator
+        // TODO considerar retornar el validador 'getValidator' registrado en lugar de isAccessGranted
+        // esto permitiria mayor flecibilidad para determinar las condiciones de acceso,
 
-        // transaction details
-        uint256 amount = alloc.t9n.amount;
-        address currency = alloc.t9n.currency;
+
+        // the sender MUST be a IValidator advocate/validator
+        IValidator advocate = IValidator(validator);
+        T.Terms calldata terms = advocate.terms(account, contentId);
+        uint256 amount = terms.t9n.amount;
+        address currency = terms.t9n.currency;
+
+        // TODO desde aca crear otro metodo
+        // get distributors conditions
+        address custodial = getCustodial(contentId);
+        uint256 custodials = getCustodialCount(custodial);
+        IDistributor distributor = IDistributor(cusdotial);
         // The user, owner or delegated validator must ensure that the necessary steps
         // are taken to handle the transaction value or set the appropriate
         // approve/allowance for the DRM (Digital Rights Management) contract.
-        uint256 total = licenseAddress.safeDeposit(amount, currency);
+        uint256 total = _msgSender().safeDeposit(amount, currency);
         //!IMPORTANT if distributor or trasury does not support the currency, will revert..
         // the max bps integrity is warrantied by treasure fees
         uint256 treasurySplit = total.perOf(getFees(currency)); // bps
-        uint256 acceptedSplit = distributor.negotiate(total, currency);
-        uint256 deductions = treasurySplit + acceptedSplit;
+        uint256 acceptedSplit = distributor.negotiate(
+            total,
+            currency,
+            custodials
+        );
 
+        uint256 deductions = treasurySplit + acceptedSplit;
         if (deductions > total) revert NoDeal("The fees are too high.");
-        uint256 remaining = _allocate(total - deductions, currency, alloc.s4s);
+        uint256 remaining = _allocate(total - deductions, currency, terms.s4s);
 
         // register split distribution in ledger..
         _sumLedgerEntry(ownerOf(contentId), remaining, currency);
         _sumLedgerEntry(distributor.getManager(), acceptedSplit, currency);
-        _grantAccessBulk(accounts, contentId, licenseAddress);
+        _registerAccess(account, contentId, validator);
+        emit GrantedAccess(account, contentId);
     }
 
     /// @inheritdoc IRightsAccessController
