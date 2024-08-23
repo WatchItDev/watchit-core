@@ -31,6 +31,9 @@ abstract contract LedgerUpgradeable is Initializable, ILedger {
         }
     }
 
+    /// @dev As standard to avoid doubts about if a upgradeable contract
+    /// need to be initalized, all the contracts specify the init even
+    /// if the initialization is harmless..
     function __Ledger_init() internal onlyInitializing {}
 
     function __Ledger_init_unchained() internal onlyInitializing {}

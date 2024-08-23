@@ -135,7 +135,8 @@ contract Distributor is
     }
 
     /// @notice Calculates an adjusted floor value based on the logarithm of custodials.
-    /// @dev The function adjusts the base floor by adding a proportion that scales with the logarithm of the custodials.
+    /// @dev The function adjusts the base floor by adding a proportion 
+    /// that scales with the logarithm of the custodials.
     /// This ensures that the floor value increases gradually as custodials grow.
     /// @param baseFloor The initial base floor value to be adjusted.
     /// @param demand The number of custodials, which influences the adjustment.

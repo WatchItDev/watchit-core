@@ -13,7 +13,7 @@ import "contracts/modules/lens/base/HubRestricted.sol";
 import "contracts/modules/lens/libraries/Types.sol";
 
 import "contracts/base/DRMRestricted.sol";
-import "contracts/interfaces/IValidator.sol";
+import "contracts/interfaces/IPolicy.sol";
 import "contracts/interfaces/IRightsManager.sol";
 import "contracts/libraries/Constants.sol";
 import "contracts/libraries/Types.sol";
@@ -31,7 +31,7 @@ contract RentModule is
     HubRestricted,
     DRMRestricted,
     IPublicationActionModule,
-    IValidator
+    IPolicy
 {
     using SafeERC20 for IERC20;
 
@@ -179,9 +179,18 @@ contract RentModule is
         IERC20(currency).safeTransferFrom(account, address(this), total);
         // Increases the allowance for the DRM contract by the total amount
         IERC20(currency).approve(drmAddress, total);
+
+        IRightsManager(drmAddress).enforceAccess(
+            contentId,
+            account,
+            address(this)
+        );
         
-        IRightsManager(drmAddress).enforceAccess(contentId, account, address(this));
         return abi.encode(rentRegistry[contentId][account], currency);
+    }
+
+    function name() returns (string memory) {
+        return "LensRentModule";
     }
 
     /// @notice Verify whether the access terms for an account and content ID are satisfied
@@ -196,7 +205,7 @@ contract RentModule is
         return Time.timestamp() > expireAt;
     }
 
-    /// @inheritdoc IValidator
+    /// @inheritdoc IPolicy
     /// @notice Checks whether the terms (such as rental period) for an account and content ID are still valid.
     /// @dev This function checks if the current timestamp is within the valid period (timelock) for the specified account and content ID.
     /// If the current time is within the allowed period, the terms are considered satisfied.
@@ -230,7 +239,7 @@ contract RentModule is
     ) public pure override returns (bool) {
         return
             interfaceID == type(IPublicationActionModule).interfaceId ||
-            interfaceID == type(IValidator).interfaceId ||
+            interfaceID == type(IPolicy).interfaceId ||
             super.supportsInterface(interfaceID);
     }
 }

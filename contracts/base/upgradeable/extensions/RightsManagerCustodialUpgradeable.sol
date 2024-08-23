@@ -2,6 +2,7 @@
 // NatSpec format convention - https://docs.soliditylang.org/en/v0.5.10/natspec-format.html
 pragma solidity ^0.8.24;
 
+import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "contracts/interfaces/IRightsCustodial.sol";
 
@@ -12,12 +13,14 @@ abstract contract RightsManagerCustodialUpgradeable is
     Initializable,
     IRightsCustodial
 {
+    using EnumerableSet for EnumerableSet.UintSet;
+
     /// @custom:storage-location erc7201:rightsmanagercustodialupgradeable
     /// @dev Storage struct for managing custodial rights for content distribution.
     struct CustodyStorage {
         /// @dev Mapping to store the custodial address for each content ID.
         mapping(uint256 => address) _custodying;
-        mapping(address => uint256) _counter;
+        mapping(address => EnumerableSet.UintSet) _registry;
     }
 
     /// @dev Namespaced storage slot for CustodyStorage to avoid storage layout collisions in upgradeable contracts.
@@ -44,31 +47,42 @@ abstract contract RightsManagerCustodialUpgradeable is
     /// @dev The distributor must be active and properly authorized to handle the content.
     /// @param distributor The address of the distributor to assign the content to.
     /// @param contentId The ID of the content for which distribution rights are being granted.
-    function _grantCustodial(address distributor, uint256 contentId) internal {
+    function _grantCustody(address distributor, uint256 contentId) internal {
         CustodyStorage storage $ = _getCustodyStorage();
-        address prevCustodial = getCustodial(contentId);
-        if (prevCustodial != address(0)) $._counter[prevCustodial]--;
+        address prevCustodial = getCustody(contentId);
+        if (prevCustodial != address(0))
+            $._registry[prevCustodial].remove(contentId);
 
         $._custodying[contentId] = distributor;
-        $._counter[distributor]++;
+        $._registry[distributor].add(contentId);
     }
 
     /// @notice Retrieves the total number of content items in custody for a given distributor.
     /// @dev This function accesses the CustodyStorage to fetch the count of content associated with the specified distributor.
     /// @param distributor The address of the distributor whose custodial content count is being requested.
     /// @return The total number of content items that the specified distributor currently has in custody.
-    function getCustodialCount(
+    function getCustodyCount(
         address distributor
     ) public view returns (uint256) {
         CustodyStorage storage $ = _getCustodyStorage();
-        return $._counter[distributor];
+        return $._registry[distributor].length();
+    }
+
+    /// @notice Retrieves the custody records associated with a specific distributor.
+    /// @param distributor The address of the distributor whose custody records are to be retrieved.
+    /// @return An array of unsigned integers representing the custody records associated with the given distributor.
+    function getCustodyRegistry(
+        address distributor
+    ) public view returns (uint256[] memory) {
+        CustodyStorage storage $ = _getCustodyStorage();
+        return $._registry[distributor].values();
     }
 
     /// @notice Retrieves the custodial address for a given content ID.
     /// @dev This function ensures that the retrieved custodial address is active and authorized.
     /// @param contentId The ID of the content for which the custodial address is being requested.
     /// @return The address of the active custodial responsible for the specified content ID.
-    function getCustodial(uint256 contentId) public view returns (address) {
+    function getCustody(uint256 contentId) public view returns (address) {
         CustodyStorage storage $ = _getCustodyStorage();
         return $._custodying[contentId];
     }

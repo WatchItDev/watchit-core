@@ -13,7 +13,6 @@ abstract contract TreasurerUpgradeable is Initializable, ITreasurer {
     /// @custom:storage-location erc7201:treasurerupgradeable
     struct TreasurerStorage {
         address _treasury;
-        mapping(address => mapping(address => uint256)) _ledger;
     }
 
     // ERC-7201: Namespaced Storage Layout is another convention that can be used to avoid storage layout errors

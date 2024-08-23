@@ -23,7 +23,7 @@ import "contracts/base/upgradeable/extensions/RightsManagerDelegationUpgradeable
 import "contracts/interfaces/IRegistrableVerifiable.sol";
 import "contracts/interfaces/IReferendumVerifiable.sol";
 import "contracts/interfaces/IRightsManager.sol";
-import "contracts/interfaces/IValidator.sol";
+import "contracts/interfaces/IPolicy.sol";
 import "contracts/interfaces/IDistributor.sol";
 import "contracts/interfaces/IRepository.sol";
 import "contracts/libraries/TreasuryHelper.sol";
@@ -71,14 +71,15 @@ contract RightsManager is
 
     event RegisteredContent(uint256 contentId);
     event GrantedAccess(address account, uint256 contentId);
-    event RightsDelegated(address indexed validator, uint256 contentId);
-    event RightsRevoked(address indexed validator, uint256 contentId);
+    event RightsDelegated(address indexed policy, uint256 contentId);
+    event RightsRevoked(address indexed policy, uint256 contentId);
 
-    // TODO converto to immutable ILicensingModule public immutable LICENSING_MODULE;
+    /// KIM: any initialization here is ephimeral and not included in bytecode..
+    /// so the code within a logic contract’s constructor or global declaration
+    /// will never be executed in the context of the proxy’s state
+    /// https://docs.openzeppelin.com/upgrades-plugins/1.x/proxies#the-constructor-caveat
     address private syndication;
     address private referendum;
-    // This role is granted to any holder representant trusted module. eg: Lens, Farcaster, etc.
-    bytes32 private constant OP_ROLE = keccak256("OP_ROLE");
 
     /// @dev Error that is thrown when a restricted access to the holder is attempted.
     error RestrictedAccessToHolder();
@@ -109,9 +110,11 @@ contract RightsManager is
     ) public initializer onlyBasePointsAllowed(initialFee) {
         __Ledger_init();
         __Governable_init();
+        __ContentVault_init();
         __ERC721_init("Watchit", "WOT");
         __ERC721Enumerable_init();
         __UUPSUpgradeable_init();
+        __ReentrancyGuard_init();
         __CurrencyManager_init();
         _grantRole(DEFAULT_ADMIN_ROLE, _msgSender());
 
@@ -119,12 +122,10 @@ contract RightsManager is
         syndication = repo.getContract(T.ContractTypes.SYNDICATION);
         referendum = repo.getContract(T.ContractTypes.REFERENDUM);
         // Get the registered treasury contract from the repository
-        address initialTreasuryAddress = repo.getContract(
-            T.ContractTypes.TREASURY
-        );
+        address treasury = repo.getContract(T.ContractTypes.TREASURY);
 
         __Fees_init(initialFee, address(0));
-        __Treasurer_init(initialTreasuryAddress);
+        __Treasurer_init(treasury);
     }
 
     /// @dev Authorizes the upgrade of the contract.
@@ -229,14 +230,10 @@ contract RightsManager is
 
     /// @notice Modifier to restrict access to the holder only or their delegate.
     /// @param contentId The content hash to give distribution rights.
-    /// @dev Only the holder of the content and the delegated holder can pass this validation.
-    /// When could this happen? If we have a TRUSTED delegated holder, such as a module of Lens, etc,
-    /// we can add a delegated role to operate on behalf of the holder's account.
+    /// @dev Only the holder of the content can pass this validation.
     modifier onlyHolder(uint256 contentId) {
-        if (
-            ownerOf(contentId) != _msgSender() &&
-            !hasRole(OP_ROLE, _msgSender())
-        ) revert RestrictedAccessToHolder();
+        if (ownerOf(contentId) != _msgSender())
+            revert RestrictedAccessToHolder();
         _;
     }
 
@@ -339,7 +336,6 @@ contract RightsManager is
         uint256 amount,
         address currency
     ) external onlyValidCurrency(currency) {
-        // TODO recipiento todo el mundo podria hacer withdraw?
         uint256 available = getLedgerEntry(recipient, currency);
         if (available < amount) revert NoFundsToWithdraw(recipient);
         recipient.transfer(amount, currency);
@@ -357,7 +353,7 @@ contract RightsManager is
         // Check if the content's custodial is active in the Syndication contract
         // and if the content is active in the Referendum contract.
         return
-            _checkActiveDistributor(getCustodial(contentId)) &&
+            _checkActiveDistributor(getCustody(contentId)) &&
             _checkActiveContent(contentId);
     }
 
@@ -374,13 +370,13 @@ contract RightsManager is
         emit RegisteredContent(contentId);
     }
 
-    // TODO grantCustodial with signature
+    // TODO grantCustody with signature
     /// @inheritdoc IRightsCustodial
     /// @notice Grants custodial rights for the content to a distributor.
     /// @param distributor The address of the distributor.
     /// @param contentId The content ID to grant custodial rights for.
     /// @param encryptedContent Additional encrypted data to share access between authorized parties.
-    function grantCustodial(
+    function grantCustody(
         uint256 contentId,
         address distributor,
         bytes calldata encryptedContent
@@ -391,90 +387,81 @@ contract RightsManager is
         onlyHolder(contentId)
     {
         // if it's first custody assignment prev = address(0)
-        address prevCustody = getCustodial(contentId);
-        _grantCustodial(distributor, contentId);
+        address prevCustody = getCustody(contentId);
+        _grantCustody(distributor, contentId);
         _secureContent(contentId, encryptedContent);
         emit GrantedCustodial(prevCustody, distributor, contentId);
     }
 
     /// @inheritdoc IRightsDelegable
-    /// @notice Delegates rights for a specific content ID to a license validator/validator.
-    /// @param validator The address of the validator contract to delegate rights to.
+    /// @notice Delegates rights for a specific content ID to a license policy.
+    /// @param policy The address of the policy contract to delegate rights to.
     /// @param contentId The content ID for which rights are being delegated.
     function delegateRights(
-        address validator,
+        address policy,
         uint256 contentId
     )
         external
         onlyHolder(contentId)
         onlyRegisteredContent(contentId)
-        onlyValidatorContract(validator)
+        onlyPolicyContract(policy)
     {
-        _delegateRights(validator, contentId);
-        emit RightsDelegated(validator, contentId);
+        _delegateRights(policy, contentId);
+        emit RightsDelegated(policy, contentId);
     }
 
     /// @inheritdoc IRightsDelegable
-    /// @notice Revoke rights for a specific content ID to a license validator/validator.
-    /// @param validator The address of license validator contract to revoke rights to.
+    /// @notice Revoke rights for a specific content ID to a license policy.
+    /// @param policy The address of license policy contract to revoke rights to.
     /// @param contentId The content ID for which rights are being revoked.
     function revokeRights(
-        address validator,
+        address policy,
         uint256 contentId
     )
         external
         onlyHolder(contentId)
         onlyRegisteredContent(contentId)
-        onlyValidatorContract(validator)
+        onlyPolicyContract(policy)
     {
-        _revokeRights(validator, contentId);
-        emit RightsRevoked(validator, contentId);
+        _revokeRights(policy, contentId);
+        emit RightsRevoked(policy, contentId);
     }
 
     /// @inheritdoc IRightsAccessController
-    /// @notice Register access to specific accounts for a certain content ID based on given conditions.
-    /// @param account The addresse of the account to be granted access.
-    /// @param validator The address of the contract responsible for enforcing or validating the conditions of the license.
-    /// @param contentId The ID of the content for which access is being granted.
-    /// @dev Access can be granted only if the validator contract is valid and has been granted delegation rights.
-    /// If the conditions are not met, access will not be registered.
-    function enforceAccess(
+    /// @notice Registers and enforces access for a specific account to a content ID based on the conditions set by a policy.
+    /// @param account The address of the account to be granted access to the content.
+    /// @param contentId The unique identifier of the content for which access is being registered.
+    /// @param policy The address of the policy contract responsible for validating and enforcing the access conditions.
+    /// @dev Access is granted only if the specified policy contract is valid and has the necessary delegation rights.
+    /// If the policy conditions are not met, access will not be registered, and the operation will be rejected.
+    function registerPolicy(
         uint256 contentId,
         address account,
-        address validator
+        address policy
     )
         external
         payable
         nonReentrant
         onlyRegisteredContent(contentId)
-        onlyWhenRightsDelegated(validator, contentId)
+        onlyWhenRightsDelegated(policy, contentId)
     {
         // in some cases the content or distributor could be revoked..
         if (!isEligibleForDistribution(contentId))
             revert InvalidNotAllowedContent();
 
-        // TODO validar que el validator soporte el contenido
-        // por ejemplo si un contenido no esta en story, no tendria
-        // sentido registrarlo, por lo que una funcion que verifique si es aplicable
-        // seria util
-
-        // TODO considerar retornar el validador 'getValidator' registrado en lugar de isAccessGranted
-        // esto permitiria mayor flecibilidad para determinar las condiciones de acceso,
-        // the sender MUST be a IValidator advocate/validator
-        IValidator advocate = IValidator(validator);
+        IPolicy advocate = IPolicy(policy);
         T.Terms calldata terms = advocate.terms(account, contentId);
         uint256 amount = terms.t9n.amount;
         address currency = terms.t9n.currency;
 
-        // TODO desde aca crear otro metodo
         // get distributors conditions
-        address custodial = getCustodial(contentId);
-        uint256 custodials = getCustodialCount(custodial);
+        address custodial = getCustody(contentId);
+        uint256 custodials = getCustodyCount(custodial);
         IDistributor distributor = IDistributor(cusdotial);
-        // The user, owner or delegated validator must ensure that the necessary steps
+        // The user, owner or delegated policy must ensure that the necessary steps
         // are taken to handle the transaction value or set the appropriate
         // approve/allowance for the DRM (Digital Rights Management) contract.
-        uint256 total = _msgSender().safeDeposit(amount, currency);
+        uint256 total = policy.safeDeposit(amount, currency);
         //!IMPORTANT if distributor or trasury does not support the currency, will revert..
         // the max bps integrity is warrantied by treasure fees
         uint256 treasurySplit = total.perOf(getFees(currency)); // bps
@@ -491,22 +478,8 @@ contract RightsManager is
         // register split distribution in ledger..
         _sumLedgerEntry(ownerOf(contentId), remaining, currency);
         _sumLedgerEntry(distributor.getManager(), acceptedSplit, currency);
-        _registerAccess(account, contentId, validator);
+        _registerPolicy(account, contentId, policy);
         emit GrantedAccess(account, contentId);
-    }
-
-    /// @inheritdoc IRightsAccessController
-    /// @notice Checks if access is allowed for a specific user and content.
-    /// @param account The address of the account to verify access.
-    /// @param contentId The content ID to check access for.
-    function isAccessGranted(
-        address account,
-        uint256 contentId
-    ) external nonReentrant onlyRegisteredContent(contentId) returns (bool) {
-        bool isGrantedForOwner = ownerOf(contentId) == account;
-        bool accessGranted = isGrantedForOwner ||
-            _isAccessGranted(account, contentId);
-        return _checkActiveContent(contentId) && accessGranted;
     }
 
     /// @notice Checks if the contract supports a specific interface.

@@ -8,15 +8,15 @@ import "contracts/libraries/Types.sol";
 
 /// @title Rights Manager Delegation Upgradeable
 /// @notice This abstract contract manages the delegation of rights
-/// for specific content IDs to various strategy validators.
+/// for specific content IDs to various strategy policy.
 abstract contract RightsManagerDelegationUpgradeable is
     Initializable,
     IRightsDelegable
 {
     /// @custom:storage-location erc7201:rightsmanagerdelegationupgradeable
-    /// @dev Storage struct for managing rights delegation to validators.
+    /// @dev Storage struct for managing rights delegation to policies.
     struct RightsStorage {
-        /// @dev Mapping to store the delegated rights for each validator (address) and content ID.
+        /// @dev Mapping to store the delegated rights for each policy (address) and content ID.
         mapping(address => mapping(uint256 => bool)) _delegation;
     }
 
@@ -45,7 +45,7 @@ abstract contract RightsManagerDelegationUpgradeable is
         }
     }
 
-    /// @dev Modifier to ensure that the given validator contract has been delegated 
+    /// @dev Modifier to ensure that the given policy contract has been delegated 
     /// the rights for the specific content ID.
     /// @param grantee The address of the account or contract to delegate rights to.
     /// @param contentId The content ID to check for delegation.

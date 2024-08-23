@@ -7,7 +7,7 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 /**
  * @title QuorumUpgradeable
  * @dev Abstract contract for managing registration status in a Finite State Machine (FSM).
- * 
+ *
  *   Default (0: Pending)
  *      |
  *      v
@@ -45,16 +45,11 @@ abstract contract QuorumUpgradeable is Initializable {
     /// @notice Error to be thrown when an entity is not waiting for approval.
     error NotWaitingApproval();
 
-    /**
-     * @notice Initializer function for the contract.
-     * @dev This function is called only once during the contract deployment.
-     */
+    /// @dev As standard to avoid doubts about if a upgradeable contract
+    /// need to be initalized, all the contracts specify the init even
+    /// if the initialization is harmless..
     function __Quorum_init() internal onlyInitializing {}
 
-    /**
-     * @notice Unchained initializer function for the contract.
-     * @dev This function is called only once during the contract deployment.
-     */
     function __Quorum_init_unchained() internal onlyInitializing {}
 
     /**

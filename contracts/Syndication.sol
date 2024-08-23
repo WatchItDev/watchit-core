@@ -94,19 +94,18 @@ contract Syndication is
         __Quorum_init();
         __Ledger_init();
         __Governable_init();
+        __ReentrancyGuard_init();
         __UUPSUpgradeable_init();
         __ReentrancyGuard_init();
 
         penaltyRate = initialPenaltyRateBps; // bps
         // Get the registered treasury contract from the repository
         IRepository repo = IRepository(repository);
-        address initialTreasuryAddress = repo.getContract(
-            T.ContractTypes.TREASURY
-        );
+        address treasury = repo.getContract(T.ContractTypes.TREASURY);
 
         // initially flat fees in native coin
         __Fees_init(initialFee, address(0));
-        __Treasurer_init(initialTreasuryAddress);
+        __Treasurer_init(treasury);
         _grantRole(DEFAULT_ADMIN_ROLE, _msgSender());
     }
 
