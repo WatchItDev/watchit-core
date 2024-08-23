@@ -7,7 +7,7 @@ import "contracts/libraries/Types.sol";
 /// eg: transactions and distribution of royalties or fees.
 interface IPolicy {
     /// @notice Returns the string identifier associated with the policy.
-    function name() external returns (string memory);
+    function name() external pure returns (string memory);
 
     /// @notice Retrieves the access terms for a specific account and content ID.
     /// @param account The address of the account for which access terms are being retrieved.
@@ -16,7 +16,7 @@ interface IPolicy {
     function terms(
         address account,
         uint256 contentId
-    ) external view returns (T.Terms);
+    ) external view returns (T.Terms memory);
 
     /// @notice Verify whether the access terms for an account and content ID are satisfied
     /// @param account The address of the account to check.

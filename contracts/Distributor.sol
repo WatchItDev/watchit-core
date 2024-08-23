@@ -117,7 +117,7 @@ contract Distributor is
     ///      (scaling factor) and how flattened the fee increases are (flattening factor).
     /// @param scale The scaling factor that controls how aggressively fees increase with demand.
     /// @param flatten The flattening factor that controls how gradual or smooth the fee increase is.
-    function setFactors(uint256 scale, uint256 flatten) onlyAdmin {
+    function setFactors(uint256 scale, uint256 flatten) public onlyOwner {
         scalingFactor = scale;
         flattenFactor = flatten;
     }
@@ -135,7 +135,7 @@ contract Distributor is
     }
 
     /// @notice Calculates an adjusted floor value based on the logarithm of custodials.
-    /// @dev The function adjusts the base floor by adding a proportion 
+    /// @dev The function adjusts the base floor by adding a proportion
     /// that scales with the logarithm of the custodials.
     /// This ensures that the floor value increases gradually as custodials grow.
     /// @param baseFloor The initial base floor value to be adjusted.
@@ -143,13 +143,13 @@ contract Distributor is
     function _getAdjustedFloor(
         uint256 baseFloor,
         uint256 demand
-    ) internal pure returns (uint256) {
+    ) internal view returns (uint256) {
         if (baseFloor == 0) return 0;
         // Economies of scale.
         // Calculate the logarithm of custodials, adding 1 to avoid taking log(0)
-        // fees + ((log2(demand) * scale) / flatten) 
+        // fees + ((log2(demand) * scale) / flatten)
         uint256 safeOp = (demand == 0 ? (demand + 1) : demand);
-        return baseFloor + ((safeOp.log2() * scalingFactor) / flatteningFactor);
+        return baseFloor + ((safeOp.log2() * scalingFactor) / flattenFactor);
     }
 
     /// @inheritdoc IDistributor

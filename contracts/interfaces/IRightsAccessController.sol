@@ -31,5 +31,5 @@ interface IRightsAccessController {
     function getPolicies(
         address account,
         uint256 contentId
-    ) external returns (address[] memory);
+    ) external view returns (address[] memory);
 }

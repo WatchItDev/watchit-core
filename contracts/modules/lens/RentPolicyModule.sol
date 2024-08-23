@@ -180,23 +180,23 @@ contract RentModule is
         // Increases the allowance for the DRM contract by the total amount
         IERC20(currency).approve(drmAddress, total);
 
-        IRightsManager(drmAddress).enforceAccess(
+        IRightsManager(drmAddress).registerPolicy(
             contentId,
             account,
             address(this)
         );
-        
+
         return abi.encode(rentRegistry[contentId][account], currency);
     }
 
-    function name() returns (string memory) {
+    function name() public pure returns (string memory) {
         return "LensRentModule";
     }
 
     /// @notice Verify whether the access terms for an account and content ID are satisfied
     /// @param account The address of the account to check.
     /// @param contentId The content ID to check against.
-    function verify(
+    function comply(
         address account,
         uint256 contentId
     ) external view returns (bool) {
@@ -215,8 +215,8 @@ contract RentModule is
     function terms(
         address account,
         uint256 contentId
-    ) external view returns (bool) {
-        Registry reg = rentRegistry[contentId][account];
+    ) external view returns (T.Terms memory) {
+        Registry memory reg = rentRegistry[contentId][account];
         address currency = reg.currency;
         uint256 amount = reg.amount;
 

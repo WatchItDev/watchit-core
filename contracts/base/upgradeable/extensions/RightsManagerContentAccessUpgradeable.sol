@@ -20,7 +20,7 @@ abstract contract RightsManagerContentAccessUpgradeable is
     using ERC165Checker for address;
     using EnumerableSet for EnumerableSet.AddressSet;
 
-    uint8 constant MAX_POLICIES = 5; // Max limit of policies for account.
+    uint256 private constant MAX_POLICIES = 5; // Max limit of policies for account.
     /// @dev The interface ID for IPolicy, used to verify that a policy contract implements the correct interface.
     bytes4 private constant INTERFACE_POLICY = type(IPolicy).interfaceId;
     /// @custom:storage-location erc7201:rightscontentaccess.upgradeable
@@ -70,11 +70,10 @@ abstract contract RightsManagerContentAccessUpgradeable is
         uint256 contentId,
         address policy
     ) internal {
-        // to avoid abuse or misusing of the protocol, we limit the maximum policies allowed..
-        if ($._acl[contentId][account].length >= MAX_POLICIES)
-            revert MaxPoliciesReached();
-
         ACLStorage storage $ = _getACLStorage();
+        // to avoid abuse or misusing of the protocol, we limit the maximum policies allowed..
+        if ($._acl[contentId][account].length() >= MAX_POLICIES)
+            revert MaxPoliciesReached();
         $._acl[contentId][account].add(policy);
     }
 
@@ -101,11 +100,11 @@ abstract contract RightsManagerContentAccessUpgradeable is
         address account,
         uint256 contentId,
         address policy
-    ) private returns (bool) {
+    ) private view returns (bool) {
         // if not registered license policy..
         if (policy == address(0)) return false;
-        IPolicy policy = IPolicy(policy);
-        return policy.comply(account, contentId);
+        IPolicy policy_ = IPolicy(policy);
+        return policy_.comply(account, contentId);
     }
 
     /// @inheritdoc IRightsAccessController
@@ -116,7 +115,8 @@ abstract contract RightsManagerContentAccessUpgradeable is
     function getPolicies(
         address account,
         uint256 contentId
-    ) public returns (address[] memory) {
+    ) public view returns (address[] memory) {
+        ACLStorage storage $ = _getACLStorage();
         return $._acl[contentId][account].values();
     }
 
@@ -129,9 +129,8 @@ abstract contract RightsManagerContentAccessUpgradeable is
         address account,
         uint256 contentId
     ) public view returns (bool) {
-        ACLStorage storage $ = _getACLStorage();
-        address[] policies = getPolicies(account, contentId);
-        uint8 policiesLength = policies.length;
+        address[] memory policies = getPolicies(account, contentId);
+        uint256 policiesLength = policies.length;
 
         for (uint8 i = 0; i < policiesLength; i++) {
             // if any of the policies comply!!

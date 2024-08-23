@@ -176,7 +176,7 @@ contract RightsManager is
     function _calculateSplit(
         uint256 amount,
         uint256 split
-    ) private onlyBasePointsAllowed(split) returns (uint256) {
+    ) private pure onlyBasePointsAllowed(split) returns (uint256) {
         return amount.perOf(split);
     }
 
@@ -449,19 +449,20 @@ contract RightsManager is
         if (!isEligibleForDistribution(contentId))
             revert InvalidNotAllowedContent();
 
-        IPolicy advocate = IPolicy(policy);
-        T.Terms calldata terms = advocate.terms(account, contentId);
+        IPolicy validator = IPolicy(policy);
+        T.Terms memory terms = validator.terms(account, contentId);
         uint256 amount = terms.t9n.amount;
         address currency = terms.t9n.currency;
 
+        // TODO otro metodo aca
         // get distributors conditions
         address custodial = getCustody(contentId);
         uint256 custodials = getCustodyCount(custodial);
-        IDistributor distributor = IDistributor(cusdotial);
+        IDistributor distributor = IDistributor(custodial);
         // The user, owner or delegated policy must ensure that the necessary steps
         // are taken to handle the transaction value or set the appropriate
         // approve/allowance for the DRM (Digital Rights Management) contract.
-        uint256 total = policy.safeDeposit(amount, currency);
+        uint256 total = _msgSender().safeDeposit(amount, currency);
         //!IMPORTANT if distributor or trasury does not support the currency, will revert..
         // the max bps integrity is warrantied by treasure fees
         uint256 treasurySplit = total.perOf(getFees(currency)); // bps
