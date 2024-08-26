@@ -12,7 +12,7 @@ import {
 
 const DISTRIBUTOR_INTERFACE_ID = '0x3a8b2846'
 
-async function getAccounts () {
+async function getAccounts() {
   return await hre.ethers.getSigners()
 }
 
@@ -87,7 +87,7 @@ describe('Distributor', function () {
       const newEndpoint = 'watchit4.movie'
       // initial endpoint set by beacon proxy initialization.
       const distributor = await deployAndInitializeDistributorContract('watchit.com')
-      const updater = await distributor.updateEndpoint(newEndpoint)
+      const updater = await distributor.setEndpoint(newEndpoint)
       await updater.wait()
 
       const distributorEndpoint = await distributor.getEndpoint()
@@ -97,7 +97,7 @@ describe('Distributor', function () {
     it('Should emit a valid EndpointUpdated after update endpoint.', async function () {
       const newEndpoint = 'watchit3.movie'
       const distributor = await deployAndInitializeDistributorContract('watchit.movie')
-      const updater = await distributor.updateEndpoint(newEndpoint)
+      const updater = await distributor.setEndpoint(newEndpoint)
       await updater.wait()
 
       const filter = distributor.filters.EndpointUpdated()
@@ -112,7 +112,7 @@ describe('Distributor', function () {
 
     it('Should fail if `updateEndpoint` is called with invalid empty endpoint.', async function () {
       const distributor = await deployAndInitializeDistributorContract('watchit.movie')
-      await expect(distributor.updateEndpoint('')).to.be.revertedWithCustomError(
+      await expect(distributor.setEndpoint('')).to.be.revertedWithCustomError(
         distributor, 'InvalidEndpoint'
       )
     })
@@ -120,9 +120,31 @@ describe('Distributor', function () {
     it('Should fail if `updateEndpoint` is called with invalid owner.', async function () {
       const [, secondary] = await switcher(getAccounts)
       const distributor = await deployAndInitializeDistributorContract('watchit.movie')
-      await expect(distributor.connect(secondary).updateEndpoint('check.com')).to.be.revertedWithCustomError(
+      await expect(distributor.connect(secondary).setEndpoint('check.com')).to.be.revertedWithCustomError(
         distributor, 'OwnableUnauthorizedAccount'
       )
     })
   })
+
+  describe('Financial', function () {
+
+    it("Should calculate expected negotiation based on constant fee .", async function () {
+     
+    })
+
+    it("Should calculate expected negotiation based on variant fee.", async function () {
+     
+    })
+
+    it("Should calculate expected negotiation based on variant fee + flatten factor.", async function () {
+     
+    })
+
+    it("Should calculate expected negotiation auto adjusted flatten factor.", async function () {
+     
+    })
+
+  })
+
+
 })

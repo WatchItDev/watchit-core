@@ -18,7 +18,7 @@ import "contracts/interfaces/IRepository.sol";
 import "contracts/interfaces/IDistributor.sol";
 import "contracts/interfaces/ISyndicatable.sol";
 import "contracts/libraries/TreasuryHelper.sol";
-import "contracts/libraries/MathHelper.sol";
+import "contracts/libraries/FeesHelper.sol";
 
 /// @title Distributors Syndication contract.
 /// @notice Use this contract to handle all distribution logic needed for creators and distributors.
@@ -34,7 +34,7 @@ contract Syndication is
     ReentrancyGuardUpgradeable,
     ISyndicatable
 {
-    using MathHelper for uint256;
+    using FeesHelper for uint256;
     using ERC165Checker for address;
     using TreasuryHelper for address;
 
@@ -94,19 +94,18 @@ contract Syndication is
         __Quorum_init();
         __Ledger_init();
         __Governable_init();
+        __ReentrancyGuard_init();
         __UUPSUpgradeable_init();
         __ReentrancyGuard_init();
 
         penaltyRate = initialPenaltyRateBps; // bps
         // Get the registered treasury contract from the repository
         IRepository repo = IRepository(repository);
-        address initialTreasuryAddress = repo.getContract(
-            T.ContractTypes.TREASURY
-        );
+        address treasury = repo.getContract(T.ContractTypes.TREASURY);
 
         // initially flat fees in native coin
         __Fees_init(initialFee, address(0));
-        __Treasurer_init(initialTreasuryAddress);
+        __Treasurer_init(treasury);
         _grantRole(DEFAULT_ADMIN_ROLE, _msgSender());
     }
 

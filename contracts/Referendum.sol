@@ -113,6 +113,8 @@ contract Referendum is
         address initiator,
         // TODO aca en lugar de ser un tipo, podria ser bytes con standard format, 
         /// para permitir enviar datos escalables..
+        /// TODO podria ser tambien que los datos que establezcan sean los de IP story
+        /// para determinas las condiciones como geofencing, etc.. ver que condiciones establecer IP
         T.ContentParams calldata params
     ) public {
         if (initiator == address(0)) revert InvalidSubmissionInitiator();

@@ -3,7 +3,7 @@ pragma solidity ^0.8.24;
 
 import "contracts/libraries/Constants.sol";
 
-library MathHelper {
+library FeesHelper {
     /// @dev Calculates the percentage of `amount` based on the given `bps` (basis points).
     /// @param amount The amount to calculate the percentage of.
     /// @param bps The basis points to use for the calculation.

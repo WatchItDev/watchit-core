@@ -15,6 +15,9 @@ node_modules
 /coverage.json
 # aderyn report
 report.md 
+cache_forge/
+lib/
+out/
 
 # Hardhat Ignition default folder for deployments against a local node
 ignition/deployments/chain-31337

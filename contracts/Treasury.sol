@@ -35,6 +35,7 @@ contract Treasury is
 
     /// @notice Function to get the balance of the contract (to be implemented).
     // TODO: Implement get balance function
+    // TODO desde aca se pueden llamar a funciones sponsored como delegateCustodialWithSig etc
 
     /// @notice Function that should revert when msg.sender is not authorized to upgrade the contract.
     /// @param newImplementation The address of the new implementation contract.

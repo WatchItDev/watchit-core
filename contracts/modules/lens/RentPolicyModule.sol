@@ -13,7 +13,7 @@ import "contracts/modules/lens/base/HubRestricted.sol";
 import "contracts/modules/lens/libraries/Types.sol";
 
 import "contracts/base/DRMRestricted.sol";
-import "contracts/interfaces/ILicense.sol";
+import "contracts/interfaces/IPolicy.sol";
 import "contracts/interfaces/IRightsManager.sol";
 import "contracts/libraries/Constants.sol";
 import "contracts/libraries/Types.sol";
@@ -31,7 +31,7 @@ contract RentModule is
     HubRestricted,
     DRMRestricted,
     IPublicationActionModule,
-    ILicense
+    IPolicy
 {
     using SafeERC20 for IERC20;
 
@@ -40,9 +40,15 @@ contract RentModule is
     error InvalidNotSupportedCurrency();
     error InvalidRentPrice();
 
+    struct Registry {
+        uint256 timelock;
+        address currency;
+        uint256 amount;
+    }
+
     // Mapping from publication ID to content ID
     mapping(uint256 => uint256) contentRegistry;
-    mapping(uint256 => mapping(address => uint256)) rentRegistry;
+    mapping(uint256 => mapping(address => Registry)) rentRegistry;
     mapping(uint256 => mapping(address => uint256)) private prices;
 
     /**
@@ -136,20 +142,7 @@ contract RentModule is
     ) external override onlyHub returns (bytes memory) {
         // Decode the rent parameters
         Types.RentParams memory rent = abi.decode(data, (Types.RentParams));
-        // Get the DRM and rights custodial interfaces
-        IRightsManager drm = IRightsManager(drmAddress);
-        // Ensure the content is not already owned
-        if (drm.ownerOf(rent.contentId) != address(0))
-            revert InvalidExistingContentPublication();
-
         contentRegistry[pubId] = rent.contentId;
-        // Mint the NFT for the content and secure it;
-        drm.mint(transactionExecutor, rent.contentId);
-        // The secured content, could be any content to handly encryption schema..
-        // eg: LIT cypertext + hash, public key enceypted data, shared key encrypted data..
-        // Grant initial custody to the distributor
-        drm.grantCustodial(rent.contentId, rent.distributor, rent.secured);
-        drm.delegateRights(address(this), rent.contentId);
         // Store renting parameters
         _setPublicationRentSetting(rent, pubId);
         // TODO mirror content
@@ -179,34 +172,40 @@ contract RentModule is
         address account = params.transactionExecutor;
 
         // hold rent time in module to later validate it in access control...
-        rentRegistry[contentId][account] = Time.timestamp() + (_days * 1 days);
+        uint256 timelock = Time.timestamp() + (_days * 1 days);
+        rentRegistry[contentId][account] = Registry(timelock, currency, total);
         // Transfers the specified amount of funds from the account to this contract
         // Requires that the account has previously approved this contract to spend the specified amount
         IERC20(currency).safeTransferFrom(account, address(this), total);
         // Increases the allowance for the DRM contract by the total amount
         IERC20(currency).approve(drmAddress, total);
 
-        T.Allocation memory alloc = T.Allocation(
-            T.Transaction(currency, total),
-            // An empty distribution means all royalties go to the owner.
-            // If a distribution is set, e.g., a=>5%, b=>5%, owner=>remaining 90%,
-            // if the distribution sums to 100%, the owner receives 0.
-            // This can be used to manage various business logic for content distribution.
-            new T.Splits[](0)
+        IRightsManager(drmAddress).registerPolicy(
+            contentId,
+            account,
+            address(this)
         );
-        
-        // grantees
-        address[] memory accounts = new address[](1);
-        accounts[0] = account;
 
-        IRightsManager(drmAddress).grantAccess(contentId, accounts, alloc);
         return abi.encode(rentRegistry[contentId][account], currency);
     }
 
-    // TODO El mint si no existe hacer el mint, si existe y es el dueño que manda, solo omitir, de lo contrario lanzar un error de que ya existe
-    // mintWithSignature?
+    function name() public pure returns (string memory) {
+        return "LensRentModule";
+    }
 
-    /// @inheritdoc ILicense
+    /// @notice Verify whether the access terms for an account and content ID are satisfied
+    /// @param account The address of the account to check.
+    /// @param contentId The content ID to check against.
+    function comply(
+        address account,
+        uint256 contentId
+    ) external view returns (bool) {
+        // Checks if the current timestamp is greater than the timelock for the given account and contentId
+        uint256 expireAt = rentRegistry[contentId][account].timelock;
+        return Time.timestamp() > expireAt;
+    }
+
+    /// @inheritdoc IPolicy
     /// @notice Checks whether the terms (such as rental period) for an account and content ID are still valid.
     /// @dev This function checks if the current timestamp is within the valid period (timelock) for the specified account and content ID.
     /// If the current time is within the allowed period, the terms are considered satisfied.
@@ -216,10 +215,20 @@ contract RentModule is
     function terms(
         address account,
         uint256 contentId
-    ) external view returns (bool) {
-        // Checks if the current timestamp is greater than the timelock for the given account and contentId
-        uint256 expireAt = rentRegistry[contentId][account];
-        return Time.timestamp() > expireAt;
+    ) external view returns (T.Terms memory) {
+        Registry memory reg = rentRegistry[contentId][account];
+        address currency = reg.currency;
+        uint256 amount = reg.amount;
+
+        return
+            T.Terms(
+                T.Transaction(currency, amount),
+                // An empty distribution means all royalties go to the owner.
+                // If a distribution is set, e.g., a=>5%, b=>5%, owner=>remaining 90%,
+                // if the distribution sums to 100%, the owner receives 0.
+                // This can be used to manage various business logic for content distribution.
+                new T.Splits[](0)
+            );
     }
 
     /// @dev Checks if the contract supports a specific interface.
@@ -230,7 +239,7 @@ contract RentModule is
     ) public pure override returns (bool) {
         return
             interfaceID == type(IPublicationActionModule).interfaceId ||
-            interfaceID == type(ILicense).interfaceId ||
+            interfaceID == type(IPolicy).interfaceId ||
             super.supportsInterface(interfaceID);
     }
 }

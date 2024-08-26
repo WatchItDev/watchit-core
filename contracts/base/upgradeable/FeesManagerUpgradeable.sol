@@ -4,7 +4,6 @@ pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "contracts/interfaces/IFeesManager.sol";
-import "contracts/libraries/MathHelper.sol";
 import "contracts/libraries/Constants.sol";
 
 /**

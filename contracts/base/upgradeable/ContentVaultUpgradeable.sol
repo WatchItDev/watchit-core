@@ -29,6 +29,13 @@ abstract contract ContentVaultUpgradeable is Initializable, IContentVault {
         }
     }
 
+    /// @dev As standard to avoid doubts about if a upgradeable contract
+    /// need to be initalized, all the contracts specify the init even
+    /// if the initialization is harmless..
+    function __ContentVault_init() internal onlyInitializing {}
+
+    function __ContentVault_init_unchained() internal onlyInitializing {}
+
     /**
      * @notice Returns the encrypted content for a given content ID.
      * @param contentId The identifier of the content.

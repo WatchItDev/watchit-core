@@ -22,9 +22,7 @@ library Types {
     }
 
     struct RentParams {
-        bytes secured; // secured content
         uint256 contentId; // content id 2hash
-        address distributor; // initial distributor
         RentPrice[] rentPrices;
     }
 
