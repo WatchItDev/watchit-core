@@ -32,7 +32,6 @@ contract Distributor is
 
     mapping(address => uint256) private floor;
     string private endpoint;
-    uint256 scalingFactor; // To sharpen or intensify the increase in fees as demand grows.
     uint256 flattenFactor; // To smooth or flatten the increase in fees as demand grows.
 
     /// @notice Event emitted when the endpoint is updated.
@@ -54,7 +53,6 @@ contract Distributor is
 
         if (bytes(_endpoint).length == 0) revert InvalidEndpoint();
         // balanced factors
-        scalingFactor = 10;
         flattenFactor = 10;
         endpoint = _endpoint;
     }
@@ -113,12 +111,9 @@ contract Distributor is
     }
 
     /// @notice Sets the scaling and flattening factors used to calculate fees.
-    /// @dev This function allows the administrator to adjust how sensitive the fees are to changes in demand
-    ///      (scaling factor) and how flattened the fee increases are (flattening factor).
-    /// @param scale The scaling factor that controls how aggressively fees increase with demand.
+    /// @dev This function allows the administrator to adjust how sensitive the fees are to changes in demand.
     /// @param flatten The flattening factor that controls how gradual or smooth the fee increase is.
-    function setFactors(uint256 scale, uint256 flatten) public onlyOwner {
-        scalingFactor = scale;
+    function setFactors(uint256 flatten) public onlyOwner {
         flattenFactor = flatten;
     }
 
@@ -133,6 +128,9 @@ contract Distributor is
     ) external onlyOwner onlySupportedCurrency(currency) {
         floor[currency] = minimum;
     }
+    
+
+    // flatten = flatten * (1-(1/ln(demanda))
 
     /// @notice Calculates an adjusted floor value based on the logarithm of custodials.
     /// @dev The function adjusts the base floor by adding a proportion
@@ -147,9 +145,9 @@ contract Distributor is
         if (baseFloor == 0) return 0;
         // Economies of scale.
         // Calculate the logarithm of custodials, adding 1 to avoid taking log(0)
-        // fees + ((log2(demand) * scale) / flatten)
+        // fees + (fees * (log2(demand) / flatten))
         uint256 safeOp = (demand == 0 ? (demand + 1) : demand);
-        return baseFloor + ((safeOp.log2() * scalingFactor) / flattenFactor);
+        return baseFloor + (baseFloor * (safeOp.log2() / flattenFactor));
     }
 
     /// @inheritdoc IDistributor

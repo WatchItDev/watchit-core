@@ -16,10 +16,10 @@ interface IDistributor is IFeesManager, ICurrencyManager {
     /// @param minimum The minimum fee that can be proposed for the given currency.
     function setFloor(address currency, uint256 minimum) external;
 
-    /// @notice Sets the scaling and flattening factors used to adjust fees.
-    /// @param scale The scaling factor that controls how aggressively fees increase with demand.
+    /// @notice Sets the scaling and flattening factors used to calculate fees.
+    /// @dev This function allows the administrator to adjust how sensitive the fees are to changes in demand.
     /// @param flatten The flattening factor that controls how gradual or smooth the fee increase is.
-    function setFactors(uint256 scale, uint256 flatten) external;
+    function setFactors(uint256 flatten) external;
 
     /// @notice Retrieves the endpoint of the distributor.
     /// @dev This function allows users to view the current endpoint of the distributor.
