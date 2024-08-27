@@ -8,7 +8,7 @@ import "@openzeppelin/contracts/utils/Address.sol";
 
 import "contracts/base/upgradeable/GovernableUpgradeable.sol";
 import "contracts/base/upgradeable/QuorumUpgradeable.sol";
-import "contracts/interfaces/ICurationReferendum.sol";
+import "contracts/interfaces/ICurable.sol";
 import "contracts/libraries/Types.sol";
 
 /// @title Content curation contract.
@@ -18,7 +18,7 @@ contract Referendum is
     UUPSUpgradeable,
     GovernableUpgradeable,
     QuorumUpgradeable,
-    ICurationReferendum
+    ICurable
 {
     uint256 public count;
     mapping(uint256 => address) public submissions;

@@ -57,6 +57,8 @@ abstract contract RightsManagerDelegationUpgradeable is
         _;
     }
 
+
+    // TODO aca deberia ser "obtener los policies de un contenido?"
     /// @notice Retrieves all content IDs for which rights have been delegated to a grantee.
     /// @dev This function returns an array of content IDs that the specified grantee
     /// has been delegated rights for. It fetches the data from the RightsStorage struct.

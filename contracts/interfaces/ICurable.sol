@@ -5,7 +5,7 @@ import "./IReferendum.sol";
 import "./IReferendumVerifiable.sol";
 import "./IReferendumRoleManager.sol";
 
-interface ICurationReferendum is
+interface ICurable is
     IReferendum,
     IReferendumVerifiable,
     IReferendumRoleManager

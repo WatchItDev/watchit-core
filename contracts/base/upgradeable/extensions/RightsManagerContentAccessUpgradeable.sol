@@ -107,6 +107,8 @@ abstract contract RightsManagerContentAccessUpgradeable is
         return policy_.comply(account, contentId);
     }
 
+    // TODO mantener address(0) para "any account"
+
     /// @inheritdoc IRightsAccessController
     /// @notice Retrieves the list of policys associated with a specific account and content ID.
     /// @param account The address of the account for which policies are being retrieved.
