@@ -328,14 +328,14 @@ contract RightsManager is
 
     /// @inheritdoc IFundsManager
     /// @notice Withdraws funds from the contract to a specified recipient's address.
-    /// @param recipient The address that will receive the withdrawn funds.
     /// @param amount The amount of funds to withdraw.
     /// @param currency The address of the ERC20 token to withdraw, or address(0) to withdraw native coins.
     function withdraw(
-        address recipient,
         uint256 amount,
         address currency
     ) external onlyValidCurrency(currency) {
+        // TODO only sender can withdraw o recipient = _msdSender()
+        address recipient = _msdSender();
         uint256 available = getLedgerEntry(recipient, currency);
         if (available < amount) revert NoFundsToWithdraw(recipient);
         recipient.transfer(amount, currency);

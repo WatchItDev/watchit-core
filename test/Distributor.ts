@@ -126,25 +126,5 @@ describe('Distributor', function () {
     })
   })
 
-  describe('Financial', function () {
-
-    it("Should calculate expected negotiation based on constant fee .", async function () {
-     
-    })
-
-    it("Should calculate expected negotiation based on variant fee.", async function () {
-     
-    })
-
-    it("Should calculate expected negotiation based on variant fee + flatten factor.", async function () {
-     
-    })
-
-    it("Should calculate expected negotiation auto adjusted flatten factor.", async function () {
-     
-    })
-
-  })
-
 
 })
