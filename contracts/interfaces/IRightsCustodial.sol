@@ -6,11 +6,9 @@ interface IRightsCustodial {
     /// @dev The distributor must be active.
     /// @param contentId The ID of the content to assign.
     /// @param distributor The address of the distributor to assign the content to.
-    /// @param encryptedData Additional encrypted data to share access between authorized parties.
     function grantCustody(
         uint256 contentId,
         address distributor,
-        bytes calldata encryptedData
     ) external;
 
     /// @notice Retrieves the custodial address for the given content ID and ensures it is active.

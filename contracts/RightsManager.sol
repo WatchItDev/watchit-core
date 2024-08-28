@@ -2,21 +2,16 @@
 // NatSpec format convention - https://docs.soliditylang.org/en/v0.5.10/natspec-format.html
 pragma solidity ^0.8.24;
 
-import "@openzeppelin/contracts/utils/types/Time.sol";
 import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
-import "contracts/base/upgradeable/QuorumUpgradeable.sol";
 import "contracts/base/upgradeable/LedgerUpgradeable.sol";
 import "contracts/base/upgradeable/FeesManagerUpgradeable.sol";
 import "contracts/base/upgradeable/TreasurerUpgradeable.sol";
 import "contracts/base/upgradeable/CurrencyManagerUpgradeable.sol";
 import "contracts/base/upgradeable/GovernableUpgradeable.sol";
 import "contracts/base/upgradeable/ContentVaultUpgradeable.sol";
-import "contracts/base/upgradeable/extensions/RightsManagerERC721Upgradeable.sol";
 import "contracts/base/upgradeable/extensions/RightsManagerContentAccessUpgradeable.sol";
 import "contracts/base/upgradeable/extensions/RightsManagerCustodialUpgradeable.sol";
 import "contracts/base/upgradeable/extensions/RightsManagerDelegationUpgradeable.sol";
@@ -25,6 +20,7 @@ import "contracts/interfaces/IReferendumVerifiable.sol";
 import "contracts/interfaces/IRightsManager.sol";
 import "contracts/interfaces/IPolicy.sol";
 import "contracts/interfaces/IDistributor.sol";
+import "contracts/interfaces/IOwnership.sol";
 import "contracts/interfaces/IRepository.sol";
 import "contracts/libraries/TreasuryHelper.sol";
 import "contracts/libraries/FeesHelper.sol";
@@ -41,10 +37,8 @@ contract RightsManager is
     FeesManagerUpgradeable,
     GovernableUpgradeable,
     TreasurerUpgradeable,
-    ContentVaultUpgradeable,
     ReentrancyGuardUpgradeable,
     CurrencyManagerUpgradeable,
-    RightsManagerERC721Upgradeable,
     RightsManagerCustodialUpgradeable,
     RightsManagerContentAccessUpgradeable,
     RightsManagerDelegationUpgradeable,
@@ -69,7 +63,6 @@ contract RightsManager is
         address currency
     );
 
-    event RegisteredContent(uint256 contentId);
     event GrantedAccess(address account, uint256 contentId);
     event RightsDelegated(address indexed policy, uint256 contentId);
     event RightsRevoked(address indexed policy, uint256 contentId);
@@ -80,12 +73,12 @@ contract RightsManager is
     /// https://docs.openzeppelin.com/upgrades-plugins/1.x/proxies#the-constructor-caveat
     address private syndication;
     address private referendum;
+    address private ownership;
 
     /// @dev Error that is thrown when a restricted access to the holder is attempted.
     error RestrictedAccessToHolder();
     /// @dev Error that is thrown when a content hash is already registered.
     error InvalidInactiveDistributor();
-    error InvalidNotApprovedContent();
     error InvalidNotAllowedContent();
     error InvalidUnknownContent();
     error InvalidAccessValidation(string reason);
@@ -111,19 +104,19 @@ contract RightsManager is
         __Ledger_init();
         __Governable_init();
         __ContentVault_init();
-        __ERC721_init("Watchit", "WOT");
-        __ERC721Enumerable_init();
         __UUPSUpgradeable_init();
         __ReentrancyGuard_init();
         __CurrencyManager_init();
         _grantRole(DEFAULT_ADMIN_ROLE, _msgSender());
 
+        // initialize dependencies for drm
         IRepository repo = IRepository(repository);
         syndication = repo.getContract(T.ContractTypes.SYNDICATION);
         referendum = repo.getContract(T.ContractTypes.REFERENDUM);
+        ownership = repo.getContract(T.ContractTypes.OWNERSHIP);
+
         // Get the registered treasury contract from the repository
         address treasury = repo.getContract(T.ContractTypes.TREASURY);
-
         __Fees_init(initialFee, address(0));
         __Treasurer_init(treasury);
     }
@@ -153,18 +146,6 @@ contract RightsManager is
     ) private view returns (bool) {
         IReferendumVerifiable _v = IReferendumVerifiable(referendum);
         return _v.isActive(contentId); // is active in referendum
-    }
-
-    /// @notice Checks if the given content is approved for distribution.
-    /// @param to The address attempting to distribute the content.
-    /// @param contentId The ID of the content to be distributed.
-    /// @return True if the content is approved, false otherwise.
-    function _checkApprovedContent(
-        address to,
-        uint256 contentId
-    ) private view returns (bool) {
-        IReferendumVerifiable _v = IReferendumVerifiable(referendum);
-        return _v.isApproved(to, contentId); // is approved by referendu,
     }
 
     /// @notice Calculates the portion of an amount based on a given split percentage.
@@ -232,7 +213,7 @@ contract RightsManager is
     /// @param contentId The content hash to give distribution rights.
     /// @dev Only the holder of the content can pass this validation.
     modifier onlyHolder(uint256 contentId) {
-        if (ownerOf(contentId) != _msgSender())
+        if (IOwnership(ownership).ownerOf(contentId) != _msgSender())
             revert RestrictedAccessToHolder();
         _;
     }
@@ -240,7 +221,8 @@ contract RightsManager is
     /// @notice Modifier to check if the content is registered.
     /// @param contentId The content hash to check.
     modifier onlyRegisteredContent(uint256 contentId) {
-        if (ownerOf(contentId) == address(0)) revert InvalidUnknownContent();
+        if (IOwnership(ownership).ownerOf(contentId) == address(0))
+            revert InvalidUnknownContent();
         _;
     }
 
@@ -249,19 +231,6 @@ contract RightsManager is
     modifier onlyActiveDistributor(address distributor) {
         if (!_checkActiveDistributor(distributor))
             revert InvalidInactiveDistributor();
-        _;
-    }
-
-    /// @notice Modifier to ensure content is approved before distribution.
-    /// @param to The address attempting to distribute the content.
-    /// @param contentId The ID of the content to be distributed.
-    /// @dev The content must be approved by referendum or the recipient must have a verified role.
-    /// This modifier checks if the content is approved by referendum or if the recipient has a verified role.
-    /// It also ensures that the recipient is the one who initially submitted the content for approval.
-    modifier onlyApprovedContent(address to, uint256 contentId) {
-        // Revert if the content is not approved or if the recipient is not the original submitter
-        if (!_checkApprovedContent(to, contentId))
-            revert InvalidNotApprovedContent();
         _;
     }
 
@@ -334,8 +303,7 @@ contract RightsManager is
         uint256 amount,
         address currency
     ) external onlyValidCurrency(currency) {
-        // TODO only sender can withdraw o recipient = _msdSender()
-        address recipient = _msdSender();
+        address recipient = _msgSender();
         uint256 available = getLedgerEntry(recipient, currency);
         if (available < amount) revert NoFundsToWithdraw(recipient);
         recipient.transfer(amount, currency);
@@ -357,29 +325,14 @@ contract RightsManager is
             _checkActiveContent(contentId);
     }
 
-    /// @inheritdoc IRightsOwnership
-    /// @notice Mints a new NFT to the specified address.
-    /// @dev Our naive assumption is that only those who know the CID hash can mint the corresponding token.
-    /// @param to The address to mint the NFT to.
-    /// @param contentId The content id of the NFT. This should be a unique identifier for the NFT.
-    function mint(
-        address to,
-        uint256 contentId
-    ) external onlyApprovedContent(to, contentId) {
-        _mint(to, contentId);
-        emit RegisteredContent(contentId);
-    }
-
     // TODO grantCustody with signature
     /// @inheritdoc IRightsCustodial
     /// @notice Grants custodial rights for the content to a distributor.
     /// @param distributor The address of the distributor.
     /// @param contentId The content ID to grant custodial rights for.
-    /// @param encryptedContent Additional encrypted data to share access between authorized parties.
     function grantCustody(
         uint256 contentId,
-        address distributor,
-        bytes calldata encryptedContent
+        address distributor
     )
         external
         onlyActiveDistributor(distributor)
@@ -389,7 +342,6 @@ contract RightsManager is
         // if it's first custody assignment prev = address(0)
         address prevCustody = getCustody(contentId);
         _grantCustody(distributor, contentId);
-        _secureContent(contentId, encryptedContent);
         emit GrantedCustodial(prevCustody, distributor, contentId);
     }
 
@@ -461,7 +413,7 @@ contract RightsManager is
         IDistributor distributor = IDistributor(custodial);
         // The user, owner or delegated policy must ensure that the necessary steps
         // are taken to handle the transaction value or set the appropriate
-        // approve/allowance for the DRM (Digital Rights Management) contract.
+        // approve/allowance for the RM (Rights Management) contract.
         uint256 total = _msgSender().safeDeposit(amount, currency);
         //!IMPORTANT if distributor or trasury does not support the currency, will revert..
         // the max bps integrity is warrantied by treasure fees

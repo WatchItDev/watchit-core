@@ -12,7 +12,7 @@ import "contracts/modules/lens/base/LensModuleRegistrant.sol";
 import "contracts/modules/lens/base/HubRestricted.sol";
 import "contracts/modules/lens/libraries/Types.sol";
 
-import "contracts/base/DRMRestricted.sol";
+import "contracts/base/RMRestricted.sol";
 import "contracts/interfaces/IPolicy.sol";
 import "contracts/interfaces/IRightsManager.sol";
 import "contracts/libraries/Constants.sol";
@@ -28,8 +28,8 @@ contract RentModule is
     Ownable,
     LensModuleMetadata,
     LensModuleRegistrant,
+    RMRestricted,
     HubRestricted,
-    DRMRestricted,
     IPublicationActionModule,
     IPolicy
 {
@@ -55,16 +55,16 @@ contract RentModule is
      * @dev Constructor that initializes the RentModule contract.
      * @param hub The address of the hub contract.
      * @param registrant The address of the registrant contract.
-     * @param drm The address of the drm contract.
+     * @param rm The address of the rights manager contract.
      */
     constructor(
         address hub,
         address registrant,
-        address drm
+        address rm
     )
         Ownable(_msgSender())
         HubRestricted(hub)
-        DRMRestricted(drm)
+        RMRestricted(rm)
         LensModuleRegistrant(registrant)
     {}
 
@@ -177,10 +177,10 @@ contract RentModule is
         // Transfers the specified amount of funds from the account to this contract
         // Requires that the account has previously approved this contract to spend the specified amount
         IERC20(currency).safeTransferFrom(account, address(this), total);
-        // Increases the allowance for the DRM contract by the total amount
-        IERC20(currency).approve(drmAddress, total);
+        // Increases the allowance for the RM contract by the total amount
+        IERC20(currency).approve(rmAddress, total);
 
-        IRightsManager(drmAddress).registerPolicy(
+        IRightsManager(rmAddress).registerPolicy(
             contentId,
             account,
             address(this)

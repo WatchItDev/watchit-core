@@ -9,9 +9,10 @@ library T {
     enum ContractTypes {
         __, // Undefined type
         SYNDICATION, // Syndication contract
+        OWNERSHIP, // Syndication contract
         TREASURY, // Treasury contract
         REFERENDUM, // Content referendum
-        DRM, // Digital Rights Management contract
+        RM, // Rights Management contract
         WVC
     }
 

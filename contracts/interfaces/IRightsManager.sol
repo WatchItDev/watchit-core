@@ -18,7 +18,6 @@ interface IRightsManager is
     IDisburser,
     IFeesManager,
     IFundsManager,
-    IContentVault,
     IRightsOwnership,
     IRightsCustodial,
     IRightsDelegable,
