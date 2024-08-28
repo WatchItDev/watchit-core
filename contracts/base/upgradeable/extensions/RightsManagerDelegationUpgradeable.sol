@@ -58,7 +58,8 @@ abstract contract RightsManagerDelegationUpgradeable is
     }
 
 
-    // TODO aca deberia ser "obtener los policies de un contenido?"
+    // TODO aca deberia ser "obtener los policies de un contenido?
+
     /// @notice Retrieves all content IDs for which rights have been delegated to a grantee.
     /// @dev This function returns an array of content IDs that the specified grantee
     /// has been delegated rights for. It fetches the data from the RightsStorage struct.
@@ -66,8 +67,13 @@ abstract contract RightsManagerDelegationUpgradeable is
     /// @return An array of content IDs that have been delegated to the specified grantee.
     function getDelegatedRights(
         address grantee
-    ) public returns (uint256[] memory) {
+    ) public view returns (uint256[] memory) {
         RightsStorage storage $ = _getRightsStorage();
+        // https://docs.openzeppelin.com/contracts/5.x/api/utils#EnumerableSet-values-struct-EnumerableSet-AddressSet-
+        // This operation will copy the entire storage to memory, which can be quite expensive. 
+        // This is designed to mostly be used by view accessors that are queried without any gas fees. 
+        // Developers should keep in mind that this function has an unbounded cost, and using it as part of a state-changing 
+        // function may render the function uncallable if the set grows to a point where copying to memory consumes too much gas to fit in a block.
         return $._delegation[grantee].values();
     }
 

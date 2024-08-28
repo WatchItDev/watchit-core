@@ -8,6 +8,7 @@ import "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721EnumerableUpgradeable.sol";
 import "contracts/base/upgradeable/GovernableUpgradeable.sol";
 import "contracts/interfaces/IReferendumVerifiable.sol";
+import "contracts/interfaces/IRepository.sol";
 import "contracts/interfaces/IOwnership.sol";
 
 // TODO imp ERC404
@@ -22,9 +23,25 @@ abstract contract Ownership is
     ERC721EnumerableUpgradeable,
     IOwnership
 {
-    address private referendum;
+    IReferendumVerifiable private referendum;
     event RegisteredContent(uint256 contentId);
     error InvalidNotApprovedContent();
+
+    // TODO 1 - la licencia que se establezca en watchit es comercial
+    // 2 - las condiciones comerciales se verifican en la política y se concede los accesos en base al modelo de
+    // negocio establecido en cada política, eg: acceso por medio de renta tiempo limitado etc..
+    // esto para con el fin de tener un manejo flexible y desacoplado con las policies..
+    // el como las condiciones de acceso, o los royalties deben manejarse se derivarse desde el IP
+    // eg: royalties o condiciones de uso.. etc
+
+    // 3- Las condiciones adicionales como acceso por país, etc! Deben ser dados en el IP register url,
+    // si no tiene estas condiciones, simplemente no se validan..
+
+    // Evaluar si al registrar el token en Watchit se puede hacer algo similar a lo que hace story con los token URI,
+
+    // Cuando se haga mint, obtener la información del token originario, digamos que sea un NFT externo y hacer un 
+    // remint en nuestro contrato con los detalles del contrato origen?
+
 
     /// @dev Constructor that disables initializers to prevent the implementation contract from being initialized.
     /// https://forum.openzeppelin.com/t/uupsupgradeable-vulnerability-post-mortem/15680
@@ -43,7 +60,9 @@ abstract contract Ownership is
         _grantRole(DEFAULT_ADMIN_ROLE, _msgSender());
 
         IRepository repo = IRepository(repository);
-        referendum = repo.getContract(T.ContractTypes.REFERENDUM);
+        address referendumAddress = repo.getContract(T.ContractTypes.REF);
+        referendum = IReferendumVerifiable(referendumAddress);
+
     }
 
     /// @notice Modifier to ensure content is approved before distribution.
@@ -54,12 +73,12 @@ abstract contract Ownership is
     /// It also ensures that the recipient is the one who initially submitted the content for approval.
     modifier onlyApprovedContent(address to, uint256 contentId) {
         // Revert if the content is not approved or if the recipient is not the original submitter
-        if (!IReferendumVerifiable(referendum).isApproved(to, contentId))
+        if (!referendum.isApproved(to, contentId))
             revert InvalidNotApprovedContent();
         _;
     }
 
-    /// @inheritdoc IRightsOwnership
+    /// @inheritdoc IOwnership
     /// @notice Mints a new NFT to the specified address.
     /// @dev Our naive assumption is that only those who know the content id can mint the corresponding token.
     /// @param to The address to mint the NFT to.
@@ -111,7 +130,6 @@ abstract contract Ownership is
         override(
             IERC165,
             ERC721Upgradeable,
-            ERC2981Upgradeable,
             ERC721EnumerableUpgradeable
         )
         returns (bool)

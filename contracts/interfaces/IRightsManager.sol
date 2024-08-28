@@ -6,7 +6,6 @@ import "./ILedger.sol";
 import "./IFundsManager.sol";
 import "./IFeesManager.sol";
 import "./IDisburser.sol";
-import "./IRightsOwnership.sol";
 import "./IRightsCustodial.sol";
 import "./IRightsDelegable.sol";
 import "./IRightsAccessController.sol";
@@ -18,7 +17,6 @@ interface IRightsManager is
     IDisburser,
     IFeesManager,
     IFundsManager,
-    IRightsOwnership,
     IRightsCustodial,
     IRightsDelegable,
     IRightsAccessController

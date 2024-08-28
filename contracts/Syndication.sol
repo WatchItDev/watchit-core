@@ -101,11 +101,11 @@ contract Syndication is
         penaltyRate = initialPenaltyRateBps; // bps
         // Get the registered treasury contract from the repository
         IRepository repo = IRepository(repository);
-        address treasury = repo.getContract(T.ContractTypes.TREASURY);
+        address trasuryAddress = repo.getContract(T.ContractTypes.TRE);
 
         // initially flat fees in native coin
         __Fees_init(initialFee, address(0));
-        __Treasurer_init(treasury);
+        __Treasurer_init(trasuryAddress);
         _grantRole(DEFAULT_ADMIN_ROLE, _msgSender());
     }
 

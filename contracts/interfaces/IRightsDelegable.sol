@@ -18,5 +18,5 @@ interface IRightsDelegable {
     /// @return An array of content IDs that have been delegated to the specified grantee.
     function getDelegatedRights(
         address grantee
-    ) external returns (uint256[] memory);
+    ) external view returns (uint256[] memory);
 }

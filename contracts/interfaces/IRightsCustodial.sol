@@ -8,7 +8,7 @@ interface IRightsCustodial {
     /// @param distributor The address of the distributor to assign the content to.
     function grantCustody(
         uint256 contentId,
-        address distributor,
+        address distributor
     ) external;
 
     /// @notice Retrieves the custodial address for the given content ID and ensures it is active.
