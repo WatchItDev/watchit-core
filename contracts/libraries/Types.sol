@@ -8,16 +8,17 @@ pragma solidity ^0.8.24;
 library T {
     enum ContractTypes {
         __, // Undefined type
-        SYNDICATION, // Syndication contract
-        OWNERSHIP, // Syndication contract
-        TREASURY, // Treasury contract
-        REFERENDUM, // Content referendum
+        SYN, // Syndication contract
+        OWN, // Syndication contract
+        TRE, // Treasury contract
+        REF, // Content referendum
         RM, // Rights Management contract
         WVC
     }
 
     /// @title Splits
-    /// @dev Represents the distribution of royalties to a specific address.
+    /// @dev Represents the distribution of funds to a specific address.
+    /// @notice This struct is used to define the share of funds (e.g., royalties, service fees) that should be allocated to a particular address.
     struct Splits {
         address target;
         uint256 bps; // Basis points, with 10000 bps being equivalent to 100%.
@@ -25,14 +26,16 @@ library T {
 
     /// @title Transaction
     /// @dev Represents the details of a transaction involving a specific currency and amount.
+    /// @notice This struct captures the currency type and the amount involved in a transaction.
     struct Transaction {
         address currency;
         uint256 amount;
     }
 
-    /// @notice Represents the terms and conditions associated with accessing content.
-    /// @dev This struct encapsulates the transaction details and the fee splits for the content.
-    struct Terms {
+    /// @title Payouts
+    /// @dev Represents the allocation and distribution of funds for content.
+    /// @notice This struct encapsulates the transaction details and the splits of funds.
+    struct Payouts {
         Transaction t9n;
         Splits[] s4s;
     }

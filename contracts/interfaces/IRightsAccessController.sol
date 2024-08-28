@@ -15,14 +15,23 @@ interface IRightsAccessController {
         address account
     ) external payable;
 
-    /// @notice Evaluates policies to determine if access is allowed for a specific user and content.
+    /// @notice Removes a specific policy associated with a given content ID.
+    /// @dev This function allows the removal of a policy from the list of policies linked to a specific content ID.
+    /// @param contentId The ID of the content from which the policy is to be removed.
+    /// @param policy The address of the policy that needs to be removed.
+    /// @return True if the policy was removed succesfully, false otherwise.
+    function removePolicy(uint256 contentId, address policy) external;
+
+    /// @notice Retrieves the first active policy for a specific user and content in LIFO order.
     /// @param account The address of the account to evaluate.
     /// @param contentId The content ID to evaluate policies for.
-    /// @return True if access is allowed based on the evaluation of policies, false otherwise.
-    function evaluatePolicies(
+    /// @return A tuple containing:
+    /// - A boolean indicating whether an active policy was found (`true`) or not (`false`).
+    /// - The address of the active policy if found, or `address(0)` if no active policy is found.
+    function getActivePolicy(
         address account,
         uint256 contentId
-    ) external returns (bool);
+    ) external returns (bool, address);
 
     /// @notice Retrieves the list of policys associated with a specific account and content ID.
     /// @param account The address of the account for which policies are being retrieved.

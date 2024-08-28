@@ -86,9 +86,9 @@ abstract contract RightsManagerContentAccessUpgradeable is
         address account,
         uint256 contentId,
         address policy
-    ) internal {
+    ) internal returns (bool) {
         ACLStorage storage $ = _getACLStorage();
-        $._acl[contentId][account].remove(policy);
+        return $._acl[contentId][account].remove(policy);
     }
 
     /// @notice Verifies whether access is allowed for a specific account and content based on a given license.
@@ -107,8 +107,6 @@ abstract contract RightsManagerContentAccessUpgradeable is
         return policy_.comply(account, contentId);
     }
 
-    // TODO mantener address(0) para "any account"
-
     /// @inheritdoc IRightsAccessController
     /// @notice Retrieves the list of policys associated with a specific account and content ID.
     /// @param account The address of the account for which policies are being retrieved.
@@ -119,27 +117,39 @@ abstract contract RightsManagerContentAccessUpgradeable is
         uint256 contentId
     ) public view returns (address[] memory) {
         ACLStorage storage $ = _getACLStorage();
+        // https://docs.openzeppelin.com/contracts/5.x/api/utils#EnumerableSet-values-struct-EnumerableSet-AddressSet-
+        // This operation will copy the entire storage to memory, which can be quite expensive.
+        // This is designed to mostly be used by view accessors that are queried without any gas fees.
+        // Developers should keep in mind that this function has an unbounded cost, and using it as part of a state-changing
+        // function may render the function uncallable if the set grows to a point where copying to memory consumes too much gas to fit in a block.
         return $._acl[contentId][account].values();
     }
 
     /// @inheritdoc IRightsAccessController
-    /// @notice Evaluates policies to determine if access is allowed for a specific user and content.
+    /// @notice Retrieves the first active policy for a specific user and content in LIFO order.
     /// @param account The address of the account to evaluate.
     /// @param contentId The content ID to evaluate policies for.
-    /// @return True if access is allowed based on the evaluation of policies, false otherwise.
-    function evaluatePolicies(
+    /// @return A tuple containing:
+    /// - A boolean indicating whether an active policy was found (`true`) or not (`false`).
+    /// - The address of the active policy if found, or `address(0)` if no active policy is found.
+    function getActivePolicy(
         address account,
         uint256 contentId
-    ) public view returns (bool) {
+    ) public view returns (bool, address) {
         address[] memory policies = getPolicies(account, contentId);
-        uint256 policiesLength = policies.length;
+        uint256 i = policies.length - 1;
 
-        for (uint8 i = 0; i < policiesLength; i++) {
-            // if any of the policies comply!!
+        while (true) {
+            // LIFO precedence order: last registered policy is evaluated first..
+            // The first complying it is returned..
             bool comply = _verify(account, contentId, policies[i]);
-            if (comply) return true;
+            if (comply) return (true, policies[i]);
+            if (i == 0) break;
+            unchecked {
+                --i;
+            }
         }
-
-        return false;
+        // no active policy found
+        return (false, address(0));
     }
 }

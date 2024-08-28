@@ -193,9 +193,8 @@ contract RentModule is
         return "LensRentModule";
     }
 
-    /// @notice Verify whether the access terms for an account and content ID are satisfied
-    /// @param account The address of the account to check.
-    /// @param contentId The content ID to check against.
+    function term(address account, uint256 contentId) returns (bytes memory) {}
+
     function comply(
         address account,
         uint256 contentId
@@ -205,23 +204,16 @@ contract RentModule is
         return Time.timestamp() > expireAt;
     }
 
-    /// @inheritdoc IPolicy
-    /// @notice Checks whether the terms (such as rental period) for an account and content ID are still valid.
-    /// @dev This function checks if the current timestamp is within the valid period (timelock) for the specified account and content ID.
-    /// If the current time is within the allowed period, the terms are considered satisfied.
-    /// @param account The address of the account being checked.
-    /// @param contentId The content ID associated with the access terms.
-    /// @return bool True if the terms are satisfied, false otherwise.
-    function terms(
+    function payouts(
         address account,
         uint256 contentId
-    ) external view returns (T.Terms memory) {
+    ) external view returns (T.Payouts memory) {
         Registry memory reg = rentRegistry[contentId][account];
         address currency = reg.currency;
         uint256 amount = reg.amount;
 
         return
-            T.Terms(
+            T.Payouts(
                 T.Transaction(currency, amount),
                 // An empty distribution means all royalties go to the owner.
                 // If a distribution is set, e.g., a=>5%, b=>5%, owner=>remaining 90%,

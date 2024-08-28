@@ -11,7 +11,6 @@ import "contracts/base/upgradeable/FeesManagerUpgradeable.sol";
 import "contracts/base/upgradeable/TreasurerUpgradeable.sol";
 import "contracts/base/upgradeable/CurrencyManagerUpgradeable.sol";
 import "contracts/base/upgradeable/GovernableUpgradeable.sol";
-import "contracts/base/upgradeable/ContentVaultUpgradeable.sol";
 import "contracts/base/upgradeable/extensions/RightsManagerContentAccessUpgradeable.sol";
 import "contracts/base/upgradeable/extensions/RightsManagerCustodialUpgradeable.sol";
 import "contracts/base/upgradeable/extensions/RightsManagerDelegationUpgradeable.sol";
@@ -71,9 +70,9 @@ contract RightsManager is
     /// so the code within a logic contract’s constructor or global declaration
     /// will never be executed in the context of the proxy’s state
     /// https://docs.openzeppelin.com/upgrades-plugins/1.x/proxies#the-constructor-caveat
-    address private syndication;
-    address private referendum;
-    address private ownership;
+    IRegistrableVerifiable private syndication;
+    IReferendumVerifiable private referendum;
+    IOwnership private ownership;
 
     /// @dev Error that is thrown when a restricted access to the holder is attempted.
     error RestrictedAccessToHolder();
@@ -103,22 +102,24 @@ contract RightsManager is
     ) public initializer onlyBasePointsAllowed(initialFee) {
         __Ledger_init();
         __Governable_init();
-        __ContentVault_init();
         __UUPSUpgradeable_init();
         __ReentrancyGuard_init();
         __CurrencyManager_init();
         _grantRole(DEFAULT_ADMIN_ROLE, _msgSender());
 
-        // initialize dependencies for drm
+        // initialize dependencies for RM
         IRepository repo = IRepository(repository);
-        syndication = repo.getContract(T.ContractTypes.SYNDICATION);
-        referendum = repo.getContract(T.ContractTypes.REFERENDUM);
-        ownership = repo.getContract(T.ContractTypes.OWNERSHIP);
+        address treasuryAddress = repo.getContract(T.ContractTypes.TRE);
+        address ownershipAddress = repo.getContract(T.ContractTypes.OWN);
+        address syndicationAddress = repo.getContract(T.ContractTypes.SYN);
+        address referendumAddress = repo.getContract(T.ContractTypes.REF);
 
-        // Get the registered treasury contract from the repository
-        address treasury = repo.getContract(T.ContractTypes.TREASURY);
+        ownership = IOwnership(ownership);
+        syndication = IRegistrableVerifiable(syndicationAddress);
+        referendum = IReferendumVerifiable(referendumAddress);
+
         __Fees_init(initialFee, address(0));
-        __Treasurer_init(treasury);
+        __Treasurer_init(treasuryAddress);
     }
 
     /// @dev Authorizes the upgrade of the contract.
@@ -134,8 +135,7 @@ contract RightsManager is
     function _checkActiveDistributor(
         address distributor
     ) private returns (bool) {
-        IRegistrableVerifiable _v = IRegistrableVerifiable(syndication);
-        return _v.isActive(distributor); // is active status in syndication
+        return syndication.isActive(distributor); // is active status in syndication
     }
 
     /// @notice Checks if the given content is active and not blocked.
@@ -144,26 +144,11 @@ contract RightsManager is
     function _checkActiveContent(
         uint256 contentId
     ) private view returns (bool) {
-        IReferendumVerifiable _v = IReferendumVerifiable(referendum);
-        return _v.isActive(contentId); // is active in referendum
-    }
-
-    /// @notice Calculates the portion of an amount based on a given split percentage.
-    /// @dev The split percentage is represented in base points (bps), where 10000 bps equals 100%.
-    /// Ensures the split is within allowed base points.
-    /// @param amount The total amount to be split.
-    /// @param split The percentage of the amount to allocate, represented in base points.
-    /// @return The calculated split amount.
-    function _calculateSplit(
-        uint256 amount,
-        uint256 split
-    ) private pure onlyBasePointsAllowed(split) returns (uint256) {
-        return amount.perOf(split);
+        return referendum.isActive(contentId); // is active in referendum
     }
 
     /// @notice Allocates the specified amount across a distribution array and returns the remaining unallocated amount.
     /// @dev Distributes the amount based on the provided distribution array.
-    /// Ensures no more than 100 allocations and a minimum of 1% per distributor.
     /// @param amount The total amount to be allocated.
     /// @param currency The address of the currency being allocated.
     /// @param splits An array of Splits structs specifying the split percentages and target addresses.
@@ -182,8 +167,8 @@ contract RightsManager is
         }
 
         uint8 i = 0;
-        uint256 accBps = 0; // Accumulated base points
-        uint256 accTotal = 0; // Accumulated total allocation
+        uint256 accBps = 0; // accumulated base points
+        uint256 accTotal = 0; // accumulated total allocation
 
         while (i < splits.length) {
             // Retrieve base points and target address from the distribution array.
@@ -196,7 +181,7 @@ contract RightsManager is
 
             if (bps == 0) continue;
             // Calculate and register the allocation for each distribution.
-            uint256 registeredAmount = _calculateSplit(amount, bps);
+            uint256 registeredAmount = amount.perOf(bps);
             _sumLedgerEntry(target, registeredAmount, currency);
 
             accTotal += registeredAmount;
@@ -213,7 +198,7 @@ contract RightsManager is
     /// @param contentId The content hash to give distribution rights.
     /// @dev Only the holder of the content can pass this validation.
     modifier onlyHolder(uint256 contentId) {
-        if (IOwnership(ownership).ownerOf(contentId) != _msgSender())
+        if (ownership.ownerOf(contentId) != _msgSender())
             revert RestrictedAccessToHolder();
         _;
     }
@@ -221,7 +206,7 @@ contract RightsManager is
     /// @notice Modifier to check if the content is registered.
     /// @param contentId The content hash to check.
     modifier onlyRegisteredContent(uint256 contentId) {
-        if (IOwnership(ownership).ownerOf(contentId) == address(0))
+        if (ownership.ownerOf(contentId) == address(0))
             revert InvalidUnknownContent();
         _;
     }
@@ -306,6 +291,7 @@ contract RightsManager is
         address recipient = _msgSender();
         uint256 available = getLedgerEntry(recipient, currency);
         if (available < amount) revert NoFundsToWithdraw(recipient);
+
         recipient.transfer(amount, currency);
         _subLedgerEntry(recipient, amount, currency);
     }
@@ -401,55 +387,44 @@ contract RightsManager is
         if (!isEligibleForDistribution(contentId))
             revert InvalidNotAllowedContent();
 
-        IPolicy validator = IPolicy(policy);
-        T.Terms memory terms = validator.terms(account, contentId);
-        uint256 amount = terms.t9n.amount;
-        address currency = terms.t9n.currency;
-
-        // TODO otro metodo aca
-        // get distributors conditions
         address custodial = getCustody(contentId);
         uint256 custodials = getCustodyCount(custodial);
+        IPolicy authorizedPolicy = IPolicy(policy);
+        T.Payouts memory alloc = authorizedPolicy.payouts(account, contentId);
         IDistributor distributor = IDistributor(custodial);
         // The user, owner or delegated policy must ensure that the necessary steps
         // are taken to handle the transaction value or set the appropriate
         // approve/allowance for the RM (Rights Management) contract.
+        uint256 amount = alloc.t9n.amount;
+        address currency = alloc.t9n.currency;
         uint256 total = _msgSender().safeDeposit(amount, currency);
         //!IMPORTANT if distributor or trasury does not support the currency, will revert..
         // the max bps integrity is warrantied by treasure fees
-        uint256 treasurySplit = total.perOf(getFees(currency)); // bps
-        uint256 acceptedSplit = distributor.negotiate(
-            total,
-            currency,
-            custodials
-        );
+        uint256 treasury = total.perOf(getFees(currency)); // bps
+        uint256 accepted = distributor.negotiate(total, currency, custodials);
+        uint256 deductions = treasury + accepted;
 
-        uint256 deductions = treasurySplit + acceptedSplit;
         if (deductions > total) revert NoDeal("The fees are too high.");
-        uint256 remaining = _allocate(total - deductions, currency, terms.s4s);
-
+        uint256 remaining = _allocate(total - deductions, currency, alloc.s4s);
         // register split distribution in ledger..
-        _sumLedgerEntry(ownerOf(contentId), remaining, currency);
-        _sumLedgerEntry(distributor.getManager(), acceptedSplit, currency);
+        _sumLedgerEntry(ownership.ownerOf(contentId), remaining, currency);
+        _sumLedgerEntry(distributor.getManager(), accepted, currency);
         _registerPolicy(account, contentId, policy);
         emit GrantedAccess(account, contentId);
     }
 
-    /// @notice Checks if the contract supports a specific interface.
-    /// @param interfaceId The interface ID to check.
-    /// @return True if the contract supports the interface, false otherwise.
-    function supportsInterface(
-        bytes4 interfaceId
-    )
-        public
-        view
-        override(
-            IERC165,
-            RightsManagerERC721Upgradeable,
-            AccessControlUpgradeable
-        )
-        returns (bool)
-    {
-        return super.supportsInterface(interfaceId);
+    /// @inheritdoc IRightsAccessController
+    /// @notice Removes a specific policy associated with a given content ID.
+    /// @dev This function allows the removal of a policy from the list of policies linked to a specific content ID.
+    /// @param contentId The ID of the content from which the policy is to be removed.
+    /// @param policy The address of the policy that needs to be removed.
+    /// @return True if the policy was removed succesfully, false otherwise.
+    function removePolicy(
+        uint256 contentId,
+        address policy
+    ) external onlyRegisteredContent(contentId) returns (bool) {
+        // remove registered policy to account and content id..
+        return _removePolicy(_msgSender(), contentId, policy);
+        // TODO add event
     }
 }
