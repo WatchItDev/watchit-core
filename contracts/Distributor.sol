@@ -128,9 +128,35 @@ contract Distributor is
     ) external onlyOwner onlySupportedCurrency(currency) {
         floor[currency] = minimum;
     }
-    
 
     // flatten = flatten * (1-(1/ln(demanda))
+
+    // 1 - la licencia que se establezca en watchit es comercial
+
+    // 2 - las condiciones comerciales se verifican en la política y se concede los accesos en base al modelo de
+    // negocio establecido en cada política, eg: acceso por medio de renta tiempo limitado etc..
+    // esto para con el fin de tener un manejo flexible y desacoplado con las policies..
+    // el como las condiciones de acceso, o los royalties deben manejarse se derivarse desde el IP
+    // eg: royalties o condiciones de uso.. etc
+
+    // 3- Las condiciones adicionales como acceso por país, etc! Deben ser dados en el IP register url,
+    // si no tiene estas condiciones, simplemente no se validan..
+
+    //     Evaluar si al registrar el token en Watchit se puede hacer algo similar a lo que hace story con los token URI,
+
+
+    // Centralizar los errores en un library 
+
+    // Cuando se haga mint, obtener la información del token originario, digamos que sea un NFT externo y hacer un 
+    // remint en nuestro contrato con los detalles del contrato origen?
+
+    // Evaluar cómo funciona los chain if en el contexto de ip
+    // https://github.com/storyprotocol/protocol-core-v1/blob/main/contracts/registries/IPAssetRegistry.sol
+    // Retornar un URI que contenga el hash (id), el distribuidor actual, el chain, el name.
+
+    //     En Ipolicy los terms debería llamarse royalties?
+    // Ver cómo se integran los royalties desde IP..
+    // https://docs.story.foundation/docs/programmable-ip-license
 
     /// @notice Calculates an adjusted floor value based on the logarithm of custodials.
     /// @dev The function adjusts the base floor by adding a proportion
