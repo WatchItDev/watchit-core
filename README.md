@@ -1,3 +1,4 @@
 # Watchit Core (WIP)
-![image](https://github.com/user-attachments/assets/5e81f799-600f-445e-9d6c-097566cbc40f)
+![image](https://github.com/user-attachments/assets/d1064519-e5bf-4000-9b5a-22d70c7e849f)
+
 
