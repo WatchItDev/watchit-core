@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-interface IRightsCustodialManager {
+interface IRightsCustodialGranter {
     /// @notice Assigns distribution rights over the content.
     /// @dev The distributor must be active.
     /// @param contentId The ID of the content to assign.
