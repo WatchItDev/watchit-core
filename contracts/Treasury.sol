@@ -51,15 +51,13 @@ contract Treasury is
     }
 
     /// @notice Withdraws funds from the contract to a specified recipient's address.
-    /// @param recipient The address that will receive the withdrawn funds.
     /// @param amount The amount of tokens to withdraw.
     /// @param currency The currency to associate fees with. Use address(0) for the native coin.
     /// @dev This function can only be called by the owner of the contract or an authorized entity.
     function withdraw(
-        address recipient,
         uint256 amount,
         address currency
-    ) public override onlyGov {}
+    ) public onlyGov {}
 
     // TODO multisignature withdraw
 }

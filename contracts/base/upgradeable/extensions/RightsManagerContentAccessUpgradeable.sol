@@ -60,35 +60,28 @@ abstract contract RightsManagerContentAccessUpgradeable is
         _;
     }
 
-    /// @notice Registers a policy for a specific account and content ID.
-    /// @dev This function adds a policy to the ACL storage, granting access to the specified account for the given content ID.
-    /// @param account The address of the account to be granted access.
-    /// @param contentId The ID of the content for which access is being granted.
-    /// @param policy The address of the contract responsible for validating the conditions of the license.
+    /// @notice Registers a new policy for a specific account and content ID, maintaining a chain of precedence.
+    /// @dev This function manages the ACL (Access Control List) storage by adding a new policy for the given account and content ID.
+    ///      It ensures that only a fixed number of policies (defined by MAX_POLICIES) are active at any time by removing the oldest policy
+    ///      when the limit is reached. The newest policy is always added to the end of the list, following a LIFO (Last-In-First-Out) precedence.
+    /// @param account The address of the account to be granted access through the policy.
+    /// @param contentId The ID of the content for which the access policy is being registered.
+    /// @param policy The address of the policy contract responsible for validating the conditions of the license.
     function _registerPolicy(
         address account,
         uint256 contentId,
         address policy
     ) internal {
         ACLStorage storage $ = _getACLStorage();
-        // to avoid abuse or misusing of the protocol, we limit the maximum policies allowed..
-        if ($._acl[contentId][account].length() >= MAX_POLICIES)
-            revert MaxPoliciesReached();
+        // Ensure the total number of policies does not exceed MAX_POLICIES
+        // rolling policies window registry..
+        if ($._acl[contentId][account].length() >= MAX_POLICIES) {
+            // Remove the oldest policy (first in the list) to maintain the policy limit
+            address oldest = $._acl[contentId][account].at(0);
+            $._acl[contentId][account].remove(oldest);
+        }
+        // Add the new policy as the most recent, following LIFO precedence
         $._acl[contentId][account].add(policy);
-    }
-
-    /// @notice Removes a policy for a specific account and content ID.
-    /// @dev This function removes a policy from the ACL storage, revoking access to the specified account for the given content ID.
-    /// @param account The address of the account for which access is being revoked.
-    /// @param contentId The ID of the content for which access is being revoked.
-    /// @param policy The address of the policy to be removed.
-    function _removePolicy(
-        address account,
-        uint256 contentId,
-        address policy
-    ) internal returns (bool) {
-        ACLStorage storage $ = _getACLStorage();
-        return $._acl[contentId][account].remove(policy);
     }
 
     /// @notice Verifies whether access is allowed for a specific account and content based on a given license.
@@ -124,6 +117,10 @@ abstract contract RightsManagerContentAccessUpgradeable is
         // function may render the function uncallable if the set grows to a point where copying to memory consumes too much gas to fit in a block.
         return $._acl[contentId][account].values();
     }
+
+    // TODO potential improvement getChainedPolicies
+    // allowing concatenate policies to evaluate compliance...
+    // This approach supports complex access control scenarios where multiple factors need to be considered.
 
     /// @inheritdoc IRightsAccessController
     /// @notice Retrieves the first active policy for a specific user and content in LIFO order.
