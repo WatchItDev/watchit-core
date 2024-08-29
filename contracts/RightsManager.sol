@@ -412,19 +412,4 @@ contract RightsManager is
         _registerPolicy(account, contentId, policy);
         emit GrantedAccess(account, contentId);
     }
-
-    /// @inheritdoc IRightsAccessController
-    /// @notice Removes a specific policy associated with a given content ID.
-    /// @dev This function allows the removal of a policy from the list of policies linked to a specific content ID.
-    /// @param contentId The ID of the content from which the policy is to be removed.
-    /// @param policy The address of the policy that needs to be removed.
-    /// @return True if the policy was removed succesfully, false otherwise.
-    function removePolicy(
-        uint256 contentId,
-        address policy
-    ) external onlyRegisteredContent(contentId) returns (bool) {
-        // remove registered policy to account and content id..
-        return _removePolicy(_msgSender(), contentId, policy);
-        // TODO add event
-    }
 }
