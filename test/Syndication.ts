@@ -58,7 +58,7 @@ describe('Syndication', function () {
 
     it('Should have been initialized with the right treasury address.', async function () {
       const [syndication, repo] = await switcher(deployInitializedSyndication)
-      const expectedTreasuryAddress = await repo.getContract(2) // 2 = ENUM TREASURY
+      const expectedTreasuryAddress = await repo.getContract(3) // 3 = ENUM TREASURY
       expect(await syndication.getTreasuryAddress()).to.be.equal(expectedTreasuryAddress)
     })
 
@@ -111,7 +111,7 @@ describe('Syndication', function () {
       // here is not expected to use an "EOA" address, but we don't expect ERC20 tokens for syndication treasury..
       await (await syndication["setFees(uint256, address)"](fees, sampleTestAddress)).wait()
       await expect(syndication.getFees(sampleTestAddress)).to.revertedWithCustomError(
-        syndication, 'InvalidUnsupportedToken'
+        syndication, 'InvalidUnsupportedCurrency'
       )
     })
   })

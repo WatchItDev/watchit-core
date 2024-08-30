@@ -33,6 +33,7 @@ contract DistributorFactory is UpgradeableBeacon, Pausable {
     /// @notice Error to be thrown when attempting to register an already registered distributor.
     error DistributorAlreadyRegistered();
 
+    // initialize implementation and initial owner
     constructor(
         address implementation
     ) UpgradeableBeacon(implementation, _msgSender()) Pausable() {}

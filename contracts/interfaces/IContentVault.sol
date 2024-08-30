@@ -8,7 +8,7 @@ interface IContentVault {
     /// @notice Store secured content for a give content id.
     /// @param contentId The ID of the content to assign.
     /// @param encryptedData Additional encrypted data to share access between authorized parties.
-    function storeSecureContent(
+    function setContent(
         uint256 contentId,
         bytes calldata encryptedData
     ) external;
@@ -17,7 +17,7 @@ interface IContentVault {
     /// @dev Returns the encrypted content stored in the vault.
     /// @param contentId The ID of the content to retrieve.
     /// @return The encrypted content as a bytes array.
-    function getSecuredContent(
+    function getContent(
         uint256 contentId
     ) external view returns (bytes memory);
 }

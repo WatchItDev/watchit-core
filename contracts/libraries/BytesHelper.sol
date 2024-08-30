@@ -5,7 +5,6 @@ pragma solidity ^0.8.24;
 /// @notice Provides functions to convert bytes to other data types.
 /// @dev Contains functions to convert a bytes array to an address with proper alignment.
 library BytesHelper {
-    error InvalidBytesToAddressConversion();
 
     /// @notice Converts a dynamic bytes array to an address.
     /// @param _bytes The bytes array to convert.

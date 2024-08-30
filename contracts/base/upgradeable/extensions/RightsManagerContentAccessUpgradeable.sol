@@ -2,7 +2,6 @@
 // NatSpec format convention - https://docs.soliditylang.org/en/v0.5.10/natspec-format.html
 pragma solidity ^0.8.24;
 
-import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
@@ -18,16 +17,15 @@ abstract contract RightsManagerContentAccessUpgradeable is
     IRightsAccessController
 {
     using ERC165Checker for address;
-    using EnumerableSet for EnumerableSet.AddressSet;
 
-    uint256 private constant MAX_POLICIES = 5; // Max limit of policies for account.
+    // uint256 private constant MAX_POLICIES = 3; // Max limit of policies for account.
     /// @dev The interface ID for IPolicy, used to verify that a policy contract implements the correct interface.
     bytes4 private constant INTERFACE_POLICY = type(IPolicy).interfaceId;
     /// @custom:storage-location erc7201:rightscontentaccess.upgradeable
     /// @dev Storage struct for the access control list (ACL) that maps content IDs and accounts to policy contracts.
     struct ACLStorage {
         /// @dev Mapping to store the access control list for each content ID and account.
-        mapping(uint256 => mapping(address => EnumerableSet.AddressSet)) _acl;
+        mapping(address => mapping(uint256 => address)) _acl;
     }
 
     /// @dev Namespaced storage slot for ACLStorage to avoid storage layout collisions in upgradeable contracts.
@@ -48,7 +46,7 @@ abstract contract RightsManagerContentAccessUpgradeable is
 
     /// @dev Error thrown when the policy contract does not implement the IPolicy interface.
     error InvalidPolicyContract(address);
-    error MaxPoliciesReached();
+    // error MaxPoliciesReached();
 
     /// @dev Modifier to check that a policy contract implements the IPolicy interface.
     /// @param policy The address of the license policy contract.
@@ -73,15 +71,7 @@ abstract contract RightsManagerContentAccessUpgradeable is
         address policy
     ) internal {
         ACLStorage storage $ = _getACLStorage();
-        // Ensure the total number of policies does not exceed MAX_POLICIES
-        // rolling policies window registry..
-        if ($._acl[contentId][account].length() >= MAX_POLICIES) {
-            // Remove the oldest policy (first in the list) to maintain the policy limit
-            address oldest = $._acl[contentId][account].at(0);
-            $._acl[contentId][account].remove(oldest);
-        }
-        // Add the new policy as the most recent, following LIFO precedence
-        $._acl[contentId][account].add(policy);
+        $._acl[account][contentId] = policy;
     }
 
     /// @notice Verifies whether access is allowed for a specific account and content based on a given license.
@@ -100,24 +90,6 @@ abstract contract RightsManagerContentAccessUpgradeable is
         return policy_.comply(account, contentId);
     }
 
-    /// @inheritdoc IRightsAccessController
-    /// @notice Retrieves the list of policys associated with a specific account and content ID.
-    /// @param account The address of the account for which policies are being retrieved.
-    /// @param contentId The ID of the content for which policies are being retrieved.
-    /// @return An array of addresses representing the policies associated with the account and content ID.
-    function getPolicies(
-        address account,
-        uint256 contentId
-    ) public view returns (address[] memory) {
-        ACLStorage storage $ = _getACLStorage();
-        // https://docs.openzeppelin.com/contracts/5.x/api/utils#EnumerableSet-values-struct-EnumerableSet-AddressSet-
-        // This operation will copy the entire storage to memory, which can be quite expensive.
-        // This is designed to mostly be used by view accessors that are queried without any gas fees.
-        // Developers should keep in mind that this function has an unbounded cost, and using it as part of a state-changing
-        // function may render the function uncallable if the set grows to a point where copying to memory consumes too much gas to fit in a block.
-        return $._acl[contentId][account].values();
-    }
-
     // TODO potential improvement getChainedPolicies
     // allowing concatenate policies to evaluate compliance...
     // This approach supports complex access control scenarios where multiple factors need to be considered.
@@ -133,20 +105,28 @@ abstract contract RightsManagerContentAccessUpgradeable is
         address account,
         uint256 contentId
     ) public view returns (bool, address) {
-        address[] memory policies = getPolicies(account, contentId);
-        uint256 i = policies.length - 1;
-
-        while (true) {
-            // LIFO precedence order: last registered policy is evaluated first..
-            // The first complying it is returned..
-            bool comply = _verify(account, contentId, policies[i]);
-            if (comply) return (true, policies[i]);
-            if (i == 0) break;
-            unchecked {
-                --i;
-            }
-        }
-        // no active policy found
+        ACLStorage storage $ = _getACLStorage();
+        // Add the new policy as the most recent, following LIFO precedence
+        address policy = $._acl[account][contentId];
+        bool comply = _verify(account, contentId, policy);
+        if (comply) return (true, policy);
         return (false, address(0));
+
+        // TODO in the future a multiple policies evaluation could be considered..
+        // address[] memory policies = getPolicies(account, contentId);
+        // uint256 i = policies.length - 1;
+
+        // while (true) {
+        //     // LIFO precedence order: last registered policy is evaluated first..
+        //     // The first complying it is returned..
+        //     bool comply = _verify(account, contentId, policies[i]);
+        //     if (comply) return (true, policies[i]);
+        //     if (i == 0) break;
+        //     unchecked {
+        //         --i;
+        //     }
+        // }
+        // // no active policy found
+        // return (false, address(0));
     }
 }

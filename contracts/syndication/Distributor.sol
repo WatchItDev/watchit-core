@@ -53,7 +53,7 @@ contract Distributor is
 
         if (bytes(_endpoint).length == 0) revert InvalidEndpoint();
         // balanced factors
-        flattenFactor = 10;
+        flattenFactor = 5;
         endpoint = _endpoint;
     }
 
@@ -129,12 +129,6 @@ contract Distributor is
         floor[currency] = minimum;
     }
 
-    // flatten = flatten * (1-(1/ln(demanda))
-
-    // Evaluar cómo funciona los chain if en el contexto de ip
-    // https://github.com/storyprotocol/protocol-core-v1/blob/main/contracts/registries/IPAssetRegistry.sol
-    // Retornar un URI que contenga el hash (id), el distribuidor actual, el chain, el name.
-
     /// @notice Calculates an adjusted floor value based on the logarithm of custodials.
     /// @dev The function adjusts the base floor by adding a proportion
     /// that scales with the logarithm of the custodials.
@@ -145,10 +139,9 @@ contract Distributor is
         uint256 baseFloor,
         uint256 demand
     ) internal view returns (uint256) {
-        if (baseFloor == 0) return 0;
         // Economies of scale.
-        // Calculate the logarithm of custodials, adding 1 to avoid taking log(0)
         // fees + (fees * (log2(demand) / flatten))
+        if (baseFloor == 0 || flattenFactor == 0) return 0;
         uint256 safeOp = (demand == 0 ? (demand + 1) : demand);
         return baseFloor + (baseFloor * (safeOp.log2() / flattenFactor));
     }

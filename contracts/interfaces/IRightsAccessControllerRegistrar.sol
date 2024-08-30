@@ -6,7 +6,6 @@ interface IRightsAccessControllerRegistrar {
     /// @notice Registers and enforces access for a specific account to a content ID based on the conditions set by a policy.
     /// @param account The address of the account to be granted access to the content.
     /// @param contentId The unique identifier of the content for which access is being registered.
-    /// @param policy The address of the policy contract responsible for validating and enforcing the access conditions.
     /// @dev Access is granted only if the specified policy contract is valid and has the necessary delegation rights.
     /// If the policy conditions are not met, access will not be registered, and the operation will be rejected.
     function registerPolicy(
