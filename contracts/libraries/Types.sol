@@ -16,10 +16,10 @@ library T {
         WVC
     }
 
-    /// @title Splits
+    /// @title Shares
     /// @dev Represents the distribution of funds to a specific address.
     /// @notice This struct is used to define the share of funds (e.g., royalties, service fees) that should be allocated to a particular address.
-    struct Splits {
+    struct Shares {
         address target;
         uint256 bps; // Basis points, with 10000 bps being equivalent to 100%.
     }
@@ -37,7 +37,7 @@ library T {
     /// @notice This struct encapsulates the transaction details and the splits of funds.
     struct Payouts {
         Transaction t9n;
-        Splits[] s4s;
+        Shares[] s4s;
     }
 
     /**

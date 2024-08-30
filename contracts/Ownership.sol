@@ -65,6 +65,13 @@ abstract contract Ownership is
 
     }
 
+    /// @notice Function that should revert when msg.sender is not authorized to upgrade the contract.
+    /// @param newImplementation The address of the new implementation contract.
+    /// @dev See https://docs.openzeppelin.com/contracts/4.x/api/proxy#UUPSUpgradeable-_authorizeUpgrade-address-
+    function _authorizeUpgrade(
+        address newImplementation
+    ) internal override onlyAdmin {}
+
     /// @notice Modifier to ensure content is approved before distribution.
     /// @param to The address attempting to distribute the content.
     /// @param contentId The ID of the content to be distributed.
@@ -130,6 +137,7 @@ abstract contract Ownership is
         override(
             IERC165,
             ERC721Upgradeable,
+            AccessControlUpgradeable,
             ERC721EnumerableUpgradeable
         )
         returns (bool)

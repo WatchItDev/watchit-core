@@ -13,7 +13,7 @@ export async function deployRepository() {
 export async function deployPopulatedRepository() {
   const repo = await deployRepository()
   const treasury = await deployTreasury()
-  // 2 = TREASURE
-  repo.populate([2], [await treasury.getAddress()])
+  // 3 = TREASURE
+  repo.populate([3], [await treasury.getAddress()])
   return repo
 }

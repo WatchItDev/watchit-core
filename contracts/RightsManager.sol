@@ -13,7 +13,7 @@ import "contracts/base/upgradeable/CurrencyManagerUpgradeable.sol";
 import "contracts/base/upgradeable/GovernableUpgradeable.sol";
 import "contracts/base/upgradeable/extensions/RightsManagerContentAccessUpgradeable.sol";
 import "contracts/base/upgradeable/extensions/RightsManagerCustodialUpgradeable.sol";
-import "contracts/base/upgradeable/extensions/RightsManagerDelegationUpgradeable.sol";
+import "contracts/base/upgradeable/extensions/RightsManagerPolicyControllerUpgradeable.sol";
 import "contracts/interfaces/IRegistrableVerifiable.sol";
 import "contracts/interfaces/IReferendumVerifiable.sol";
 import "contracts/interfaces/IRightsManager.sol";
@@ -40,7 +40,7 @@ contract RightsManager is
     CurrencyManagerUpgradeable,
     RightsManagerCustodialUpgradeable,
     RightsManagerContentAccessUpgradeable,
-    RightsManagerDelegationUpgradeable,
+    RightsManagerPolicyControllerUpgradeable,
     IRightsManager
 {
     using TreasuryHelper for address;
@@ -156,7 +156,7 @@ contract RightsManager is
     function _allocate(
         uint256 amount,
         address currency,
-        T.Splits[] memory splits
+        T.Shares[] memory splits
     ) private returns (uint256) {
         // Ensure there's a distribution or return the full amount.
         if (splits.length == 0) return amount;
@@ -311,8 +311,41 @@ contract RightsManager is
             _checkActiveContent(contentId);
     }
 
-    // TODO grantCustody with signature
-    /// @inheritdoc IRightsCustodial
+    /// @inheritdoc IRightsPolicyControllerAuthorizer
+    /// @notice Grants operational rights for a specific content ID to a policy.
+    /// @param policy The address of the policy contract to which the rights are being granted.
+    /// @param contentId The ID of the content for which the rights are being granted.
+    function grantRights(
+        address policy,
+        uint256 contentId
+    )
+        external
+        onlyHolder(contentId)
+        onlyRegisteredContent(contentId)
+        onlyPolicyContract(policy)
+    {
+        _delegateRights(policy, contentId);
+        emit RightsDelegated(policy, contentId);
+    }
+
+    /// @inheritdoc IRightsPolicyControllerRevoker
+    /// @notice Revokes operational rights for a specific policy related to a content ID.
+    /// @param policy The address of the policy contract for which rights are being revoked.
+    /// @param contentId The ID of the content associated with the policy being revoked.
+    function revokeRights(
+        address policy,
+        uint256 contentId
+    )
+        external
+        onlyHolder(contentId)
+        onlyRegisteredContent(contentId)
+        onlyPolicyContract(policy)
+    {
+        _revokeRights(policy, contentId);
+        emit RightsRevoked(policy, contentId);
+    }
+
+    /// @inheritdoc IRightsCustodialGranter
     /// @notice Grants custodial rights for the content to a distributor.
     /// @param distributor The address of the distributor.
     /// @param contentId The content ID to grant custodial rights for.
@@ -331,73 +364,41 @@ contract RightsManager is
         emit GrantedCustodial(prevCustody, distributor, contentId);
     }
 
-    /// @inheritdoc IRightsDelegable
-    /// @notice Delegates rights for a specific content ID to a license policy.
-    /// @param policy The address of the policy contract to delegate rights to.
-    /// @param contentId The content ID for which rights are being delegated.
-    function delegateRights(
-        address policy,
-        uint256 contentId
-    )
-        external
-        onlyHolder(contentId)
-        onlyRegisteredContent(contentId)
-        onlyPolicyContract(policy)
-    {
-        _delegateRights(policy, contentId);
-        emit RightsDelegated(policy, contentId);
-    }
-
-    /// @inheritdoc IRightsDelegable
-    /// @notice Revoke rights for a specific content ID to a license policy.
-    /// @param policy The address of license policy contract to revoke rights to.
-    /// @param contentId The content ID for which rights are being revoked.
-    function revokeRights(
-        address policy,
-        uint256 contentId
-    )
-        external
-        onlyHolder(contentId)
-        onlyRegisteredContent(contentId)
-        onlyPolicyContract(policy)
-    {
-        _revokeRights(policy, contentId);
-        emit RightsRevoked(policy, contentId);
-    }
-
     /// @inheritdoc IRightsAccessController
-    /// @notice Registers and enforces access for a specific account to a content ID based on the conditions set by a policy.
+    /// @notice Enforces access for a specific account to a content ID based on the conditions set by a policy.
+    /// @dev This function is intended to be called only by the policy contracts (`IPolicy`)
+    ///      themselves, functioning as a self-executing mechanism for policies.
+    ///      It handles the transaction processing, fee negotiation, and distribution of payouts
+    ///      according to the terms defined by the policy.
     /// @param account The address of the account to be granted access to the content.
     /// @param contentId The unique identifier of the content for which access is being registered.
-    /// @param policy The address of the policy contract responsible for validating and enforcing the access conditions.
-    /// @dev Access is granted only if the specified policy contract is valid and has the necessary delegation rights.
-    /// If the policy conditions are not met, access will not be registered, and the operation will be rejected.
-    function registerPolicy(
+    function grantAccess(
         uint256 contentId,
-        address account,
-        address policy
+        address account
     )
         external
         payable
         nonReentrant
         onlyRegisteredContent(contentId)
-        onlyWhenRightsDelegated(policy, contentId)
+        onlyWhenPolicyAuthorized(_msgSender(), contentId)
     {
         // in some cases the content or distributor could be revoked..
         if (!isEligibleForDistribution(contentId))
             revert InvalidNotAllowedContent();
 
+        address policyAddress = _msgSender();
+        IPolicy policy = IPolicy(policyAddress);
+        T.Payouts memory alloc = policy.payouts(account, contentId);
+
         address custodial = getCustody(contentId);
         uint256 custodials = getCustodyCount(custodial);
-        IPolicy authorizedPolicy = IPolicy(policy);
-        T.Payouts memory alloc = authorizedPolicy.payouts(account, contentId);
         IDistributor distributor = IDistributor(custodial);
-        // The user, owner or delegated policy must ensure that the necessary steps
+        // The delegated policy must ensure that the necessary steps
         // are taken to handle the transaction value or set the appropriate
         // approve/allowance for the RM (Rights Management) contract.
         uint256 amount = alloc.t9n.amount;
         address currency = alloc.t9n.currency;
-        uint256 total = _msgSender().safeDeposit(amount, currency);
+        uint256 total = policyAddress.safeDeposit(amount, currency);
         //!IMPORTANT if distributor or trasury does not support the currency, will revert..
         // the max bps integrity is warrantied by treasure fees
         uint256 treasury = total.perOf(getFees(currency)); // bps
@@ -409,7 +410,7 @@ contract RightsManager is
         // register split distribution in ledger..
         _sumLedgerEntry(ownership.ownerOf(contentId), remaining, currency);
         _sumLedgerEntry(distributor.getManager(), accepted, currency);
-        _registerPolicy(account, contentId, policy);
+        _registerPolicy(account, contentId, policyAddress);
         emit GrantedAccess(account, contentId);
     }
 }

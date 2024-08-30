@@ -4,15 +4,15 @@ pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "contracts/interfaces/IRightsDelegable.sol";
+import "contracts/interfaces/IRightsPolicyController.sol";
 import "contracts/libraries/Types.sol";
 
-/// @title Rights Manager Delegation Upgradeable
+/// @title Rights Manager Policy Controller Upgradeable
 /// @notice This abstract contract manages the delegation of rights
-/// for specific content IDs to various strategy policy.
-abstract contract RightsManagerDelegationUpgradeable is
+/// for specific content IDs to various policy.
+abstract contract RightsManagerPolicyControllerUpgradeable is
     Initializable,
-    IRightsDelegable
+    IRightsPolicyController
 {
     using EnumerableSet for EnumerableSet.AddressSet;
     /// @custom:storage-location erc7201:rightsmanagerdelegationupgradeable
@@ -47,22 +47,22 @@ abstract contract RightsManagerDelegationUpgradeable is
 
     /// @dev Modifier to ensure that the given policy contract has been delegated
     /// the rights for the specific content ID.
-    /// @param grantee The address of the account or contract to delegate rights to.
+    /// @param policy The address of policy contract to delegate rights to.
     /// @param contentId The content ID to check for delegation.
     /// Reverts if the rights have not been delegated for the content ID.
-    modifier onlyWhenRightsDelegated(address grantee, uint256 contentId) {
+    modifier onlyWhenPolicyAuthorized(address policy, uint256 contentId) {
         RightsStorage storage $ = _getRightsStorage();
-        if (!$._delegation[contentId].contains(grantee))
-            revert InvalidNotRightsDelegated(grantee, contentId);
+        if (!$._delegation[contentId].contains(policy))
+            revert InvalidNotRightsDelegated(policy, contentId);
         _;
     }
 
-    /// @notice Retrieves all grantees for which rights have been delegated to a content id.
+    /// @notice Retrieves all policies for which rights have been delegated to a content id.
     /// @dev This function returns an array of grantees' addresses that the specified content ID
     /// has been delegated rights for. 
     /// @param contentId The content ID for which rights are being delegated.
-    /// @return An array of grantee addresses that have been delegated rights for the specified content ID.
-    function getDelegatedRights(
+    /// @return An array of policies addresses that have been delegated rights for the specified content ID.
+    function getContentPolicies(
         uint256 contentId
     ) public view returns (address[] memory) {
         RightsStorage storage $ = _getRightsStorage();
@@ -74,18 +74,18 @@ abstract contract RightsManagerDelegationUpgradeable is
         return $._delegation[contentId].values();
     }
 
-    /// @notice Delegates rights for a specific content ID to a grantee.
+    /// @notice Delegates rights for a specific content ID to a policy.
     /// @dev This function stores the delegation details in the RightsStorage struct.
-    /// @param grantee The address of the account or contract to delegate rights to.
+    /// @param policy The address of the policy contract to delegate rights to.
     /// @param contentId The content ID for which rights are being delegated.
-    function _registerPolicy(address grantee, uint256 contentId) internal {
+    function _authorizeRights(address policy, uint256 contentId) internal {
         RightsStorage storage $ = _getRightsStorage();
         $._delegation[contentId].add(grantee);
     }
 
-    /// @notice Revokes the delegation of rights for a grantee.
+    /// @notice Revokes the delegation of rights to a policy.
     /// @dev This function removes the rights delegation from the RightsStorage struct.
-    /// @param grantee The address of the account or contract whose delegation is being revoked.
+    /// @param policy The address of the policy contract whose delegation is being revoked.
     /// @param contentId The content ID for which rights are being delegated.
     function _revokePolicy(address grantee, uint256 contentId) internal {
         RightsStorage storage $ = _getRightsStorage();

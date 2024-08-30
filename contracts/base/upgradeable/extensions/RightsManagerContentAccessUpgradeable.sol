@@ -10,7 +10,7 @@ import "contracts/interfaces/IPolicy.sol";
 import "contracts/libraries/Types.sol";
 
 /// @title Rights Manager Content Access Upgradeable
-/// @notice This abstract contract manages content access control using a license
+/// @notice This abstract contract manages content access control using a
 /// policy contract that must implement the IPolicy interface.
 abstract contract RightsManagerContentAccessUpgradeable is
     Initializable,
@@ -46,7 +46,6 @@ abstract contract RightsManagerContentAccessUpgradeable is
 
     /// @dev Error thrown when the policy contract does not implement the IPolicy interface.
     error InvalidPolicyContract(address);
-    // error MaxPoliciesReached();
 
     /// @dev Modifier to check that a policy contract implements the IPolicy interface.
     /// @param policy The address of the license policy contract.
@@ -74,59 +73,16 @@ abstract contract RightsManagerContentAccessUpgradeable is
         $._acl[account][contentId] = policy;
     }
 
-    /// @notice Verifies whether access is allowed for a specific account and content based on a given license.
-    /// @param account The address of the account to verify access for.
-    /// @param contentId The ID of the content for which access is being checked.
-    /// @param policy The address of the license policy contract used to verify access.
-    /// @return Returns true if the account is granted access to the content based on the license, false otherwise.
-    function _verify(
-        address account,
-        uint256 contentId,
-        address policy
-    ) private view returns (bool) {
-        // if not registered license policy..
-        if (policy == address(0)) return false;
-        IPolicy policy_ = IPolicy(policy);
-        return policy_.comply(account, contentId);
-    }
-
-    // TODO potential improvement getChainedPolicies
-    // allowing concatenate policies to evaluate compliance...
-    // This approach supports complex access control scenarios where multiple factors need to be considered.
-
     /// @inheritdoc IRightsAccessController
-    /// @notice Retrieves the first active policy for a specific user and content in LIFO order.
+    /// @notice Retrieves the registered policy for a specific user and content ID.
     /// @param account The address of the account to evaluate.
     /// @param contentId The content ID to evaluate policies for.
-    /// @return A tuple containing:
-    /// - A boolean indicating whether an active policy was found (`true`) or not (`false`).
-    /// - The address of the active policy if found, or `address(0)` if no active policy is found.
-    function getActivePolicy(
+    function getAccessPolicy(
         address account,
         uint256 contentId
-    ) public view returns (bool, address) {
+    ) public view returns (address) {
         ACLStorage storage $ = _getACLStorage();
         // Add the new policy as the most recent, following LIFO precedence
-        address policy = $._acl[account][contentId];
-        bool comply = _verify(account, contentId, policy);
-        if (comply) return (true, policy);
-        return (false, address(0));
-
-        // TODO in the future a multiple policies evaluation could be considered..
-        // address[] memory policies = getPolicies(account, contentId);
-        // uint256 i = policies.length - 1;
-
-        // while (true) {
-        //     // LIFO precedence order: last registered policy is evaluated first..
-        //     // The first complying it is returned..
-        //     bool comply = _verify(account, contentId, policies[i]);
-        //     if (comply) return (true, policies[i]);
-        //     if (i == 0) break;
-        //     unchecked {
-        //         --i;
-        //     }
-        // }
-        // // no active policy found
-        // return (false, address(0));
+        return  $._acl[account][contentId];
     }
 }

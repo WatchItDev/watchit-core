@@ -7,11 +7,11 @@ import "./IFundsManager.sol";
 import "./IFeesManager.sol";
 import "./IDisburser.sol";
 import "./IRightsCustodial.sol";
-import "./IRightsDelegable.sol";
+import "./IRightsPolicyController.sol";
 import "./IRightsCustodialGranter.sol";
-import "./IRightsDelegableDelegator.sol";
-import "./IRightsDelegableRevoker.sol";
 import "./IRightsAccessController.sol";
+import "./IRightsPolicyControllerRevoker.sol";
+import "./IRightsPolicyControllerAuthorizer.sol";
 import "./IRightsAccessControllerRegistrar.sol";
 import "./IContentVault.sol";
 
@@ -22,11 +22,11 @@ interface IRightsManager is
     IFeesManager,
     IFundsManager,
     IRightsCustodial,
-    IRightsDelegable,
+    IRightsPolicyController,
     IRightsAccessController,
     IRightsCustodialGranter,
-    IRightsDelegableRevoker,
-    IRightsDelegableDelegator,
+    IRightsPolicyControllerRevoker,
+    IRightsPolicyControllerAuthorizer,
     IRightsAccessControllerRegistrar
 {
     /// @notice Checks if the content is eligible for distribution.

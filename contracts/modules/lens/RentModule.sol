@@ -193,7 +193,10 @@ contract RentModule is
         return "LensRentModule";
     }
 
-    function term(address account, uint256 contentId) returns (bytes memory) {}
+    function terms(
+        address account,
+        uint256 contentId
+    ) public view returns (bytes memory) {}
 
     function comply(
         address account,
@@ -219,7 +222,7 @@ contract RentModule is
                 // If a distribution is set, e.g., a=>5%, b=>5%, owner=>remaining 90%,
                 // if the distribution sums to 100%, the owner receives 0.
                 // This can be used to manage various business logic for content distribution.
-                new T.Splits[](0)
+                new T.Shares[](0)
             );
     }
 
