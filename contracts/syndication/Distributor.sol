@@ -53,7 +53,7 @@ contract Distributor is
 
         if (bytes(_endpoint).length == 0) revert InvalidEndpoint();
         // balanced factors
-        flattenFactor = 5;
+        flattenFactor = 30;
         endpoint = _endpoint;
     }
 
@@ -161,6 +161,25 @@ contract Distributor is
         uint256 proposedFees = fees.perOf(bps);
         uint256 adjustedFloor = _getAdjustedFloor(floor[currency], demand);
         return proposedFees < adjustedFloor ? adjustedFloor : proposedFees;
+    }
+
+    /// @inheritdoc IFundsManager
+    /// @notice Withdraws erc20 fund from the contract to a specified recipient's address.
+    /// @param amount The amount of funds to withdraw.
+    /// @param currency The currency to associate fees with.
+    function withdraw(
+        uint256 amount,
+        address currency
+    ) external onlyOwner onlySupportedCurrency(currency) {
+        owner().transfer(amount, currency);
+        // TODO add event
+    }
+
+    /// @inheritdoc IFundsManager
+    /// @notice Withdraws native funds from the contract to a specified recipient's address.
+    /// @param amount The amount of funds to withdraw.
+    function withdraw(uint256 amount) external onlyOwner {
+        owner().transfer(amount);
     }
 
     /// @inheritdoc IERC165

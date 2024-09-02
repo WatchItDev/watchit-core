@@ -34,16 +34,15 @@ contract RentalPolicy is IPolicy {
     }
 
     // Función para que un usuario rente un contenido específico
-    function rent(uint256 contentId) external payable {
+    function execute(T.Deal calldata deal, bytes calldata data) external payable onlyRM returns (bool, string) {
+        uint256 memory contentId = abi.decode(data, (uint256));
         Content memory content = contents[contentId];
-        require(content.rentalDuration > 0, "Content does not exist");
-        require(msg.value >= content.price, "Insufficient funds for rental");
+        if(content.rentalDuration <= 0) return (false, "Content does not exist");
+        if(deal.total < content.price) return (false, "Insufficient funds for rental");
 
         // Establece la renta del usuario
         rentals[msg.sender][contentId] = block.timestamp + content.rentalDuration;
-
-        // Registra la política en el RightsManager
-        rightsManager.registerPolicy{value: msg.value}(contentId, msg.sender);
+        return (true, "");
     }
 
     // Retorna los términos de acceso para un usuario y un contenido
@@ -57,10 +56,7 @@ contract RentalPolicy is IPolicy {
     }
 
     // Define cómo se manejarán los pagos de renta
-    function payouts(address account, uint256 contentId) external view override returns (T.Payouts memory) {
-        T.Payouts memory payout;
-        payout.t9n.amount = contents[contentId].price; // Precio del contenido
-        payout.t9n.currency = address(0); // Asume moneda nativa (ETH)
+    function payouts() external view override returns (T.Payouts memory) {
         payout.s4s = new T.Shares ;
         payout.s4s[0] = T.Shares({account: 0xCreatorAddress, value: 70}); // 70% al creador
         payout.s4s[1] = T.Shares({account: 0xPlatformAddress, value: 30}); // 30% a la plataforma

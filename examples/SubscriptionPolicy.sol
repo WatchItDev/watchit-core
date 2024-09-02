@@ -56,16 +56,16 @@ contract SubscriptionPolicy is IPolicy {
     }
 
     // Verifica si el usuario tiene una suscripción activa y si el contenido está en el paquete usando Merkle Proof
-    function comply(address account, uint256 contentId, bytes32[] calldata merkleProof) external view override returns (bool) {
-        uint256 packageId = _findPackageForContent(account, contentId);
-        uint256 expiration = subscriptions[account][packageId];
-        if (block.timestamp > expiration) {
-            return false; // La suscripción ha expirado
-        }
+    function comply(bytes calldata terms) external view override returns (bool) {
+        // uint256 packageId = _findPackageForContent(account, contentId);
+        // uint256 expiration = subscriptions[account][packageId];
+        // if (block.timestamp > expiration) {
+        //     return false; // La suscripción ha expirado
+        // }
 
-        // Verifica que el contentId esté en el Merkle Tree del paquete correspondiente usando Merkle Proof almacenado
-        bytes32 leaf = keccak256(abi.encodePacked(contentId));
-        return MerkleProof.verify(merckleProof, packages[packageId].merkleRoot, leaf);
+        // // Verifica que el contentId esté en el Merkle Tree del paquete correspondiente usando Merkle Proof almacenado
+        // bytes32 leaf = keccak256(abi.encodePacked(contentId));
+        // return MerkleProof.verify(merckleProof, packages[packageId].merkleRoot, leaf);
     }
 
     // Encuentra el packageId para un contentId dado asociado a un usuario

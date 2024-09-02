@@ -2,10 +2,11 @@
 pragma solidity ^0.8.24;
 
 interface IRightsCustodial {
-       /// @notice Retrieves the custodial address for the given content ID and ensures it is active.
-    /// @param contentId The ID of the content.
-    /// @return The address of the active custodial.
-    function getCustody(uint256 contentId) external view returns (address);
+    /// @notice Retrieves the custodial address for a given content holder.
+    /// @dev This function returns the current custodian responsible for the content associated with the specified holder.
+    /// @param holder The address of the content rights holder whose custodial address is being retrieved.
+    /// @return The address of the active custodian responsible for the content associated with the specified holder.
+    function getCustody(address holder) external view returns (address);
 
     /// @notice Retrieves the total number of content items in custody for a given distributor.
     /// @dev This function accesses the CustodyStorage to fetch the count of content associated with the specified distributor.

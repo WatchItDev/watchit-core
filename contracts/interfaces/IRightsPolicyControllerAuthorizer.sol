@@ -3,8 +3,9 @@ pragma solidity ^0.8.24;
 import "contracts/libraries/Types.sol";
 
 interface IRightsPolicyControllerAuthorizer {
-    /// @notice Grants operational rights for a specific content ID to a policy.
-    /// @param policy The address of the policy contract to which the rights are being granted.
-    /// @param contentId The ID of the content for which the rights are being granted.
-    function grantRights(address policy, uint256 contentId) external;
+    /// @notice Delegates rights for a specific content ID to a policy contract.
+    /// @dev This function stores the delegation details in the RightsStorage struct,
+    ///      allowing the specified policy contract to manage rights for the content holder.
+    /// @param policy The address of the policy contract to which rights are being delegated.
+    function authorizePolicy(address policy) external;
 }

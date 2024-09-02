@@ -2,10 +2,8 @@
 pragma solidity ^0.8.24;
 
 interface IRightsCustodialGranter {
-    /// @notice Assigns distribution rights over the content.
-    /// @dev The distributor must be active.
-    /// @param contentId The ID of the content to assign.
-    /// @param distributor The address of the distributor to assign the content to.
-    function grantCustody(uint256 contentId, address distributor) external;
-
+    /// @notice Grants custodial rights over the content held by a holder to a distributor.
+    /// @param distributor The address of the distributor who will receive custodial rights.
+    /// @param contentHolder The address of the account that owns the content for which custodial rights are being granted.
+    function grantCustody(address contentHolder, address distributor) external;
 }

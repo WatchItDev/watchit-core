@@ -6,20 +6,23 @@ import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+
 import "contracts/base/upgradeable/LedgerUpgradeable.sol";
 import "contracts/base/upgradeable/FeesManagerUpgradeable.sol";
 import "contracts/base/upgradeable/TreasurerUpgradeable.sol";
 import "contracts/base/upgradeable/CurrencyManagerUpgradeable.sol";
 import "contracts/base/upgradeable/GovernableUpgradeable.sol";
+
+import "contracts/base/upgradeable/extensions/RightsManagerBrokerUpgradeable.sol";
 import "contracts/base/upgradeable/extensions/RightsManagerContentAccessUpgradeable.sol";
 import "contracts/base/upgradeable/extensions/RightsManagerCustodialUpgradeable.sol";
 import "contracts/base/upgradeable/extensions/RightsManagerPolicyControllerUpgradeable.sol";
+
 import "contracts/interfaces/IRegistrableVerifiable.sol";
 import "contracts/interfaces/IReferendumVerifiable.sol";
 import "contracts/interfaces/IRightsManager.sol";
 import "contracts/interfaces/IPolicy.sol";
 import "contracts/interfaces/IDistributor.sol";
-import "contracts/interfaces/IOwnership.sol";
 import "contracts/interfaces/IRepository.sol";
 import "contracts/libraries/TreasuryHelper.sol";
 import "contracts/libraries/FeesHelper.sol";
@@ -32,12 +35,12 @@ import "contracts/libraries/Types.sol";
 contract RightsManager is
     Initializable,
     UUPSUpgradeable,
-    LedgerUpgradeable,
     FeesManagerUpgradeable,
     GovernableUpgradeable,
     TreasurerUpgradeable,
     ReentrancyGuardUpgradeable,
     CurrencyManagerUpgradeable,
+    RightsManagerBrokerUpgradeable,
     RightsManagerCustodialUpgradeable,
     RightsManagerContentAccessUpgradeable,
     RightsManagerPolicyControllerUpgradeable,
@@ -50,7 +53,7 @@ contract RightsManager is
     /// @param prevCustody The previous distributor custodial address.
     /// @param newCustody The new distributor custodial address.
     /// @param contentId The content identifier.
-    event GrantedCustodial(
+    event CustodialGranted(
         address indexed prevCustody,
         address indexed newCustody,
         uint256 contentId
@@ -62,8 +65,8 @@ contract RightsManager is
         address currency
     );
 
-    event GrantedAccess(address account, uint256 contentId);
-    event RightsDelegated(address indexed policy, uint256 contentId);
+    event AccessGranted(address account, bytes32 proof, uint256 contentId);
+    event RightsGranted(address indexed policy, uint256 contentId);
     event RightsRevoked(address indexed policy, uint256 contentId);
 
     /// KIM: any initialization here is ephimeral and not included in bytecode..
@@ -72,8 +75,11 @@ contract RightsManager is
     /// https://docs.openzeppelin.com/upgrades-plugins/1.x/proxies#the-constructor-caveat
     IRegistrableVerifiable private syndication;
     IReferendumVerifiable private referendum;
-    IOwnership private ownership;
 
+    /// @dev Error thrown when attempting to operate on a policy that has not been delegated rights for the specified content.
+    /// @param policy The address of the policy contract attempting to access rights.
+    /// @param holder The content rights holder.
+    error InvalidNotRightsDelegated(address policy, address holder);
     /// @dev Error that is thrown when a restricted access to the holder is attempted.
     error RestrictedAccessToHolder();
     /// @dev Error that is thrown when a content hash is already registered.
@@ -82,7 +88,6 @@ contract RightsManager is
     error InvalidUnknownContent();
     error InvalidAccessValidation(string reason);
     error InvalidAlreadyRegisteredContent();
-    error NoFundsToWithdraw(address);
     error NoDeal(string reason);
 
     /// @dev Constructor that disables initializers to prevent the implementation contract from being initialized.
@@ -100,7 +105,6 @@ contract RightsManager is
         address repository,
         uint256 initialFee
     ) public initializer onlyBasePointsAllowed(initialFee) {
-        __Ledger_init();
         __Governable_init();
         __UUPSUpgradeable_init();
         __ReentrancyGuard_init();
@@ -110,11 +114,9 @@ contract RightsManager is
         // initialize dependencies for RM
         IRepository repo = IRepository(repository);
         address treasuryAddress = repo.getContract(T.ContractTypes.TRE);
-        address ownershipAddress = repo.getContract(T.ContractTypes.OWN);
         address syndicationAddress = repo.getContract(T.ContractTypes.SYN);
         address referendumAddress = repo.getContract(T.ContractTypes.REF);
 
-        ownership = IOwnership(ownership);
         syndication = IRegistrableVerifiable(syndicationAddress);
         referendum = IReferendumVerifiable(referendumAddress);
 
@@ -182,8 +184,7 @@ contract RightsManager is
             if (bps == 0) continue;
             // Calculate and register the allocation for each distribution.
             uint256 registeredAmount = amount.perOf(bps);
-            _sumLedgerEntry(target, registeredAmount, currency);
-
+            target.transfer(registeredAmount, currency);
             accTotal += registeredAmount;
             accBps += bps;
         }
@@ -192,23 +193,6 @@ contract RightsManager is
         if (accBps > C.BPS_MAX)
             revert NoDeal("Invalid split base points overflow.");
         return amount - accTotal; // Return the remaining unallocated amount.
-    }
-
-    /// @notice Modifier to restrict access to the holder only or their delegate.
-    /// @param contentId The content hash to give distribution rights.
-    /// @dev Only the holder of the content can pass this validation.
-    modifier onlyHolder(uint256 contentId) {
-        if (ownership.ownerOf(contentId) != _msgSender())
-            revert RestrictedAccessToHolder();
-        _;
-    }
-
-    /// @notice Modifier to check if the content is registered.
-    /// @param contentId The content hash to check.
-    modifier onlyRegisteredContent(uint256 contentId) {
-        if (ownership.ownerOf(contentId) == address(0))
-            revert InvalidUnknownContent();
-        _;
     }
 
     /// @notice Modifier to check if the distributor is active and not blocked.
@@ -275,142 +259,138 @@ contract RightsManager is
     function disburse(uint256 amount) external onlyGov {
         // collect native coins and send it to treasury
         address treasury = getTreasuryAddress();
-        // if no balance revert..
-        treasury.transfer(amount);
+        treasury.transfer(amount); // if no native balance revert..
         emit FeesDisbursed(treasury, amount, address(0));
     }
 
-    /// @inheritdoc IFundsManager
-    /// @notice Withdraws funds from the contract to a specified recipient's address.
-    /// @param amount The amount of funds to withdraw.
-    /// @param currency The address of the ERC20 token to withdraw, or address(0) to withdraw native coins.
-    function withdraw(
-        uint256 amount,
-        address currency
-    ) external onlyValidCurrency(currency) {
-        address recipient = _msgSender();
-        uint256 available = getLedgerEntry(recipient, currency);
-        if (available < amount) revert NoFundsToWithdraw(recipient);
-
-        recipient.transfer(amount, currency);
-        _subLedgerEntry(recipient, amount, currency);
-    }
-
     /// @inheritdoc IRightsManager
-    /// @notice Checks if the content is eligible for distribution.
-    /// @param contentId The ID of the content.
+    /// @notice Checks if the content is eligible for distribution by the content holder's custodial.
+    /// @dev This function verifies whether the specified content can be distributed, based on the status of the custodial rights
+    ///      and the content's activation state in related contracts.
+    /// @param contentId The ID of the content to check for distribution eligibility.
+    /// @param contentHolder The address of the content holder whose custodial rights are being checked.
     /// @return True if the content can be distributed, false otherwise.
     function isEligibleForDistribution(
-        uint256 contentId
+        uint256 contentId,
+        address contentHolder
     ) public returns (bool) {
         // Perform checks to ensure the content/distributor has not been blocked.
         // Check if the content's custodial is active in the Syndication contract
         // and if the content is active in the Referendum contract.
         return
-            _checkActiveDistributor(getCustody(contentId)) &&
+            _checkActiveDistributor(getCustody(contentHolder)) &&
             _checkActiveContent(contentId);
     }
 
+    /// @inheritdoc IRightsCustodialGranter
+    /// @notice Grants custodial rights over the content held by a holder to a distributor.
+    /// @dev This function assigns custodial rights for the content held by a specific account to a designated distributor.
+    ///      The function emits an event indicating the previous and new custodian.
+    /// @param distributor The address of the distributor who will receive custodial rights.
+    function grantCustody(
+        address distributor
+    ) external onlyActiveDistributor(distributor) {
+        // if it's first custody assignment prev = address(0)
+        address contentHolder = _msgSender();
+        address prevCustody = getCustody(contentHolder);
+        _grantCustody(distributor, contentHolder);
+        emit CustodialGranted(prevCustody, distributor, contentHolder);
+    }
+
     /// @inheritdoc IRightsPolicyControllerAuthorizer
-    /// @notice Grants operational rights for a specific content ID to a policy.
-    /// @param policy The address of the policy contract to which the rights are being granted.
-    /// @param contentId The ID of the content for which the rights are being granted.
-    function grantRights(
-        address policy,
-        uint256 contentId
-    )
-        external
-        onlyHolder(contentId)
-        onlyRegisteredContent(contentId)
-        onlyPolicyContract(policy)
-    {
-        _delegateRights(policy, contentId);
-        emit RightsDelegated(policy, contentId);
+    /// @notice Delegates rights to a policy contract for content held by the holder.
+    /// @param policy The address of the policy contract to which rights are being delegated.
+    function authorizePolicy(
+        address policy
+    ) external onlyPolicyContract(policy) {
+        address holder = _msgSender();
+        _authorizePolicy(policy, holder);
+        emit RightsGranted(policy, holder);
     }
 
     /// @inheritdoc IRightsPolicyControllerRevoker
-    /// @notice Revokes operational rights for a specific policy related to a content ID.
-    /// @param policy The address of the policy contract for which rights are being revoked.
-    /// @param contentId The ID of the content associated with the policy being revoked.
-    function revokeRights(
-        address policy,
-        uint256 contentId
-    )
-        external
-        onlyHolder(contentId)
-        onlyRegisteredContent(contentId)
-        onlyPolicyContract(policy)
-    {
-        _revokeRights(policy, contentId);
-        emit RightsRevoked(policy, contentId);
+    /// @notice Revokes the delegation of rights to a policy contract.
+    /// @param policy The address of the policy contract whose rights delegation is being revoked.
+    function revokePolicy(address policy) external onlyPolicyContract(policy) {
+        address holder = _msgSender();
+        _revokePolicy(policy, holder);
+        emit RightsRevoked(policy, holder);
     }
 
-    /// @inheritdoc IRightsCustodialGranter
-    /// @notice Grants custodial rights for the content to a distributor.
-    /// @param distributor The address of the distributor.
-    /// @param contentId The content ID to grant custodial rights for.
-    function grantCustody(
-        uint256 contentId,
-        address distributor
-    )
-        external
-        onlyActiveDistributor(distributor)
-        onlyRegisteredContent(contentId)
-        onlyHolder(contentId)
-    {
-        // if it's first custody assignment prev = address(0)
-        address prevCustody = getCustody(contentId);
-        _grantCustody(distributor, contentId);
-        emit GrantedCustodial(prevCustody, distributor, contentId);
-    }
-
-    /// @inheritdoc IRightsAccessController
-    /// @notice Enforces access for a specific account to a content ID based on the conditions set by a policy.
-    /// @dev This function is intended to be called only by the policy contracts (`IPolicy`)
-    ///      themselves, functioning as a self-executing mechanism for policies.
-    ///      It handles the transaction processing, fee negotiation, and distribution of payouts
-    ///      according to the terms defined by the policy.
-    /// @param account The address of the account to be granted access to the content.
-    /// @param contentId The unique identifier of the content for which access is being registered.
-    function grantAccess(
-        uint256 contentId,
+    /// @inheritdoc IRightsDealBroker
+    /// @notice Creates a new deal between the account and the content holder, returning a unique deal identifier.
+    /// @dev This function handles the creation of a new deal by negotiating terms, calculating fees, and generating a unique proof of the deal.
+    ///      The deal is represented by a unique identifier (dealProof), which can be used to enforce or execute the deal.
+    /// @param total The total amount involved in the deal.
+    /// @param currency The address of the ERC20 token (or native currency) being used in the deal.
+    /// @param holder The address of the content holder whose content is being accessed.
+    /// @param account The address of the account proposing the deal.
+    /// @return bytes32 A unique identifier (dealProof) representing the created deal.
+    function createDeal(
+        uint256 total,
+        address currency,
+        address holder,
         address account
-    )
-        external
-        payable
-        nonReentrant
-        onlyRegisteredContent(contentId)
-        onlyWhenPolicyAuthorized(_msgSender(), contentId)
-    {
-        // in some cases the content or distributor could be revoked..
-        if (!isEligibleForDistribution(contentId))
-            revert InvalidNotAllowedContent();
-
-        address policyAddress = _msgSender();
-        IPolicy policy = IPolicy(policyAddress);
-        T.Payouts memory alloc = policy.payouts(account, contentId);
-
-        address custodial = getCustody(contentId);
+    ) external returns (bytes32) {
+        address custodial = getCustody(holder);
         uint256 custodials = getCustodyCount(custodial);
         IDistributor distributor = IDistributor(custodial);
-        // The delegated policy must ensure that the necessary steps
-        // are taken to handle the transaction value or set the appropriate
-        // approve/allowance for the RM (Rights Management) contract.
-        uint256 amount = alloc.t9n.amount;
-        address currency = alloc.t9n.currency;
-        uint256 total = policyAddress.safeDeposit(amount, currency);
-        //!IMPORTANT if distributor or trasury does not support the currency, will revert..
+        // !IMPORTANT if distributor or trasury does not support the currency, will revert..
         // the max bps integrity is warrantied by treasure fees
         uint256 treasury = total.perOf(getFees(currency)); // bps
         uint256 accepted = distributor.negotiate(total, currency, custodials);
         uint256 deductions = treasury + accepted;
-
         if (deductions > total) revert NoDeal("The fees are too high.");
-        uint256 remaining = _allocate(total - deductions, currency, alloc.s4s);
+        // create a new deal to interact with register policy
+        T.Deal memory deal = T.Deal(
+            total,
+            total - deductions,
+            accepted,
+            account,
+            currency,
+            holder,
+            custodial
+        );
+
+        // keccak256(abi.encodePacked(deal))
+        return _createProof(deal);
+    }
+
+    /// @inheritdoc IRightsDealBroker
+    /// @notice Close the deal by confirming the terms and executing the necessary transactions.
+    /// @dev This function finalizes the deal created by the account. It validates the proposal, executes the agreed terms, and allocates payments.
+    ///      Once closed, the dealProof can be used to track the agreement's completion.
+    /// @param dealProof The unique identifier of the created deal.
+    /// @param policyAddress The address of the policy contract that governs the terms.
+    /// @param data Additional data required to close the deal.
+    function closeDeal(
+        bytes32 dealProof,
+        address policyAddress,
+        bytes calldata data
+    )
+        external
+        payable
+        nonReentrant
+        onlyValidProof(dealProof)
+        onlyPolicyContract(policyAddress)
+    {
+        T.Deal deal = getDeal(dealProof);
+        // check if policy is authorized by holder to operate over content
+        if (!isPolicyAuthorized(policyAddress, deal.holder))
+            revert InvalidNotRightsDelegated(policyAddress, deal.holder);
+
+        IPolicy policy = IPolicy(policyAddress);
+        (bool success, string reason) = policy.execute(deal, data);
+        if (!success) revert NoDeal(reason);
+
+        // transfer amounts to contract and allocate payouts.
+        T.Shares memory shares = policy.payouts();
+        uint256 total = _msgSender().safeDeposit(deal.total, deal.currency);
+        uint256 remaining = _allocate(deal.amount, deal.currency, shares);
         // register split distribution in ledger..
-        _sumLedgerEntry(ownership.ownerOf(contentId), remaining, currency);
-        _sumLedgerEntry(distributor.getManager(), accepted, currency);
-        _registerPolicy(account, contentId, policyAddress);
-        emit GrantedAccess(account, contentId);
+        deal.holder.transfer(remaining, deal.currency);
+        deal.custodial.transfer(deal.fees, deal.currency);
+        _registerPolicy(deal.account, deal.holder, policyAddress);
+        emit AccessGranted(deal.account, dealProof, policyAddress);
     }
 }

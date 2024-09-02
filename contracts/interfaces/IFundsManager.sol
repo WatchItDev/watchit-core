@@ -7,9 +7,13 @@ pragma solidity ^0.8.24;
 ///      to specified recipients. The `withdraw` function should be protected to ensure that only the contract owner
 ///      or an authorized entity can initiate a withdrawal.
 interface IFundsManager {
-    /// @notice Withdraws funds from the contract to a specified recipient's address.
+    /// @notice Withdraws erc20 funds from the contract to a specified recipient's address.
     /// @param amount The amount of funds to withdraw.
-    /// @param currency The currency to associate fees with. Use address(0) for the native coin.
+    /// @param currency The currency to associate fees with. 
     function withdraw(uint256 amount, address currency) external;
+
+    /// @notice Withdraws native funds from the contract to a specified recipient's address.
+    /// @param amount The amount of funds to withdraw.
+    function withdraw(uint256 amount) external;
     // function getBalance
 }

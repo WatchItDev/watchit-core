@@ -8,27 +8,23 @@ import "contracts/interfaces/IRightsPolicyController.sol";
 import "contracts/libraries/Types.sol";
 
 /// @title Rights Manager Policy Controller Upgradeable
-/// @notice This abstract contract manages the delegation of rights
-/// for specific content IDs to various policy.
+/// @notice This abstract contract manages the delegation and revocation of rights from content holders to various policies.
+/// @dev The contract is upgradeable and uses namespaced storage to manage the delegation of rights in a way that avoids storage layout collisions.
 abstract contract RightsManagerPolicyControllerUpgradeable is
     Initializable,
     IRightsPolicyController
 {
     using EnumerableSet for EnumerableSet.AddressSet;
+
     /// @custom:storage-location erc7201:rightsmanagerdelegationupgradeable
-    /// @dev Storage struct for managing rights delegation to policies.
+    /// @dev Storage struct for managing the delegation of rights to policy contracts by content holders.
     struct RightsStorage {
-        /// @dev Mapping to store the delegated rights for each policy (address) and content ID.
-        mapping(uint256 => EnumerableSet.AddressSet) _delegation;
+        /// @dev Mapping to store the delegated rights for each policy contract (address) by each content holder (address).
+        mapping(address => EnumerableSet.AddressSet) _delegation;
     }
 
-    /// @dev Error thrown when rights have not been delegated to the specified grantee for the given content ID.
-    /// @param grantee The address of the account or contract attempting to access rights.
-    /// @param contentId The ID of the content for which access is attempted.
-    error InvalidNotRightsDelegated(address grantee, uint256 contentId);
-
     /// @dev Namespaced storage slot for RightsStorage to avoid storage layout collisions in upgradeable contracts.
-    /// @dev The storage slot is calculated using a combination of keccak256 hashes and bitwise operations.
+    ///      The storage slot is calculated using a combination of keccak256 hashes and bitwise operations.
     bytes32 private constant DELEGATION_RIGHTS_SLOT =
         0x8de86c03e9c907c4cfd46ee06d6593a7fc5fdfb6903523c8213ef37d380b3b00;
 
@@ -45,50 +41,48 @@ abstract contract RightsManagerPolicyControllerUpgradeable is
         }
     }
 
-    /// @dev Modifier to ensure that the given policy contract has been delegated
-    /// the rights for the specific content ID.
-    /// @param policy The address of policy contract to delegate rights to.
-    /// @param contentId The content ID to check for delegation.
-    /// Reverts if the rights have not been delegated for the content ID.
-    modifier onlyWhenPolicyAuthorized(address policy, uint256 contentId) {
+    /// @dev Verify if the specified policy contract has been delegated the rights by the content holder.
+    /// @param policy The address of the policy contract to check for delegation.
+    /// @param holder The content rights holder to check for delegation.
+    /// Reverts if the rights have not been delegated for the specified content ID.
+    function isPolicyAuthorized(address policy, address holder) public {
         RightsStorage storage $ = _getRightsStorage();
-        if (!$._delegation[contentId].contains(policy))
-            revert InvalidNotRightsDelegated(policy, contentId);
-        _;
+        return $._delegation[holder].contains(policy);
     }
 
-    /// @notice Retrieves all policies for which rights have been delegated to a content id.
-    /// @dev This function returns an array of grantees' addresses that the specified content ID
-    /// has been delegated rights for. 
-    /// @param contentId The content ID for which rights are being delegated.
-    /// @return An array of policies addresses that have been delegated rights for the specified content ID.
+    /// @notice Retrieves all policies to which rights have been delegated by a specific content holder.
+    /// @dev This function returns an array of policy contract addresses that have been delegated rights by the content holder.
+    /// @param holder The content rights holder whose delegated policies are being queried.
+    /// @return An array of policy contract addresses that have been delegated rights by the specified content holder.
     function getContentPolicies(
-        uint256 contentId
+        address holder
     ) public view returns (address[] memory) {
         RightsStorage storage $ = _getRightsStorage();
         // https://docs.openzeppelin.com/contracts/5.x/api/utils#EnumerableSet-values-struct-EnumerableSet-AddressSet-
-        // This operation will copy the entire storage to memory, which can be quite expensive. 
-        // This is designed to mostly be used by view accessors that are queried without any gas fees. 
-        // Developers should keep in mind that this function has an unbounded cost, and using it as part of a state-changing 
+        // This operation will copy the entire storage to memory, which can be quite expensive.
+        // This function is designed to be used primarily as a view accessor, queried without any gas fees.
+        // Developers should note that this function has an unbounded cost, and using it as part of a state-changing
         // function may render the function uncallable if the set grows to a point where copying to memory consumes too much gas to fit in a block.
-        return $._delegation[contentId].values();
+        return $._delegation[holder].values();
     }
 
-    /// @notice Delegates rights for a specific content ID to a policy.
-    /// @dev This function stores the delegation details in the RightsStorage struct.
-    /// @param policy The address of the policy contract to delegate rights to.
-    /// @param contentId The content ID for which rights are being delegated.
-    function _authorizeRights(address policy, uint256 contentId) internal {
+    /// @notice Delegates rights for a specific content ID to a policy contract.
+    /// @dev This function stores the delegation details in the RightsStorage struct,
+    ///      allowing the specified policy contract to manage rights for the content holder.
+    /// @param policy The address of the policy contract to which rights are being delegated.
+    /// @param holder The content rights holder delegating the rights.
+    function _authorizePolicy(address policy, address holder) internal {
         RightsStorage storage $ = _getRightsStorage();
-        $._delegation[contentId].add(grantee);
+        $._delegation[holder].add(policy);
     }
 
-    /// @notice Revokes the delegation of rights to a policy.
-    /// @dev This function removes the rights delegation from the RightsStorage struct.
-    /// @param policy The address of the policy contract whose delegation is being revoked.
-    /// @param contentId The content ID for which rights are being delegated.
-    function _revokePolicy(address grantee, uint256 contentId) internal {
+    /// @notice Revokes the delegation of rights to a specific policy contract.
+    /// @dev This function removes the rights delegation from the RightsStorage struct,
+    ///      preventing the specified policy contract from managing rights for the content holder.
+    /// @param policy The address of the policy contract whose rights delegation is being revoked.
+    /// @param holder The content rights holder revoking the rights delegation.
+    function _revokePolicy(address policy, address holder) internal {
         RightsStorage storage $ = _getRightsStorage();
-        $._delegation[contentId].remove(grantee);
+        $._delegation[holder].remove(policy);
     }
 }

@@ -40,6 +40,21 @@ library T {
         Shares[] s4s;
     }
 
+    /// @title Deal
+    /// @dev Represents an agreement between multiple parties regarding the distribution and management of content.
+    /// @notice This struct captures the total amount involved, net amount after deductions, distribution fees, and the relevant addresses involved in the deal.
+    struct Deal {
+        bool active;
+        uint256 time;
+        uint256 total;
+        uint256 fees;
+        uint256 amount;
+        address currency;
+        address account;
+        address holder;
+        address custodial;
+    }
+
     /**
      * @notice A struct containing the necessary information to reconstruct an EIP-712 typed data signature.
      * @dev We could use this information to handle signature logic with delegated actions from the account owner.
