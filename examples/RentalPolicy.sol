@@ -34,7 +34,7 @@ contract RentalPolicy is IPolicy {
     }
 
     // Función para que un usuario rente un contenido específico
-    function execute(T.Deal calldata deal, bytes calldata data) external payable onlyRM returns (bool, string) {
+    function execute(T.Deal calldata deal, bytes calldata data) external onlyRM returns (bool, string) {
         uint256 memory contentId = abi.decode(data, (uint256));
         Content memory content = contents[contentId];
         if(content.rentalDuration <= 0) return (false, "Content does not exist");

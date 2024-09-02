@@ -23,15 +23,22 @@ interface IPolicy {
     /// @param contentId The content ID to check against.
     function comply(
         address account,
-        uint256 contentId
+        uint256 contentI
     ) external view returns (bool);
 
-    /// @notice Retrieves the payout allocation for a specific account and content ID.
-    /// @param account The address of the account for which the payout allocation is being retrieved.
-    /// @param contentId The ID of the content associated with the payout allocation.
-    /// @return The payout allocation specified for the account and content.
-    function payouts(
-        address account,
-        uint256 contentId
-    ) external view returns (T.Payouts memory);
+    /// @notice Executes the deal between the content holder and the account based on the policy's rules.
+    /// @param deal The deal object containing the terms agreed upon between the content holder and the account.
+    /// @param data Additional data required for executing the deal. 
+    /// This could include specific terms or metadata needed to complete the transaction or enforce the policy's conditions.
+    /// @return bool A boolean indicating whether the deal was successfully executed (`true`) or not (`false`).
+    /// @return string A message providing context for the execution result, such as an error message if the deal failed.
+    function execute(
+        T.Deal calldata deal,
+        bytes calldata data
+    ) external returns (bool, string);
+
+    /// @notice Retrieves the payout allocation for a specific deal.
+    /// @return T.Payouts A struct containing the payout allocation details, 
+    /// which include the distribution of funds.
+    function payouts() external view returns (T.Payouts memory);
 }
