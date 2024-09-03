@@ -387,7 +387,7 @@ contract RightsManager is
         (bool success, string memory reason) = policy.process(deal, data);
         if (!success) revert NoDeal(reason);
 
-        // transfer amounts to contract and allocate pshares.
+        // transfer amounts to contract and allocate shares.
         // if currency is not native, allowance is checked..
         _msgSender().safeDeposit(deal.total, deal.currency);
         T.Shares[] shares = policy.shares(); // royalties.. 
@@ -396,7 +396,7 @@ contract RightsManager is
         // register split distribution in ledger..
         deal.holder.transfer(remaining, deal.currency);
         deal.custodial.transfer(deal.fees, deal.currency);
-        
+
         _closeDeal(dealProof); // inactivate the deal after success..
         _registerPolicy(deal.account, policyAddress);
         emit AccessGranted(deal.account, dealProof, policyAddress);
