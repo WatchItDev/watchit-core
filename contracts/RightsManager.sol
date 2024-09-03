@@ -81,7 +81,7 @@ contract RightsManager is
     IRegistrableVerifiable private syndication;
     IReferendumVerifiable private referendum;
 
-    /// @dev Error thrown when attempting to operate on a policy that has not 
+    /// @dev Error thrown when attempting to operate on a policy that has not
     /// been delegated rights for the specified content.
     /// @param policy The address of the policy contract attempting to access rights.
     /// @param holder The content rights holder.
@@ -267,7 +267,7 @@ contract RightsManager is
 
     /// @inheritdoc IRightsManager
     /// @notice Checks if the content is eligible for distribution by the content holder's custodial.
-    /// @dev This function verifies whether the specified content can be distributed, 
+    /// @dev This function verifies whether the specified content can be distributed,
     /// based on the status of the custodial rights and the content's activation state in related contracts.
     /// @param contentId The ID of the content to check for distribution eligibility.
     /// @param contentHolder The address of the content holder whose custodial rights are being checked.
@@ -286,8 +286,8 @@ contract RightsManager is
 
     /// @inheritdoc IRightsCustodialGranter
     /// @notice Grants custodial rights over the content held by a holder to a distributor.
-    /// @dev This function assigns custodial rights for the content held by a specific 
-    /// account to a designated distributor. 
+    /// @dev This function assigns custodial rights for the content held by a specific
+    /// account to a designated distributor.
     /// @param distributor The address of the distributor who will receive custodial rights.
     function grantCustody(
         address distributor
@@ -321,7 +321,7 @@ contract RightsManager is
 
     /// @inheritdoc IRightsDealBroker
     /// @notice Creates a new deal between the account and the content holder, returning a unique deal identifier.
-    /// @dev This function handles the creation of a new deal by negotiating terms, calculating fees, 
+    /// @dev This function handles the creation of a new deal by negotiating terms, calculating fees,
     /// and generating a unique proof of the deal.
     /// @param total The total amount involved in the deal.
     /// @param currency The address of the ERC20 token (or native currency) being used in the deal.
@@ -362,7 +362,7 @@ contract RightsManager is
 
     /// @inheritdoc IRightsDealBroker
     /// @notice Close the deal by confirming the terms and executing the necessary transactions.
-    /// @dev This function finalizes the deal created by the account. It validates the proposal, 
+    /// @dev This function finalizes the deal created by the account. It validates the proposal,
     /// executes the agreed terms, and allocates payments.
     /// @param dealProof The unique identifier of the created deal.
     /// @param policyAddress The address of the policy contract that governs the terms.
@@ -387,19 +387,16 @@ contract RightsManager is
         (bool success, string memory reason) = policy.process(deal, data);
         if (!success) revert NoDeal(reason);
 
-        // transfer amounts to contract and allocate payouts.
+        // transfer amounts to contract and allocate pshares.
         // if currency is not native, allowance is checked..
         _msgSender().safeDeposit(deal.total, deal.currency);
-        uint256 remaining = _allocate(
-            deal.amount,
-            deal.currency,
-            policy.payouts()
-        );
-        
+        T.Shares[] shares = policy.shares(); // royalties.. 
+        uint256 remaining = _allocate(deal.amount, deal.currency, shares);
+
         // register split distribution in ledger..
         deal.holder.transfer(remaining, deal.currency);
         deal.custodial.transfer(deal.fees, deal.currency);
-
+        
         _closeDeal(dealProof); // inactivate the deal after success..
         _registerPolicy(deal.account, policyAddress);
         emit AccessGranted(deal.account, dealProof, policyAddress);

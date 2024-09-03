@@ -105,7 +105,7 @@ abstract contract RightsManagerContentAccessUpgradeable is
     // allowing concatenate policies to evaluate compliance...
     // This approach supports complex access control scenarios where multiple factors need to be considered.
 
-    /// @notice Retrieves the first active policy for a specific account and content in LIFO order.
+    /// @notice Retrieves the first active policy for a specific account and content id in LIFO order.
     /// @param account The address of the account to evaluate.
     /// @param contentId The ID of the content to evaluate policies for.
     /// @return A tuple containing:

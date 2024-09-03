@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 
 pragma solidity ^0.8.24;
-import "contracts/interfaces/IRepository.sol";
 import "contracts/interfaces/IOwnership.sol";
 import "contracts/interfaces/IRightsManager.sol";
 
@@ -10,7 +9,7 @@ abstract contract RMRestricted {
     IOwnership public immutable ownership;
 
     /// @dev Error that is thrown when a restricted access to the holder is attempted.
-    error RestrictedAccessToHolder();
+    error InvalidContentHolder();
     /// @notice Error thrown when a function is called by an address other than the RM address.
     error InvalidCallOnlyRMAllowed();
     error InvalidUnknownContent();
@@ -21,12 +20,13 @@ abstract contract RMRestricted {
         ownership = IOwnership(ownershipAddress);
     }
 
-    /// @notice Modifier to restrict access to the holder only or their delegate.
-    /// @param contentId The content hash to give distribution rights.
+    /// @notice Modifier to restrict operations over the content the only authorized by holder.
+    /// @param contentId The content id to check authorization.
+    /// @param expectedHolder The expected rights holder who authorized the access.
     /// @dev Only the holder of the content can pass this validation.
-    modifier onlyHolder(uint256 contentId) {
-        if (ownership.ownerOf(contentId) != msg.sender)
-            revert RestrictedAccessToHolder();
+    function isValidHolder(uint256 contentId, address expectedHolder) {
+        if (ownership.ownerOf(contentId) != expectedHolder)
+            revert InvalidContentHolder();
         _;
     }
 

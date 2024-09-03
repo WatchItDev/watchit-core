@@ -82,14 +82,7 @@ contract SubscriptionPolicy is IPolicy {
     }
 
     // Define cómo se manejarán los pagos de suscripción
-    function payouts(address account, uint256 contentId) external view override returns (T.Payouts memory) {
-        uint256 packageId = _findPackageForContent(account, contentId);
-        T.Payouts memory payout;
-        payout.t9n.amount = packages[packageId].price; // Monto de la suscripción
-        payout.t9n.currency = address(0); // Asume moneda nativa (ETH)
-        payout.s4s = new T.Shares;
-        payout.s4s[0] = T.Shares({account: 0xCreatorAddress, value: 70}); // 70% al creador
-        payout.s4s[1] = T.Shares({account: 0xPlatformAddress, value: 30}); // 30% a la plataforma
-        return payout;
+    function shares(address account, uint256 contentId) external view override returns (T.Shares[] memory) {
+
     }
 }

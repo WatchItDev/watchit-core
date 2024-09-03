@@ -27,6 +27,8 @@ interface IPolicy {
     ) external view returns (bool);
 
     /// @notice Process the deal between the content holder and the account based on the policy's rules.
+    /// @dev This method is expected to be called only by RM contract and its used to establish
+    /// any logic related to access, validations, etc...
     /// @param deal The deal object containing the terms agreed upon between the content holder and the account.
     /// @param data Additional data required for processing the deal. 
     /// @return bool A boolean indicating whether the deal was successfully executed (`true`) or not (`false`).
@@ -36,8 +38,8 @@ interface IPolicy {
         bytes calldata data
     ) external returns (bool, string memory);
 
-    /// @notice Retrieves the payout allocation for a specific deal.
-    /// @return T.Payouts A struct containing the payout allocation details, 
+    /// @notice Retrieves the shares allocation for a specific deal.
+    /// @return T.Shares A struct containing the shares allocation details, 
     /// which include the distribution of funds.
-    function payouts() external view returns (T.Shares[] memory);
+    function shares() external view returns (T.Shares[] memory);
 }
