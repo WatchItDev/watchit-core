@@ -8,7 +8,6 @@ import "contracts/base/upgradeable/GovernableUpgradeable.sol";
 import "contracts/interfaces/IFeesManager.sol";
 import "contracts/interfaces/IFundsManager.sol";
 
-
 // TODO payment splitter
 // https://docs.openzeppelin.com/contracts/4.x/api/finance#PaymentSplitter
 
@@ -47,17 +46,11 @@ contract Treasury is
     /// @notice Initializes the contract. Should be called only once.
     function initialize() public initializer {
         __UUPSUpgradeable_init();
-        __Governable_init();
+        __Governable_init(_msgSender());
     }
 
-    /// @notice Withdraws funds from the contract to a specified recipient's address.
-    /// @param amount The amount of tokens to withdraw.
-    /// @param currency The currency to associate fees with. Use address(0) for the native coin.
-    /// @dev This function can only be called by the owner of the contract or an authorized entity.
-    function withdraw(
-        uint256 amount,
-        address currency
-    ) public onlyGov {}
+    function withdraw(uint256 amount, address currency) public onlyGov {}
+    function withdraw(uint256 amount) public onlyGov {}
 
     // TODO multisignature withdraw
 }

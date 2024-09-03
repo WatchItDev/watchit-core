@@ -8,8 +8,9 @@ import "contracts/interfaces/IRightsPolicyController.sol";
 import "contracts/libraries/Types.sol";
 
 /// @title Rights Manager Policy Controller Upgradeable
-/// @notice This abstract contract manages the delegation and revocation of rights from content holders to various policies.
-/// @dev The contract is upgradeable and uses namespaced storage to manage the delegation of rights in a way that avoids storage layout collisions.
+/// @notice This abstract contract manages the delegation and revocation of rights 
+/// from content holders to various policies.
+/// @dev The contract is upgradeable and uses namespaced storage to manage the delegation of rights.
 abstract contract RightsManagerPolicyControllerUpgradeable is
     Initializable,
     IRightsPolicyController
@@ -19,7 +20,8 @@ abstract contract RightsManagerPolicyControllerUpgradeable is
     /// @custom:storage-location erc7201:rightsmanagerdelegationupgradeable
     /// @dev Storage struct for managing the delegation of rights to policy contracts by content holders.
     struct RightsStorage {
-        /// @dev Mapping to store the delegated rights for each policy contract (address) by each content holder (address).
+        /// @dev Mapping to store the delegated rights for each policy contract (address)
+        /// by each content holder (address).
         mapping(address => EnumerableSet.AddressSet) _delegation;
     }
 
@@ -45,13 +47,12 @@ abstract contract RightsManagerPolicyControllerUpgradeable is
     /// @param policy The address of the policy contract to check for delegation.
     /// @param holder The content rights holder to check for delegation.
     /// Reverts if the rights have not been delegated for the specified content ID.
-    function isPolicyAuthorized(address policy, address holder) public {
+    function isPolicyAuthorized(address policy, address holder) public view returns (bool){
         RightsStorage storage $ = _getRightsStorage();
         return $._delegation[holder].contains(policy);
     }
 
     /// @notice Retrieves all policies to which rights have been delegated by a specific content holder.
-    /// @dev This function returns an array of policy contract addresses that have been delegated rights by the content holder.
     /// @param holder The content rights holder whose delegated policies are being queried.
     /// @return An array of policy contract addresses that have been delegated rights by the specified content holder.
     function getContentPolicies(
@@ -62,7 +63,8 @@ abstract contract RightsManagerPolicyControllerUpgradeable is
         // This operation will copy the entire storage to memory, which can be quite expensive.
         // This function is designed to be used primarily as a view accessor, queried without any gas fees.
         // Developers should note that this function has an unbounded cost, and using it as part of a state-changing
-        // function may render the function uncallable if the set grows to a point where copying to memory consumes too much gas to fit in a block.
+        // function may render the function uncallable if the set grows to a point where copying to memory
+        /// consumes too much gas to fit in a block.
         return $._delegation[holder].values();
     }
 

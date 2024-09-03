@@ -18,41 +18,27 @@ library T {
 
     /// @title Shares
     /// @dev Represents the distribution of funds to a specific address.
-    /// @notice This struct is used to define the share of funds (e.g., royalties, service fees) that should be allocated to a particular address.
+    /// @notice This struct is used to define the share of funds (e.g., royalties, service fees) 
+    /// that should be allocated to a particular address.
     struct Shares {
         address target;
         uint256 bps; // Basis points, with 10000 bps being equivalent to 100%.
     }
 
-    /// @title Transaction
-    /// @dev Represents the details of a transaction involving a specific currency and amount.
-    /// @notice This struct captures the currency type and the amount involved in a transaction.
-    struct Transaction {
-        address currency;
-        uint256 amount;
-    }
-
-    /// @title Payouts
-    /// @dev Represents the allocation and distribution of funds for content.
-    /// @notice This struct encapsulates the transaction details and the splits of funds.
-    struct Payouts {
-        Transaction t9n;
-        Shares[] s4s;
-    }
-
     /// @title Deal
     /// @dev Represents an agreement between multiple parties regarding the distribution and management of content.
-    /// @notice This struct captures the total amount involved, net amount after deductions, distribution fees, and the relevant addresses involved in the deal.
+    /// @notice This struct captures the total amount involved, net amount after deductions, distribution fees,
+    /// and the relevant addresses involved in the deal.
     struct Deal {
-        bool active;
-        uint256 time;
-        uint256 total;
-        uint256 fees;
-        uint256 amount;
-        address currency;
-        address account;
-        address holder;
-        address custodial;
+        bool active; // the deal status
+        uint256 time; // the deal creation date
+        uint256 total; // the transaction total amount
+        uint256 fees; // distribution fees
+        uint256 amount; // the remaining amount after fees
+        address currency; // the currency used in transaction
+        address account; // the account related to deal
+        address holder; // the content holder
+        address custodial; // the distributor address
     }
 
     /**

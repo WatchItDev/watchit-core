@@ -49,12 +49,13 @@ abstract contract GovernableUpgradeable is
         _;
     }
 
-    function __Governable_init() internal onlyInitializing {
-        __Governable_init_unchained();
+    function __Governable_init(address initialAdmin) internal onlyInitializing {
+        __Governable_init_unchained(initialAdmin);
     }
 
-    function __Governable_init_unchained() internal onlyInitializing {
+    function __Governable_init_unchained(address initialAdmin) internal onlyInitializing {
         __AccessControl_init();
+         _grantRole(DEFAULT_ADMIN_ROLE, initialAdmin);
     }
 
     /// @notice Sets the governance address.

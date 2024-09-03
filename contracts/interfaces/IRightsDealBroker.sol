@@ -4,10 +4,9 @@ import "contracts/libraries/Types.sol";
 
 interface IRightsDealBroker {
     /// @notice Retrieves a deal associated with the given proof.
-    /// @dev Fetches the deal from storage using the proof as the key.
     /// @param proof The unique identifier of the deal to retrieve.
     /// @return deal The deal object associated with the provided proof.
-    function getDeal(bytes32 proof) public view returns (T.Deal storage);
+    function getDeal(bytes32 proof) external view returns (T.Deal memory);
 
     /// @notice Creates a new deal between the account and the content holder, returning a unique deal identifier.
     /// @param total The total amount involved in the deal.

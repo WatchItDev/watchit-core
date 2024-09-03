@@ -93,10 +93,10 @@ contract Syndication is
     ) public initializer onlyBasePointsAllowed(initialPenaltyRateBps) {
         __Quorum_init();
         __Ledger_init();
-        __Governable_init();
         __ReentrancyGuard_init();
         __UUPSUpgradeable_init();
         __ReentrancyGuard_init();
+        __Governable_init(_msgSender());
 
         penaltyRate = initialPenaltyRateBps; // bps
         // Get the registered treasury contract from the repository
@@ -106,7 +106,6 @@ contract Syndication is
         // initially flat fees in native coin
         __Fees_init(initialFee, address(0));
         __Treasurer_init(trasuryAddress);
-        _grantRole(DEFAULT_ADMIN_ROLE, _msgSender());
     }
 
     /// @notice Function that should revert when msg.sender is not authorized to upgrade the contract.

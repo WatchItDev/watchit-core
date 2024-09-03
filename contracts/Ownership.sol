@@ -54,10 +54,10 @@ abstract contract Ownership is
     /// @param repository The contract registry to retrieve needed contracts instance.
     /// @dev This function is called only once during the contract deployment.
     function initialize(address repository) public initializer {
-        __ERC721_init("Ownership", "WOT");
-        __ERC721Enumerable_init();
         __UUPSUpgradeable_init();
-        _grantRole(DEFAULT_ADMIN_ROLE, _msgSender());
+        __ERC721Enumerable_init();
+        __ERC721_init("Ownership", "WOT");
+        __Governable_init(_msgSender());
 
         IRepository repo = IRepository(repository);
         address referendumAddress = repo.getContract(T.ContractTypes.REF);

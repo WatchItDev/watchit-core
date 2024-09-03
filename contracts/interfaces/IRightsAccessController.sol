@@ -16,5 +16,5 @@ interface IRightsAccessController {
     /// @return An array of addresses representing the policies associated with the account and content ID.
     function getPolicies(
         address account
-    ) external view;
+    ) external view returns (address[] memory);
 }

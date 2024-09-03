@@ -10,7 +10,7 @@ import "contracts/interfaces/IPolicy.sol";
 import "contracts/libraries/Types.sol";
 
 /// @title RightsManagerBrokerUpgradeable
-/// @notice This abstract contract handles the deal-proofs logic to interact with policies in a safe and decoupled manner.
+/// @notice This abstract contract handles the deal-proofs logic to interact with policies.
 /// @dev This contract manages the lifecycle of deals between content holders and policy contracts,
 /// including the creation, validation, and retrieval of deal proofs. The design ensures that the logic is modular,
 /// facilitating secure and flexible interactions between different components of the system.
@@ -66,14 +66,19 @@ abstract contract RightsManagerBrokerUpgradeable is
     ///      This proof is then used as a unique identifier for the deal in the storage.
     /// @param deal The deal object containing the terms and parties involved.
     /// @return proof The unique identifier for the newly created deal.
-    function _createProof(
-        T.Deal memory deal
-    ) internal view returns (bytes32) {
-        deal.active = true;
-        deal.time = block.timestamp;
-
+    function _createProof(T.Deal memory deal) internal returns (bytes32) {
         BrokerStorage storage $ = _getBrokerStorage();
-        bytes32 proof = keccak256(abi.encodePacked(deal));
+        // yes, we can encode full struct as abi.encode with extra overhead..
+        bytes32 proof = keccak256(
+            abi.encodePacked(
+                deal.time,
+                deal.total,
+                deal.holder,
+                deal.account,
+                deal.custodial
+            )
+        );
+
         // activate deal before
         $._deals[proof] = deal;
         return proof;
@@ -83,7 +88,7 @@ abstract contract RightsManagerBrokerUpgradeable is
     /// @dev Fetches the deal from storage using the proof as the key.
     /// @param proof The unique identifier of the deal to retrieve.
     /// @return deal The deal object associated with the provided proof.
-    function getDeal(bytes32 proof) public view returns (T.Deal storage) {
+    function getDeal(bytes32 proof) public view returns (T.Deal memory) {
         BrokerStorage storage $ = _getBrokerStorage();
         return $._deals[proof];
     }
@@ -97,11 +102,10 @@ abstract contract RightsManagerBrokerUpgradeable is
         return $._deals[proof].active;
     }
 
-    /// @notice Checks if a given proof corresponds to an active deal.
-    /// @dev Verifies the existence and active status of the deal in storage.
+    /// @notice Close a deal for a given proof corresponds to an active deal.
+    /// @dev Set the status as inactive of the deal in storage.
     /// @param proof The unique identifier of the deal to validate.
-    /// @return isValid True if the deal is active, false otherwise.
-    function _closeDeal(bytes32 proof) internal view returns (bool) {
+    function _closeDeal(bytes32 proof) internal {
         BrokerStorage storage $ = _getBrokerStorage();
         $._deals[proof].active = false;
     }

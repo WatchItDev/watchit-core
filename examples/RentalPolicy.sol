@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
-import "./IPolicy.sol";
-import "./Types.sol";
-import "./RightsManager.sol"; // Asumimos que RightsManager es el contrato que tiene el método registerPolicy.
+import "contracts/interfaces/IPolicy.sol";
+import "contracts/base/RMRestricted.sol";
+import "contracts/libraries/Types.sol";
 
-contract RentalPolicy is IPolicy {
+contract RentalPolicy is RMRestricted, IPolicy {
     struct Content {
         uint256 rentalDuration; // Duración de la renta en segundos
         uint256 price; // Precio de la renta
@@ -13,11 +13,10 @@ contract RentalPolicy is IPolicy {
     mapping(uint256 => Content) public contents; // Contenidos identificados por contentId
     mapping(address => mapping(uint256 => uint256)) private rentals; // Renta de los usuarios
 
-    RightsManager public rightsManager;
-
-    constructor(address _rightsManager) {
-        rightsManager = RightsManager(_rightsManager);
-    }
+    constructor(
+        address rmAddress, 
+        address ownershipAddress
+        ) RMRestricted(rmAddress, ownershipAddress) {}
 
     // Función que retorna el nombre de la política
     function name() external pure override returns (string memory) {
@@ -34,7 +33,7 @@ contract RentalPolicy is IPolicy {
     }
 
     // Función para que un usuario rente un contenido específico
-    function execute(T.Deal calldata deal, bytes calldata data) external onlyRM returns (bool, string) {
+    function process(T.Deal calldata deal, bytes calldata data) external onlyRM returns (bool, string memory) {
         uint256 memory contentId = abi.decode(data, (uint256));
         Content memory content = contents[contentId];
         if(content.rentalDuration <= 0) return (false, "Content does not exist");
@@ -42,7 +41,7 @@ contract RentalPolicy is IPolicy {
 
         // Establece la renta del usuario
         rentals[msg.sender][contentId] = block.timestamp + content.rentalDuration;
-        return (true, "");
+        return (true, "success");
     }
 
     // Retorna los términos de acceso para un usuario y un contenido

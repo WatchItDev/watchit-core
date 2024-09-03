@@ -60,10 +60,7 @@ abstract contract RightsManagerContentAccessUpgradeable is
         _;
     }
 
-    /// @notice Registers a new policy for a specific account and content ID, maintaining a chain of precedence.
-    /// @dev This function manages the ACL (Access Control List) storage by adding a new policy for the given account and content ID.
-    ///      It ensures that only a fixed number of policies (defined by MAX_POLICIES) are active at any time by removing the oldest policy
-    ///      when the limit is reached. The newest policy is always added to the end of the list, following a LIFO (Last-In-First-Out) precedence.
+    /// @notice Registers a new policy for a specific account and policy, maintaining a chain of precedence.
     /// @param account The address of the account to be granted access through the policy.
     /// @param policy The address of the policy contract responsible for validating the conditions of the license.
     function _registerPolicy(address account, address policy) internal {
@@ -100,8 +97,9 @@ abstract contract RightsManagerContentAccessUpgradeable is
         // https://docs.openzeppelin.com/contracts/5.x/api/utils#EnumerableSet-values-struct-EnumerableSet-AddressSet-
         // This operation will copy the entire storage to memory, which can be quite expensive.
         // This is designed to mostly be used by view accessors that are queried without any gas fees.
-        // Developers should keep in mind that this function has an unbounded cost, and using it as part of a state-changing
-        // function may render the function uncallable if the set grows to a point where copying to memory consumes too much gas to fit in a block.
+        // Developers should keep in mind that this function has an unbounded cost, 
+        /// and using it as part of a state-changing function may render the function uncallable 
+        /// if the set grows to a point where copying to memory consumes too much gas to fit in a block.
         return $._acl[account].values();
     }
 
@@ -120,7 +118,7 @@ abstract contract RightsManagerContentAccessUpgradeable is
         uint256 contentId
     ) public view returns (bool, address) {
         address[] memory policies = getPolicies(account);
-        uint8 i = policies.length - 1;
+        uint256 i = policies.length - 1;
 
         while (true) {
             // LIFO precedence order: last registered policy is evaluated first.

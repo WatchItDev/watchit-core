@@ -7,8 +7,8 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "contracts/interfaces/IRightsCustodial.sol";
 
 /// @title Rights Manager Distribution Upgradeable
-/// @notice This abstract contract manages the assignment and retrieval of distribution rights for content held by a holder,
-///         ensuring that custodial rights are properly granted and managed.
+/// @notice This abstract contract manages the assignment and retrieval of distribution rights 
+/// for content held by a holder, ensuring that custodial rights are properly granted and managed.
 /// @dev The contract is upgradeable and uses namespaced storage to avoid layout collisions.
 abstract contract RightsManagerCustodialUpgradeable is
     Initializable,
@@ -19,9 +19,9 @@ abstract contract RightsManagerCustodialUpgradeable is
     /// @custom:storage-location erc7201:rightsmanagercustodialupgradeable
     /// @dev Storage struct for managing custodial rights related to content distribution.
     struct CustodyStorage {
-        /// @dev Mapping to store the custodial address for each content ID.
-        mapping(uint256 => address) _custodying;
-        /// @dev Mapping to store a registry of content IDs associated with each distributor.
+        /// @dev Mapping to store the custodial address for each content rights holder.
+        mapping(address => address) _custodying;
+        /// @dev Mapping to store a registry of rights holders associated with each distributor.
         mapping(address => EnumerableSet.AddressSet) _registry;
     }
 
@@ -46,9 +46,6 @@ abstract contract RightsManagerCustodialUpgradeable is
     }
 
     /// @notice Grants custodial rights over the content held by a holder to a distributor.
-    /// @dev This function assigns custodial rights for the content held by a specific account to a designated distributor.
-    ///      If the content was previously assigned to another custodian, the previous custodian is removed from the registry.
-    ///      The function emits an event indicating the previous and new custodian.
     /// @param distributor The address of the distributor who will receive custodial rights.
     /// @param holder The address of the content rights holder granting custody.
     function _grantCustody(address distributor, address holder) internal {
@@ -63,7 +60,6 @@ abstract contract RightsManagerCustodialUpgradeable is
     }
 
     /// @notice Retrieves the total number of content items in custody for a given distributor.
-    /// @dev This function accesses the CustodyStorage to fetch the count of content associated with the specified distributor.
     /// @param distributor The address of the distributor whose custodial content count is being requested.
     /// @return The total number of content items that the specified distributor currently has in custody.
     function getCustodyCount(
@@ -79,18 +75,18 @@ abstract contract RightsManagerCustodialUpgradeable is
     /// @return An array of unsigned integers representing the content IDs associated with the given distributor.
     function getCustodyRegistry(
         address distributor
-    ) public view returns (uint256[] memory) {
+    ) public view returns (address[] memory) {
         CustodyStorage storage $ = _getCustodyStorage();
         // https://docs.openzeppelin.com/contracts/5.x/api/utils#EnumerableSet-values-struct-EnumerableSet-AddressSet-
         // This operation will copy the entire storage to memory, which can be quite expensive.
         // This function is designed to mostly be used by view accessors that are queried without any gas fees.
-        // Developers should keep in mind that this function has an unbounded cost, and using it as part of a state-changing
-        // function may render the function uncallable if the set grows to a point where copying to memory consumes too much gas to fit in a block.
+        // Developers should keep in mind that this function has an unbounded cost, 
+        /// and using it as part of a state-changing function may render the function uncallable 
+        /// if the set grows to a point where copying to memory consumes too much gas to fit in a block.
         return $._registry[distributor].values();
     }
 
     /// @notice Retrieves the custodial address for a given content holder.
-    /// @dev This function returns the current custodian responsible for the content associated with the specified holder.
     /// @param holder The address of the content rights holder whose custodial address is being retrieved.
     /// @return The address of the active custodian responsible for the content associated with the specified holder.
     function getCustody(address holder) public view returns (address) {

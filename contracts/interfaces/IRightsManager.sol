@@ -26,8 +26,6 @@ interface IRightsManager is
     IRightsPolicyControllerAuthorizer
 {
     /// @notice Checks if the content is eligible for distribution by the content holder's custodial.
-    /// @dev This function verifies whether the specified content can be distributed, based on the status of the custodial rights
-    ///      and the content's activation state in related contracts.
     /// @param contentId The ID of the content to check for distribution eligibility.
     /// @param contentHolder The address of the content holder whose custodial rights are being checked.
     /// @return True if the content can be distributed, false otherwise.

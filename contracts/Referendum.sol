@@ -56,9 +56,8 @@ contract Referendum is
     /// @notice Initializes the contract.
     function initialize() public initializer {
         __Quorum_init();
-        __Governable_init();
         __UUPSUpgradeable_init();
-        _grantRole(DEFAULT_ADMIN_ROLE, _msgSender());
+        __Governable_init(_msgSender());
     }
 
     /// @notice Function that should revert when msg.sender is not authorized to upgrade the contract.

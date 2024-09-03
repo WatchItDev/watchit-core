@@ -52,11 +52,11 @@ contract RightsManager is
     /// @notice Emitted when distribution custodial rights are granted to a distributor.
     /// @param prevCustody The previous distributor custodial address.
     /// @param newCustody The new distributor custodial address.
-    /// @param contentId The content identifier.
+    /// @param rightsHolder The content rights holder.
     event CustodialGranted(
         address indexed prevCustody,
         address indexed newCustody,
-        uint256 contentId
+        address indexed rightsHolder
     );
 
     event FeesDisbursed(
@@ -65,9 +65,14 @@ contract RightsManager is
         address currency
     );
 
-    event AccessGranted(address account, bytes32 proof, uint256 contentId);
-    event RightsGranted(address indexed policy, uint256 contentId);
-    event RightsRevoked(address indexed policy, uint256 contentId);
+    event AccessGranted(
+        address indexed account,
+        bytes32 indexed proof,
+        address indexed policy
+    );
+
+    event RightsGranted(address indexed policy, address holder);
+    event RightsRevoked(address indexed policy, address holder);
 
     /// KIM: any initialization here is ephimeral and not included in bytecode..
     /// so the code within a logic contract’s constructor or global declaration
@@ -76,16 +81,14 @@ contract RightsManager is
     IRegistrableVerifiable private syndication;
     IReferendumVerifiable private referendum;
 
-    /// @dev Error thrown when attempting to operate on a policy that has not been delegated rights for the specified content.
+    /// @dev Error thrown when attempting to operate on a policy that has not 
+    /// been delegated rights for the specified content.
     /// @param policy The address of the policy contract attempting to access rights.
     /// @param holder The content rights holder.
     error InvalidNotRightsDelegated(address policy, address holder);
-    /// @dev Error that is thrown when a restricted access to the holder is attempted.
-    error RestrictedAccessToHolder();
     /// @dev Error that is thrown when a content hash is already registered.
     error InvalidInactiveDistributor();
     error InvalidNotAllowedContent();
-    error InvalidUnknownContent();
     error InvalidAccessValidation(string reason);
     error InvalidAlreadyRegisteredContent();
     error NoDeal(string reason);
@@ -105,11 +108,10 @@ contract RightsManager is
         address repository,
         uint256 initialFee
     ) public initializer onlyBasePointsAllowed(initialFee) {
-        __Governable_init();
         __UUPSUpgradeable_init();
         __ReentrancyGuard_init();
         __CurrencyManager_init();
-        _grantRole(DEFAULT_ADMIN_ROLE, _msgSender());
+        __Governable_init(_msgSender());
 
         // initialize dependencies for RM
         IRepository repo = IRepository(repository);
@@ -265,8 +267,8 @@ contract RightsManager is
 
     /// @inheritdoc IRightsManager
     /// @notice Checks if the content is eligible for distribution by the content holder's custodial.
-    /// @dev This function verifies whether the specified content can be distributed, based on the status of the custodial rights
-    ///      and the content's activation state in related contracts.
+    /// @dev This function verifies whether the specified content can be distributed, 
+    /// based on the status of the custodial rights and the content's activation state in related contracts.
     /// @param contentId The ID of the content to check for distribution eligibility.
     /// @param contentHolder The address of the content holder whose custodial rights are being checked.
     /// @return True if the content can be distributed, false otherwise.
@@ -284,8 +286,8 @@ contract RightsManager is
 
     /// @inheritdoc IRightsCustodialGranter
     /// @notice Grants custodial rights over the content held by a holder to a distributor.
-    /// @dev This function assigns custodial rights for the content held by a specific account to a designated distributor.
-    ///      The function emits an event indicating the previous and new custodian.
+    /// @dev This function assigns custodial rights for the content held by a specific 
+    /// account to a designated distributor. 
     /// @param distributor The address of the distributor who will receive custodial rights.
     function grantCustody(
         address distributor
@@ -319,8 +321,8 @@ contract RightsManager is
 
     /// @inheritdoc IRightsDealBroker
     /// @notice Creates a new deal between the account and the content holder, returning a unique deal identifier.
-    /// @dev This function handles the creation of a new deal by negotiating terms, calculating fees, and generating a unique proof of the deal.
-    ///      The deal is represented by a unique identifier (dealProof), which can be used to enforce or execute the deal.
+    /// @dev This function handles the creation of a new deal by negotiating terms, calculating fees, 
+    /// and generating a unique proof of the deal.
     /// @param total The total amount involved in the deal.
     /// @param currency The address of the ERC20 token (or native currency) being used in the deal.
     /// @param holder The address of the content holder whose content is being accessed.
@@ -343,23 +345,25 @@ contract RightsManager is
         if (deductions > total) revert NoDeal("The fees are too high.");
         // create a new deal to interact with register policy
         T.Deal memory deal = T.Deal(
-            total,
-            total - deductions,
-            accepted,
-            account,
-            currency,
-            holder,
-            custodial
+            true, // the deal status, true for active, false for closed.
+            block.timestamp, // the deal creation date
+            total, // the transaction total amount
+            accepted, // distribution fees
+            total - deductions, // the remaining amount after fees
+            currency, // the currency used in transaction
+            account, // the account related to deal
+            holder, // the content rights holder
+            custodial // the distributor address
         );
 
-        // keccak256(abi.encodePacked(deal))
+        // keccak256(abi.encodePacked(deal..))
         return _createProof(deal);
     }
 
     /// @inheritdoc IRightsDealBroker
     /// @notice Close the deal by confirming the terms and executing the necessary transactions.
-    /// @dev This function finalizes the deal created by the account. It validates the proposal, executes the agreed terms, and allocates payments.
-    ///      Once closed, the dealProof can be used to track the agreement's completion.
+    /// @dev This function finalizes the deal created by the account. It validates the proposal, 
+    /// executes the agreed terms, and allocates payments.
     /// @param dealProof The unique identifier of the created deal.
     /// @param policyAddress The address of the policy contract that governs the terms.
     /// @param data Additional data required to close the deal.
@@ -374,23 +378,30 @@ contract RightsManager is
         onlyValidProof(dealProof)
         onlyPolicyContract(policyAddress)
     {
-        T.Deal deal = getDeal(dealProof);
+        T.Deal memory deal = getDeal(dealProof);
         // check if policy is authorized by holder to operate over content
         if (!isPolicyAuthorized(policyAddress, deal.holder))
             revert InvalidNotRightsDelegated(policyAddress, deal.holder);
 
         IPolicy policy = IPolicy(policyAddress);
-        (bool success, string reason) = policy.execute(deal, data);
+        (bool success, string memory reason) = policy.process(deal, data);
         if (!success) revert NoDeal(reason);
 
         // transfer amounts to contract and allocate payouts.
-        T.Shares memory shares = policy.payouts();
-        uint256 total = _msgSender().safeDeposit(deal.total, deal.currency);
-        uint256 remaining = _allocate(deal.amount, deal.currency, shares);
+        // if currency is not native, allowance is checked..
+        _msgSender().safeDeposit(deal.total, deal.currency);
+        uint256 remaining = _allocate(
+            deal.amount,
+            deal.currency,
+            policy.payouts()
+        );
+        
         // register split distribution in ledger..
         deal.holder.transfer(remaining, deal.currency);
         deal.custodial.transfer(deal.fees, deal.currency);
-        _registerPolicy(deal.account, deal.holder, policyAddress);
+
+        _closeDeal(dealProof); // inactivate the deal after success..
+        _registerPolicy(deal.account, policyAddress);
         emit AccessGranted(deal.account, dealProof, policyAddress);
     }
 }
