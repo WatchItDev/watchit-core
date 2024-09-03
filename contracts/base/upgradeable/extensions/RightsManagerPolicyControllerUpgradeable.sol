@@ -5,7 +5,6 @@ pragma solidity ^0.8.24;
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "contracts/interfaces/IRightsPolicyController.sol";
-import "contracts/libraries/Types.sol";
 
 /// @title Rights Manager Policy Controller Upgradeable
 /// @notice This abstract contract manages the delegation and revocation of rights 

@@ -3,7 +3,6 @@
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
 import "contracts/interfaces/IRightsDealBroker.sol";
 import "contracts/interfaces/IPolicy.sol";
