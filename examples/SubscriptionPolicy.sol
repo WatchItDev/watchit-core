@@ -5,6 +5,7 @@ import "./Types.sol";
 import "./RightsManager.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
+// WIP
 contract SubscriptionPolicy is IPolicy {
     struct Package {
         bytes32 merkleRoot; // Raíz de Merkle que representa los contentIds
@@ -14,11 +15,12 @@ contract SubscriptionPolicy is IPolicy {
 
     mapping(uint256 => Package) public packages; // Paquetes identificados por packageId
     mapping(address => mapping(uint256 => uint256)) private subscriptions; // Subscripciones de los usuarios
-    RightsManager public rightsManager;
 
-    constructor(address _rightsManager) {
-        rightsManager = RightsManager(_rightsManager);
-    }
+     constructor(
+        address rmAddress,
+        address ownershipAddress
+    ) RMRestricted(rmAddress, ownershipAddress) {}
+
 
     // Función que retorna el nombre de la política
     function name() external pure override returns (string memory) {
