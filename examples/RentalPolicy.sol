@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
-import "contracts/base/RMRestricted.sol";
+import "contracts/base/BasePolicy.sol";
 import "contracts/interfaces/IPolicy.sol";
 import "contracts/libraries/Types.sol";
 
-contract RentalPolicy is RMRestricted, IPolicy {
+contract RentalPolicy is BasePolicy, IPolicy {
     struct Content {
-        uint256 rentalDuration; // Duración de la renta en segundos
-        uint256 price; // Precio de la renta
+        uint256 rentalDuration;
+        uint256 price;
     }
 
-    mapping(uint256 => Content) public contents; // Contenidos identificados por contentId
-    mapping(address => mapping(uint256 => uint256)) private rentals; // Renta de los usuarios
+    mapping(uint256 => Content) public contents;
+    mapping(address => mapping(uint256 => uint256)) private rentals;
 
     constructor(
         address rmAddress,
@@ -33,15 +33,15 @@ contract RentalPolicy is RMRestricted, IPolicy {
     }
 
     // this function shopuld be called only by DRM and its used to establish
-    // any logic needed to authorize the user
-    function process(
+    // any logic or validation needed to set the authorization parameters
+    function exec(
         T.Deal calldata deal,
         bytes calldata data
     ) external onlyRM returns (bool, string memory) {
         uint256 contentId = abi.decode(data, (uint256));
         Content memory content = contents[contentId];
-            
-        if (!isValidHolder(contentId, deal.holder))
+
+        if (getHolder(contentId) != deal.holder)
             return (false, "Invalid content id holder");
         if (deal.total < content.price)
             return (false, "Insufficient funds for rental");

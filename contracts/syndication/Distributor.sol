@@ -100,16 +100,6 @@ contract Distributor is
         _addCurrency(currency);
     }
 
-    /// @inheritdoc IFeesManager
-    /// @notice Sets a new treasury fee for the native coin.
-    /// @param newTreasuryFee The new fee expresed as base points to be set.
-    function setFees(
-        uint256 newTreasuryFee
-    ) external onlyOwner onlyBasePointsAllowed(newTreasuryFee) {
-        _setFees(newTreasuryFee, address(0));
-        _addCurrency(address(0));
-    }
-
     /// @notice Sets the scaling and flattening factors used to calculate fees.
     /// @dev This function allows the administrator to adjust how sensitive the fees are to changes in demand.
     /// @param flatten The flattening factor that controls how gradual or smooth the fee increase is.
@@ -173,13 +163,6 @@ contract Distributor is
     ) external onlyOwner onlySupportedCurrency(currency) {
         owner().transfer(amount, currency);
         // TODO add event
-    }
-
-    /// @inheritdoc IFundsManager
-    /// @notice Withdraws native funds from the contract to a specified recipient's address.
-    /// @param amount The amount of funds to withdraw.
-    function withdraw(uint256 amount) external onlyOwner {
-        owner().transfer(amount);
     }
 
     /// @inheritdoc IERC165

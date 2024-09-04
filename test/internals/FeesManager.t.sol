@@ -4,7 +4,6 @@ import "forge-std/Test.sol";
 import "contracts/base/upgradeable/FeesManagerUpgradeable.sol";
 
 contract FeesManagerTest is Test, FeesManagerUpgradeable {
-    function setFees(uint256 fee) public {}
 
     function setFees(
         uint256 fee,

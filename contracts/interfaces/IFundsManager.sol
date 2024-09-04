@@ -11,9 +11,6 @@ interface IFundsManager {
     /// @param amount The amount of funds to withdraw.
     /// @param currency The currency to associate fees with. 
     function withdraw(uint256 amount, address currency) external;
-
-    /// @notice Withdraws native funds from the contract to a specified recipient's address.
-    /// @param amount The amount of funds to withdraw.
-    function withdraw(uint256 amount) external;
+    
     // function getBalance
 }

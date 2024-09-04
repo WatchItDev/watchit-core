@@ -11,9 +11,4 @@ interface IDisburser {
     /// @param currency The address of the ERC20 token to disburse tokens.
     /// @dev This function can only be called by governance or an authorized entity.
     function disburse(uint256 amount, address currency) external;
-
-    /// @notice Disburses funds from the contract to a specified address.
-    /// @param amount The amount of coins to disburse.
-    /// @dev This function can only be called by governance or an authorized entity.
-    function disburse(uint256 amount) external;
 }

@@ -2,10 +2,6 @@
 pragma solidity ^0.8.24;
 
 interface IFeesManager {
-    /// @notice Sets a new treasury fee.
-    /// @param newTreasuryFee The new treasury fee.
-    /// @notice Only the owner can call this function.
-    function setFees(uint256 newTreasuryFee) external;
 
     /// @notice Sets a new treasury fee.
     /// @param newTreasuryFee The new treasury fee %.

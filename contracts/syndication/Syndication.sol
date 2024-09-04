@@ -128,10 +128,14 @@ contract Syndication is
     }
 
     /// @inheritdoc IFeesManager
-    /// @notice Sets a new treasury fee.
-    /// @param newTreasuryFee The new treasury flat fee to be set.
-    function setFees(uint256 newTreasuryFee) external onlyGov {
-        _setFees(newTreasuryFee, address(0));
+    /// @notice Sets a new treasury fee for a specific token.
+    /// @param newTreasuryFee The new treasury fee to be set.
+    /// @param currency The currency to associate fees with. Use address(0) for the native coin.
+    function setFees(
+        uint256 newTreasuryFee,
+        address currency
+    ) external override onlyGov {
+        _setFees(newTreasuryFee, currency);
     }
 
     /// @inheritdoc ITreasurer
@@ -145,10 +149,11 @@ contract Syndication is
     /// @inheritdoc IDisburser
     /// @notice Disburses funds from the contract to a specified address.
     /// @param amount The amount of coins to disburse.
+    /// @param currency The address of the ERC20 token or address(0) for native.
     /// @dev This function can only be called by governance or an authorized entity.
-    function disburse(uint256 amount) external onlyGov {
+    function disburse(uint256 amount, address currency) external onlyGov {
         address treasury = getTreasuryAddress();
-        treasury.transfer(amount); // sent..
+        treasury.transfer(amount, currency); // sent..
         emit FeesDisbursed(treasury, amount);
     }
 
@@ -211,19 +216,16 @@ contract Syndication is
         address distributor
     ) external nonReentrant onlyDistributorContract(distributor) {
         address manager = _msgSender(); // the sender is expected to be the manager..
-        uint256 registeredAmount = getLedgerEntry(manager, address(0)); // Wei, etc..
-        if (registeredAmount == 0)
-            revert FailDuringQuit("Invalid distributor/manager enrollment.");
-
+        uint256 ledgerAmount = getLedgerEntry(manager, address(0)); // Wei, etc..
+        if (ledgerAmount == 0) revert FailDuringQuit("Invalid enrollment.");
         // eg: (100 * bps) / BPS_MAX
-        uint256 penal = registeredAmount.perOf(penaltyRate);
-        uint256 res = registeredAmount - penal;
+        uint256 penal = ledgerAmount.perOf(penaltyRate);
+        uint256 res = ledgerAmount - penal;
 
         // reset ledger..
-        _setLedgerEntry(manager, 0, address(0));
         _quit(uint160(distributor));
-        // rollback partial payment..
-        manager.transfer(res);
+        _setLedgerEntry(manager, 0, address(0));
+        manager.transfer(res, address(0));
         emit Resigned(distributor);
     }
 
@@ -250,20 +252,4 @@ contract Syndication is
         enrollmentsCount++;
         emit Approved(distributor);
     }
-
-    /// @inheritdoc IFeesManager
-    /// @notice Sets a new treasury fee for a specific token.
-    /// @param newTreasuryFee The new treasury fee to be set.
-    /// @param currency The currency to associate fees with. Use address(0) for the native coin.
-    function setFees(
-        uint256 newTreasuryFee,
-        address currency
-    ) external override onlyGov {}
-
-    /// @inheritdoc IDisburser
-    /// @notice Disburses tokens from the contract to a specified address.
-    /// @param amount The amount of tokens to disburse.
-    /// @param currency The address of the ERC20 token to disburse tokens.
-    /// @dev This function can only be called by governance or an authorized entity.
-    function disburse(uint256 amount, address currency) external onlyGov {}
 }

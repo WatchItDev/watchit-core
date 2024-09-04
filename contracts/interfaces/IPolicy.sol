@@ -26,14 +26,14 @@ interface IPolicy {
         uint256 contentId
     ) external view returns (bool);
 
-    /// @notice Process the deal between the content holder and the account based on the policy's rules.
+    /// @notice Exec the deal between the content holder and the account based on the policy's rules.
     /// @dev This method is expected to be called only by RM contract and its used to establish
     /// any logic related to access, validations, etc...
     /// @param deal The deal object containing the terms agreed upon between the content holder and the account.
     /// @param data Additional data required for processing the deal. 
     /// @return bool A boolean indicating whether the deal was successfully executed (`true`) or not (`false`).
     /// @return string A message providing context for the execution result.
-    function process(
+    function exec(
         T.Deal calldata deal,
         bytes calldata data
     ) external returns (bool, string memory);

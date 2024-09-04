@@ -51,11 +51,11 @@ library T {
      * @param deadline The signature's deadline.
      */
     struct EIP712Signature {
-        address signer;
         uint8 v;
+        uint256 deadline;
         bytes32 r;
         bytes32 s;
-        uint256 deadline;
+        address signer;
     }
 
     // This struct provides critical parameters that will be used during the referendum process

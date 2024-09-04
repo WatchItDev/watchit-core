@@ -99,21 +99,10 @@ describe('Syndication', function () {
       const nativeToken = hre.ethers.ZeroAddress // zero address means native
       const fees = hre.ethers.parseUnits('0.3', 'ether') // expected fees paid in contract..
       const syndication = await deploySyndicationWithFakeGovernor()
-      await (await syndication.setFees(fees)).wait()
+      await (await syndication.setFees(fees, nativeToken)).wait()
       expect(await syndication.getFees(nativeToken)).to.be.equal(fees);
     })
 
-    it('Should not support additional token in treasury fees.', async function () {
-      const [sampleTestAddress,] = await getAccounts()
-      const fees = hre.ethers.parseUnits('0.3', 'ether') // expected fees paid in contract..
-      const syndication = await deploySyndicationWithFakeGovernor()
-      // https://github.com/ethers-io/ethers.js/issues/407
-      // here is not expected to use an "EOA" address, but we don't expect ERC20 tokens for syndication treasury..
-      await (await syndication["setFees(uint256, address)"](fees, sampleTestAddress)).wait()
-      await expect(syndication.getFees(sampleTestAddress)).to.revertedWithCustomError(
-        syndication, 'InvalidUnsupportedCurrency'
-      )
-    })
   })
 
   describe("Treasurer Impl", () => {
@@ -126,12 +115,12 @@ describe('Syndication', function () {
     })
 
     it('Should collect funds and send them to treasury address successfully.', async function () {
+      const nativeToken = hre.ethers.ZeroAddress // zero address means native
       // the fees paid during registration. 
       // check in deploySyndicationWithRegisteredDistributor for more..
       const fees = hre.ethers.parseUnits('0.3', 'ether')
       const [syndication,] = await deploySyndicationWithRegisteredDistributor()
-      // only governance can do this..
-      await (await syndication.disburse(fees)).wait()
+      await (await syndication.disburse(fees, nativeToken)).wait()
 
       const treasuryAddress = await syndication.getTreasuryAddress()
       const filter = syndication.filters.FeesDisbursed()

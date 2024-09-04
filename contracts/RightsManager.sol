@@ -155,16 +155,16 @@ contract RightsManager is
     /// @dev Distributes the amount based on the provided distribution array.
     /// @param amount The total amount to be allocated.
     /// @param currency The address of the currency being allocated.
-    /// @param splits An array of Splits structs specifying the split percentages and target addresses.
+    /// @param shares An array of Splits structs specifying the split percentages and target addresses.
     /// @return The remaining unallocated amount after distribution.
     function _allocate(
         uint256 amount,
         address currency,
-        T.Shares[] memory splits
+        T.Shares[] memory shares
     ) private returns (uint256) {
         // Ensure there's a distribution or return the full amount.
-        if (splits.length == 0) return amount;
-        if (splits.length > 100) {
+        if (shares.length == 0) return amount;
+        if (shares.length > 100) {
             revert NoDeal(
                 "Invalid split allocations. Cannot be more than 100."
             );
@@ -174,10 +174,10 @@ contract RightsManager is
         uint256 accBps = 0; // accumulated base points
         uint256 accTotal = 0; // accumulated total allocation
 
-        while (i < splits.length) {
+        while (i < shares.length) {
             // Retrieve base points and target address from the distribution array.
-            uint256 bps = splits[i].bps;
-            address target = splits[i].target;
+            uint256 bps = shares[i].bps;
+            address target = shares[i].target;
             // safely increment i uncheck overflow
             unchecked {
                 ++i;
@@ -222,16 +222,6 @@ contract RightsManager is
         _addCurrency(currency);
     }
 
-    /// @inheritdoc IFeesManager
-    /// @notice Sets a new treasury fee for the native coin.
-    /// @param newTreasuryFee The new fee amount to be set.
-    function setFees(
-        uint256 newTreasuryFee
-    ) external onlyGov onlyBasePointsAllowed(newTreasuryFee) {
-        _setFees(newTreasuryFee, address(0));
-        _addCurrency(address(0));
-    }
-
     /// @inheritdoc ITreasurer
     /// @notice Sets the address of the treasury.
     /// @param newTreasuryAddress The new treasury address to be set.
@@ -252,17 +242,6 @@ contract RightsManager is
         address treasury = getTreasuryAddress();
         treasury.transfer(amount, currency);
         emit FeesDisbursed(treasury, amount, currency);
-    }
-
-    /// @inheritdoc IDisburser
-    /// @notice Disburses funds from the contract to a specified address.
-    /// @param amount The amount of coins to disburse.
-    /// @dev This function can only be called by governance or an authorized entity.
-    function disburse(uint256 amount) external onlyGov {
-        // collect native coins and send it to treasury
-        address treasury = getTreasuryAddress();
-        treasury.transfer(amount); // if no native balance revert..
-        emit FeesDisbursed(treasury, amount, address(0));
     }
 
     /// @inheritdoc IRightsManager
@@ -384,13 +363,13 @@ contract RightsManager is
             revert InvalidNotRightsDelegated(policyAddress, deal.holder);
 
         IPolicy policy = IPolicy(policyAddress);
-        (bool success, string memory reason) = policy.process(deal, data);
+        (bool success, string memory reason) = policy.exec(deal, data);
         if (!success) revert NoDeal(reason);
 
         // transfer amounts to contract and allocate shares.
         // if currency is not native, allowance is checked..
         _msgSender().safeDeposit(deal.total, deal.currency);
-        T.Shares[] shares = policy.shares(); // royalties.. 
+        T.Shares[] memory shares = policy.shares(); // royalties distribution..
         uint256 remaining = _allocate(deal.amount, deal.currency, shares);
 
         // register split distribution in ledger..

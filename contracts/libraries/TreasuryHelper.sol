@@ -34,7 +34,7 @@ library TreasuryHelper {
     }
 
     /// @notice Checks the allowance that the contract has been granted by the owner for a specific ERC20 token.
-    /// @dev This internal function queries the allowance that the `owner` has granted 
+    /// @dev This internal function queries the allowance that the `owner` has granted
     /// to this contract for spending the specified `token`.
     /// @param owner The address of the token owner who has granted the allowance.
     /// @param token The address of the ERC20 token contract.
@@ -63,8 +63,9 @@ library TreasuryHelper {
             // the transfer is not needed since the transfer is implicit here
             return amount;
         }
-        
-        if (amount > allowance(from, token)) revert FailDuringTransfer("Invalid allowance.");
+
+        if (amount > allowance(from, token))
+            revert FailDuringTransfer("Invalid allowance.");
         IERC20(token).safeTransferFrom(from, address(this), amount);
         return amount;
     }
@@ -81,16 +82,7 @@ library TreasuryHelper {
         return IERC20(token).balanceOf(target);
     }
 
-    /// @notice Transfer native cryptocurrency from the contract to the specified address.
-    /// @param to The address to which the native cryptocurrency will be disbursed.
-    /// @param amount The amount of native cryptocurrency to disburse.
-    function transfer(address to, uint256 amount) internal {
-        if (balanceOf(address(this), address(0)) < amount)
-            revert FailDuringTransfer("Insufficient balance.");
-        _nativeTransfer(to, amount);
-    }
-
-    /// @notice Transfer ERC20 tokens from the contract to the specified address.
+    /// @notice Transfer funds from the contract to the specified address.
     /// @dev Handles the withdrawal of native tokens and ERC20 tokens.
     /// @param to The address to which the tokens will be sent.
     /// @param amount The amount of tokens to withdraw.
@@ -98,6 +90,7 @@ library TreasuryHelper {
     function transfer(address to, uint256 amount, address token) internal {
         if (balanceOf(address(this), token) < amount)
             revert FailDuringTransfer("Insufficient balance.");
+        if (token == address(0)) return _nativeTransfer(to, amount);
         _erc20Transfer(token, to, amount);
     }
 }
