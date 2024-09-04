@@ -16,7 +16,7 @@ contract RentalPolicy is BasePolicy, IPolicy {
     constructor(
         address rmAddress,
         address ownershipAddress
-    ) RMRestricted(rmAddress, ownershipAddress) {}
+    ) BasePolicy(rmAddress, ownershipAddress) {}
 
     // Función que retorna el nombre de la política
     function name() external pure override returns (string memory) {
@@ -32,7 +32,7 @@ contract RentalPolicy is BasePolicy, IPolicy {
         contents[contentId] = Content(rentalDuration, price);
     }
 
-    // this function shopuld be called only by DRM and its used to establish
+    // this function should be called only by RM and its used to establish
     // any logic or validation needed to set the authorization parameters
     function exec(
         T.Deal calldata deal,

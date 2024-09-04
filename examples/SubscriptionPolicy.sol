@@ -4,19 +4,19 @@ import "contracts/base/BasePolicy.sol";
 import "contracts/interfaces/IPolicy.sol";
 import "contracts/libraries/Types.sol";
 
-contract SubscriptionPolicy is IPolicy {
+contract SubscriptionPolicy is BasePolicy, IPolicy {
     struct Package {
-        uint256 subscriptionDuration; 
+        uint256 subscriptionDuration;
         uint256 price;
     }
 
     mapping(address => Package) public packages;
-    mapping(address => mapping(address => uint256)) private subscriptions; 
+    mapping(address => mapping(address => uint256)) private subscriptions;
 
     constructor(
         address rmAddress,
         address ownershipAddress
-    ) RMRestricted(rmAddress, ownershipAddress) {}
+    ) BasePolicy(rmAddress, ownershipAddress) {}
 
     // Función que retorna el nombre de la política
     function name() external pure override returns (string memory) {
@@ -34,7 +34,7 @@ contract SubscriptionPolicy is IPolicy {
         packages[msg.sender] = Package(subscriptionDuration, price);
     }
 
-    // this function shopuld be called only by DRM and its used to establish
+    // this function should be called only by RM and its used to establish
     // any logic or validation needed to set the authorization parameters
     function exec(
         T.Deal calldata deal,
@@ -65,7 +65,7 @@ contract SubscriptionPolicy is IPolicy {
         uint256 contentId
     ) external view override returns (bool) {
         address holder = getHolder(contentId);
-        return block.timestamp <= subscriptions[account][holder]; 
+        return block.timestamp <= subscriptions[account][holder];
     }
 
     // Define cómo se manejarán los pagos de suscripción
