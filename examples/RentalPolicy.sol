@@ -38,7 +38,7 @@ contract RentalPolicy is BasePolicy, IPolicy {
         T.Deal calldata deal,
         bytes calldata data
     ) external onlyRM returns (bool, string memory) {
-        (uint256 contentId) = abi.decode(data, (uint256));
+        uint256 contentId = abi.decode(data, (uint256));
         Content memory content = contents[contentId];
 
         if (getHolder(contentId) != deal.holder)
