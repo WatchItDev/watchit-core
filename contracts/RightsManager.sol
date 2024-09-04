@@ -324,7 +324,6 @@ contract RightsManager is
         if (deductions > total) revert NoDeal("The fees are too high.");
         // create a new deal to interact with register policy
         T.Deal memory deal = T.Deal(
-            true, // the deal status, true for active, false for closed.
             block.timestamp, // the deal creation date
             total, // the transaction total amount
             accepted, // distribution fees
@@ -332,7 +331,8 @@ contract RightsManager is
             currency, // the currency used in transaction
             account, // the account related to deal
             holder, // the content rights holder
-            custodial // the distributor address
+            custodial, // the distributor address
+            true // the deal status, true for active, false for closed.
         );
 
         // keccak256(abi.encodePacked(deal..))

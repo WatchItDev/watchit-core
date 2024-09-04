@@ -30,7 +30,6 @@ library T {
     /// @notice This struct captures the total amount involved, net amount after deductions, distribution fees,
     /// and the relevant addresses involved in the deal.
     struct Deal {
-        bool active; // the deal status
         uint256 time; // the deal creation date
         uint256 total; // the transaction total amount
         uint256 fees; // distribution fees
@@ -39,23 +38,22 @@ library T {
         address account; // the account related to deal
         address holder; // the content holder
         address custodial; // the distributor address
+        bool active; // the deal status
     }
 
-    /**
-     * @notice A struct containing the necessary information to reconstruct an EIP-712 typed data signature.
-     * @dev We could use this information to handle signature logic with delegated actions from the account owner.
-     * @param signer The address of the signer. Specially needed as a parameter to support EIP-1271.
-     * @param v The signature's recovery parameter.
-     * @param r The signature's r parameter.
-     * @param s The signature's s parameter.
-     * @param deadline The signature's deadline.
-     */
+    /// @notice A struct containing the necessary information to reconstruct an EIP-712 typed data signature.
+    /// @dev We could use this information to handle signature logic with delegated actions from the account owner.
+    /// @param signer The address of the signer. Specially needed as a parameter to support EIP-1271.
+    /// @param v The signature's recovery parameter.
+    /// @param r The signature's r parameter.
+    /// @param s The signature's s parameter.
+    /// @param deadline The signature's deadline.
     struct EIP712Signature {
-        uint8 v;
-        uint256 deadline;
-        bytes32 r;
-        bytes32 s;
-        address signer;
+        uint8 v; // 1 byte
+        address signer; // 20 bytes
+        uint256 deadline; // 32 bytes
+        bytes32 r; // 32 bytes
+        bytes32 s; // 32 bytes
     }
 
     // This struct provides critical parameters that will be used during the referendum process
