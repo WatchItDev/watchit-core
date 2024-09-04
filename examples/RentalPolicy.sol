@@ -38,9 +38,8 @@ contract RentalPolicy is BasePolicy, IPolicy {
     ) external onlyRM returns (bool, string memory) {
         uint256 contentId = abi.decode(data, (uint256));
         Content memory content = contents[contentId];
-        
-        if (contentId == 0) 
-            return (false, "Invalid content id");
+
+        if (contentId == 0) return (false, "Invalid content id");
         if (getHolder(contentId) != deal.holder)
             return (false, "Invalid content id holder");
         if (deal.total < content.price)
