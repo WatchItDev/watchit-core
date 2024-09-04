@@ -18,7 +18,6 @@ contract SubscriptionPolicy is BasePolicy, IPolicy {
         address ownershipAddress
     ) BasePolicy(rmAddress, ownershipAddress) {}
 
-    // Función que retorna el nombre de la política
     function name() external pure override returns (string memory) {
         return "SubscriptionPolicy";
     }

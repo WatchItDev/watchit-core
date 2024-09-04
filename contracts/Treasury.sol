@@ -50,7 +50,6 @@ contract Treasury is
     }
 
     function withdraw(uint256 amount, address currency) public onlyGov {}
-    function withdraw(uint256 amount) public onlyGov {}
 
     // TODO multisignature withdraw
 }
