@@ -41,7 +41,6 @@ contract SubscriptionPolicy is BasePolicy, IPolicy {
         bytes calldata
     ) external onlyRM returns (bool, string memory) {
         Package memory pkg = packages[deal.holder];
-
         if (deal.total < pck.price)
             return (false, "Insufficient funds for subscription");
 
