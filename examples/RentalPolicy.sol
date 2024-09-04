@@ -18,12 +18,10 @@ contract RentalPolicy is BasePolicy, IPolicy {
         address ownershipAddress
     ) BasePolicy(rmAddress, ownershipAddress) {}
 
-    // Función que retorna el nombre de la política
     function name() external pure override returns (string memory) {
         return "RentalPolicy";
     }
 
-    // Registrar un nuevo contenido disponible para renta
     function registerContent(
         uint256 contentId,
         uint256 rentalDuration,
@@ -40,6 +38,8 @@ contract RentalPolicy is BasePolicy, IPolicy {
     ) external onlyRM returns (bool, string memory) {
         uint256 contentId = abi.decode(data, (uint256));
         Content memory content = contents[contentId];
+        if (contentId == 0) 
+            return (false, "Invalid content id");
 
         if (getHolder(contentId) != deal.holder)
             return (false, "Invalid content id holder");
