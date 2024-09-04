@@ -44,9 +44,9 @@ contract SubscriptionPolicy is BasePolicy, IPolicy {
         if (deal.total < pck.price)
             return (false, "Insufficient funds for subscription");
 
-        // Establece la renta del usuario
+        // set rental expire
         uint256 subTime = block.timestamp + pck.subscriptionDuration;
-        // subscribe to content owner catalog (content package)
+        // subscribe to content owner's catalog (content package)
         subscriptions[deal.account][deal.holder] = subTime;
         return (true, "success");
     }

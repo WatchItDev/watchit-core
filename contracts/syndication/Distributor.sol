@@ -153,6 +153,10 @@ contract Distributor is
         return proposedFees < adjustedFloor ? adjustedFloor : proposedFees;
     }
 
+    function getBalance(address currency) external returns (uint256) {
+        return address(this).balanceOf(currency);
+    }
+
     /// @inheritdoc IFundsManager
     /// @notice Withdraws erc20 fund from the contract to a specified recipient's address.
     /// @param amount The amount of funds to withdraw.
