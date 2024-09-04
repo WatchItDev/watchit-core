@@ -59,19 +59,33 @@ contract RightsManager is
         address indexed rightsHolder
     );
 
+    /// @notice Emitted when fees are disbursed to the treasury.
+    /// @param treasury The address receiving the disbursed fees.
+    /// @param amount The amount of fees being disbursed.
+    /// @param currency The currency used for the disbursement.
     event FeesDisbursed(
         address indexed treasury,
         uint256 amount,
         address currency
     );
 
+    /// @notice Emitted when access rights are granted to an account based on a policy.
+    /// @param account The address of the account granted access.
+    /// @param proof A unique identifier for the deal or transaction.
+    /// @param policy The policy contract address governing the access.
     event AccessGranted(
         address indexed account,
         bytes32 indexed proof,
         address indexed policy
     );
 
+    /// @notice Emitted when rights are granted to a policy for content.
+    /// @param policy The policy contract address granted rights.
+    /// @param holder The address of the content rights holder.
     event RightsGranted(address indexed policy, address holder);
+    /// @notice Emitted when rights are revoked from a policy for content.
+    /// @param policy The policy contract address whose rights are being revoked.
+    /// @param holder The address of the content rights holder.
     event RightsRevoked(address indexed policy, address holder);
 
     /// KIM: any initialization here is ephimeral and not included in bytecode..
@@ -88,9 +102,8 @@ contract RightsManager is
     error InvalidNotRightsDelegated(address policy, address holder);
     /// @dev Error that is thrown when a content hash is already registered.
     error InvalidInactiveDistributor();
-    error InvalidNotAllowedContent();
-    error InvalidAccessValidation(string reason);
-    error InvalidAlreadyRegisteredContent();
+    /// @dev Error thrown when a deal fails to execute.
+    /// @param reason A string providing the reason for the failure.
     error NoDeal(string reason);
 
     /// @dev Constructor that disables initializers to prevent the implementation contract from being initialized.
