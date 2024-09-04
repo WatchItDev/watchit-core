@@ -4,6 +4,10 @@ pragma solidity ^0.8.24;
 import "contracts/interfaces/IOwnership.sol";
 import "contracts/interfaces/IRightsManager.sol";
 
+/// @title BasePolicy
+/// @notice This abstract contract serves as a base for policies that manage access to content.
+/// It defines the use of the ownership and rights manager contracts, with validations and access restrictions
+/// based on content holders.
 abstract contract BasePolicy {
     IRightsManager public immutable rm;
     IOwnership public immutable ownership;
@@ -29,8 +33,7 @@ abstract contract BasePolicy {
     /// @notice Modifier to check if the content is registered.
     /// @param contentId The content hash to check.
     modifier onlyRegisteredContent(uint256 contentId) {
-        if (ownership.ownerOf(contentId) == address(0))
-            revert InvalidUnknownContent();
+        if (getHolder(contentId) == address(0)) revert InvalidUnknownContent();
         _;
     }
 
