@@ -153,6 +153,7 @@ contract Distributor is
         return proposedFees < adjustedFloor ? adjustedFloor : proposedFees;
     }
 
+    // TODO finish this
     function getBalance(address currency) external returns (uint256) {
         return address(this).balanceOf(currency);
     }

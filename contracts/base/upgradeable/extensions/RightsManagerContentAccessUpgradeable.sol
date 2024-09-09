@@ -73,11 +73,11 @@ abstract contract RightsManagerContentAccessUpgradeable is
     /// @param contentId The ID of the content for which access is being checked.
     /// @param policy The address of the license policy contract used to verify access.
     /// @return Returns true if the account is granted access to the content based on the license, false otherwise.
-    function _verify(
+    function _verifyPolicy(
         address account,
         uint256 contentId,
         address policy
-    ) private view returns (bool) {
+    ) internal view returns (bool) {
         // if not registered license policy..
         if (policy == address(0)) return false;
         IPolicy policy_ = IPolicy(policy);
@@ -105,30 +105,4 @@ abstract contract RightsManagerContentAccessUpgradeable is
     // allowing concatenate policies to evaluate compliance...
     // This approach supports complex access control scenarios where multiple factors need to be considered.
 
-    /// @notice Retrieves the first active policy for a specific account and content id in LIFO order.
-    /// @param account The address of the account to evaluate.
-    /// @param contentId The ID of the content to evaluate policies for.
-    /// @return A tuple containing:
-    /// - A boolean indicating whether an active policy was found (`true`) or not (`false`).
-    /// - The address of the active policy if found, or `address(0)` if no active policy is found.
-    function getActivePolicy(
-        address account,
-        uint256 contentId
-    ) public view returns (bool, address) {
-        address[] memory policies = getPolicies(account);
-        uint256 i = policies.length - 1;
-
-        while (true) {
-            // LIFO precedence order: last registered policy is evaluated first.
-            // The first complying policy is returned.
-            bool comply = _verify(account, contentId, policies[i]);
-            if (comply) return (true, policies[i]);
-            if (i == 0) break; // the first happening..
-            unchecked {
-                --i;
-            }
-        }
-        // No active policy found
-        return (false, address(0));
-    }
 }

@@ -33,7 +33,7 @@ library T {
         uint256 time; // the deal creation date
         uint256 total; // the transaction total amount
         uint256 fees; // distribution fees
-        uint256 amount; // the remaining amount after fees
+        uint256 available; // the remaining amount after fees
         address currency; // the currency used in transaction
         address account; // the account related to deal
         address holder; // the content holder

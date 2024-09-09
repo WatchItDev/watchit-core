@@ -25,7 +25,7 @@ abstract contract CurrencyManagerUpgradeable is
     }
 
     bytes4 private constant INTERFACE_ID_ERC20 = type(IERC20).interfaceId;
-    /// @notice Error thrown when trying to remove an unsupported currency.
+    /// @notice Error thrown when trying to operate with an unsupported currency.
     /// @param currency The address of the unsupported currency.
     error InvalidCurrency(address currency);
 

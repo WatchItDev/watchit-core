@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-
+import "contracts/base/upgradeable/GovernableUpgradeable.sol";
 import "contracts/interfaces/IRepository.sol";
 import "contracts/libraries/Types.sol";
 
@@ -15,7 +15,7 @@ import "contracts/libraries/Types.sol";
 /// @dev This contract uses the UUPS upgradeable pattern and AccessControl for role-based access control.
 contract Repository is
     Initializable,
-    AccessControlUpgradeable,
+    GovernableUpgradeable,
     UUPSUpgradeable,
     IRepository
 {
@@ -27,6 +27,7 @@ contract Repository is
 
     /// @notice Error that is thrown when a contract is not registered.
     error ContractIsNotRegistered();
+    error ContractAlreadyRegistered();
     error InvalidPopulationParams(string);
 
     /// @dev Constructor that disables initializers to prevent the implementation contract from being initialized.
@@ -41,8 +42,7 @@ contract Repository is
     /// @notice Initializes the contract with the given dependencies.
     function initialize() public initializer {
         __UUPSUpgradeable_init();
-        __AccessControl_init();
-        _grantRole(DEFAULT_ADMIN_ROLE, _msgSender());
+        __Governable_init(_msgSender());
     }
 
     /// @dev Authorizes the upgrade of the contract.
@@ -50,7 +50,18 @@ contract Repository is
     /// @param newImplementation The address of the new implementation contract.
     function _authorizeUpgrade(
         address newImplementation
-    ) internal override onlyRole(DEFAULT_ADMIN_ROLE) {}
+    ) internal override onlyAdmin {}
+
+    /// @notice Sets the address of the contract for the given key.
+    /// @param key The type of the contract to set.
+    /// @param contractAddress The address of the contract to set.
+    function _setContract(
+        T.ContractTypes key,
+        address contractAddress
+    ) private {
+        contracts[key] = contractAddress;
+        versions[key]++;
+    }
 
     /// @notice Gets the address of the contract for the given key.
     /// @param key The type of the contract to retrieve.
@@ -61,16 +72,28 @@ contract Repository is
         return contracts[key];
     }
 
+    /// @notice Updates the address of the contract for the given key.
+    /// @param key The type of the contract to set.
+    /// @param contractAddress The address of the contract to set.
+    /// @dev Only callable by governance.
+    function updateContract(
+        T.ContractTypes key,
+        address contractAddress
+    ) public onlyGov {
+        _setContract(key, contractAddress);
+    }
+
     /// @notice Sets the address of the contract for the given key.
     /// @param key The type of the contract to set.
     /// @param contractAddress The address of the contract to set.
-    /// @dev Only callable by an admin.
+    /// @dev Only callable by admin.
     function setContract(
         T.ContractTypes key,
         address contractAddress
-    ) public onlyRole(DEFAULT_ADMIN_ROLE) {
-        contracts[key] = contractAddress;
-        versions[key]++;
+    ) public onlyAdmin {
+        // after set the contract cannot be changed using this method..
+        if (contracts[key] != address(0)) revert ContractAlreadyRegistered();
+        _setContract(key, contractAddress);
     }
 
     /// @notice Populates the repository with multiple contract addresses.
@@ -80,7 +103,7 @@ contract Repository is
     function populate(
         T.ContractTypes[] calldata key,
         address[] calldata contractAddress
-    ) public onlyRole(DEFAULT_ADMIN_ROLE) {
+    ) public onlyAdmin {
         uint256 length = key.length;
         if (length != contractAddress.length)
             revert InvalidPopulationParams(

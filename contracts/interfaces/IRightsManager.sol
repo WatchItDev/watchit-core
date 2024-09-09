@@ -6,24 +6,24 @@ import "./IFeesManager.sol";
 import "./IDisburser.sol";
 import "./IRightsCustodial.sol";
 import "./IRightsDealBroker.sol";
+import "./IRightsPolicyAuditor.sol";
 import "./IRightsPolicyController.sol";
 import "./IRightsCustodialGranter.sol";
 import "./IRightsAccessController.sol";
-import "./IRightsPolicyControllerRevoker.sol";
-import "./IRightsPolicyControllerAuthorizer.sol";
+import "./IFundsManager.sol";
 import "./IContentVault.sol";
 
 interface IRightsManager is
     ITreasurer,
     IDisburser,
     IFeesManager,
+    IFundsManager,
     IRightsCustodial,
     IRightsDealBroker,
     IRightsAccessController,
     IRightsCustodialGranter,
     IRightsPolicyController,
-    IRightsPolicyControllerRevoker,
-    IRightsPolicyControllerAuthorizer
+    IRightsPolicyAuditor
 {
     /// @notice Checks if the content is eligible for distribution by the content holder's custodial.
     /// @param contentId The ID of the content to check for distribution eligibility.

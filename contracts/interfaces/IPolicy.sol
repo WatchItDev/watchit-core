@@ -37,9 +37,4 @@ interface IPolicy {
         T.Deal calldata deal,
         bytes calldata data
     ) external returns (bool, string memory);
-
-    /// @notice Retrieves the shares allocation for a specific deal.
-    /// @return T.Shares A struct containing the shares allocation details, 
-    /// which include the distribution of funds.
-    function shares() external view returns (T.Shares[] memory);
 }

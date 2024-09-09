@@ -11,7 +11,7 @@ import "contracts/interfaces/IReferendumVerifiable.sol";
 import "contracts/interfaces/IRepository.sol";
 import "contracts/interfaces/IOwnership.sol";
 
-// TODO imp ERC404
+// TODO imp ERC404 
 
 /// @title Ownership ERC721 Upgradeable
 /// @notice This abstract contract manages the ownership.
@@ -23,7 +23,7 @@ abstract contract Ownership is
     ERC721EnumerableUpgradeable,
     IOwnership
 {
-    IReferendumVerifiable private referendum;
+    IReferendumVerifiable public referendum;
     event RegisteredContent(uint256 contentId);
     error InvalidNotApprovedContent();
 

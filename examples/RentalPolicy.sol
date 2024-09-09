@@ -3,8 +3,11 @@ pragma solidity ^0.8.24;
 import "contracts/base/BasePolicy.sol";
 import "contracts/interfaces/IPolicy.sol";
 import "contracts/libraries/Types.sol";
+import "contracts/libraries/TreasuryHelper.sol";
 
 contract RentalPolicy is BasePolicy, IPolicy {
+    using TreasuryHelper for address;
+
     struct Content {
         uint256 rentalDuration;
         uint256 price;
@@ -45,7 +48,10 @@ contract RentalPolicy is BasePolicy, IPolicy {
         if (deal.total < content.price)
             return (false, "Insufficient funds for rental");
 
-        // Establece la renta del usuario
+        // The rigths manager send funds to policy before call this method
+        // then the logic of distribution could be here...
+        deal.holder.transfer(deal.available, deal.currency);
+        // setup renting condition..
         rentals[deal.account][contentId] =
             block.timestamp +
             content.rentalDuration;
@@ -63,13 +69,6 @@ contract RentalPolicy is BasePolicy, IPolicy {
         address account,
         uint256 contentId
     ) external view override returns (bool) {
-        return block.timestamp <= rentals[account][contentId]; // Verifica que la renta no haya expirado
-    }
-
-    function shares() external view returns (T.Shares[] memory) {
-        T.Shares[] memory payout = new T.Shares[](0);
-        // payout.s4s[0] = T.Shares({account: 0xCreatorAddress, value: 70}); // 70% al creador
-        // payout.s4s[1] = T.Shares({account: 0xPlatformAddress, value: 30}); // 30% a la plataforma
-        return payout;
+        return block.timestamp <= rentals[account][contentId];
     }
 }

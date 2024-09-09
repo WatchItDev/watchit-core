@@ -20,6 +20,7 @@ abstract contract GovernableUpgradeable is
     }
 
     bytes32 private constant GOB_ROLE = keccak256("GOB_ROLE");
+    bytes32 private constant MOD_ROLE = keccak256("MOD_ROLE");
     // ERC-7201: Namespaced Storage Layout is another convention that can be used to avoid storage layout errors
     // keccak256(abi.encode(uint256(keccak256("watchit.governable.governor")) - 1)) & ~bytes32(uint256(0xff))
     bytes32 private constant GOVERNOR_SLOT =
@@ -40,6 +41,12 @@ abstract contract GovernableUpgradeable is
     /// @dev Modifier that checks if the caller has the GOB_ROLE.
     modifier onlyGov() {
         _checkRole(GOB_ROLE, _msgSender());
+        _;
+    }
+
+    /// @dev Modifier that checks if the caller has the MOD_ROLE.
+    modifier onlyMod() {
+        _checkRole(MOD_ROLE, _msgSender());
         _;
     }
 

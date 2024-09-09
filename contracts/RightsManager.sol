@@ -7,7 +7,6 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
-import "contracts/base/upgradeable/LedgerUpgradeable.sol";
 import "contracts/base/upgradeable/FeesManagerUpgradeable.sol";
 import "contracts/base/upgradeable/TreasurerUpgradeable.sol";
 import "contracts/base/upgradeable/CurrencyManagerUpgradeable.sol";
@@ -17,6 +16,7 @@ import "contracts/base/upgradeable/extensions/RightsManagerBrokerUpgradeable.sol
 import "contracts/base/upgradeable/extensions/RightsManagerContentAccessUpgradeable.sol";
 import "contracts/base/upgradeable/extensions/RightsManagerCustodialUpgradeable.sol";
 import "contracts/base/upgradeable/extensions/RightsManagerPolicyControllerUpgradeable.sol";
+import "contracts/base/upgradeable/extensions/RightsManagerPolicyAuditorUpgradeable.sol";
 
 import "contracts/interfaces/IRegistrableVerifiable.sol";
 import "contracts/interfaces/IReferendumVerifiable.sol";
@@ -43,6 +43,7 @@ contract RightsManager is
     RightsManagerBrokerUpgradeable,
     RightsManagerCustodialUpgradeable,
     RightsManagerContentAccessUpgradeable,
+    RightsManagerPolicyAuditorUpgradeable,
     RightsManagerPolicyControllerUpgradeable,
     IRightsManager
 {
@@ -92,8 +93,8 @@ contract RightsManager is
     /// so the code within a logic contract’s constructor or global declaration
     /// will never be executed in the context of the proxy’s state
     /// https://docs.openzeppelin.com/upgrades-plugins/1.x/proxies#the-constructor-caveat
-    IRegistrableVerifiable private syndication;
-    IReferendumVerifiable private referendum;
+    IRegistrableVerifiable public syndication;
+    IReferendumVerifiable public referendum;
 
     /// @dev Error thrown when attempting to operate on a policy that has not
     /// been delegated rights for the specified content.
@@ -162,52 +163,6 @@ contract RightsManager is
         uint256 contentId
     ) private view returns (bool) {
         return referendum.isActive(contentId); // is active in referendum
-    }
-
-    /// @notice Allocates the specified amount across a distribution array and returns the remaining unallocated amount.
-    /// @dev Distributes the amount based on the provided distribution array.
-    /// @param amount The total amount to be allocated.
-    /// @param currency The address of the currency being allocated.
-    /// @param shares An array of Splits structs specifying the split percentages and target addresses.
-    /// @return The remaining unallocated amount after distribution.
-    function _allocate(
-        uint256 amount,
-        address currency,
-        T.Shares[] memory shares
-    ) private returns (uint256) {
-        // Ensure there's a distribution or return the full amount.
-        if (shares.length == 0) return amount;
-        if (shares.length > 100) {
-            revert NoDeal(
-                "Invalid split allocations. Cannot be more than 100."
-            );
-        }
-
-        uint8 i = 0;
-        uint256 accBps = 0; // accumulated base points
-        uint256 accTotal = 0; // accumulated total allocation
-
-        while (i < shares.length) {
-            // Retrieve base points and target address from the distribution array.
-            uint256 bps = shares[i].bps;
-            address target = shares[i].target;
-            // safely increment i uncheck overflow
-            unchecked {
-                ++i;
-            }
-
-            if (bps == 0) continue;
-            // Calculate and register the allocation for each distribution.
-            uint256 registeredAmount = amount.perOf(bps);
-            target.transfer(registeredAmount, currency);
-            accTotal += registeredAmount;
-            accBps += bps;
-        }
-
-        // Ensure the total base points do not exceed the maximum allowed (100%).
-        if (accBps > C.BPS_MAX)
-            revert NoDeal("Invalid split base points overflow.");
-        return amount - accTotal; // Return the remaining unallocated amount.
     }
 
     /// @notice Modifier to check if the distributor is active and not blocked.
@@ -291,24 +246,70 @@ contract RightsManager is
         emit CustodialGranted(prevCustody, distributor, contentHolder);
     }
 
-    /// @inheritdoc IRightsPolicyControllerAuthorizer
+    /// @inheritdoc IRightsPolicyAuditor
+    /// @notice Approves the audit of a given policy.
+    /// @param policy The address of the policy to be audited.
+    function approveAudit(
+        address policy
+    ) external onlyPolicyContract(policy) onlyMod {
+        _approveAudit(policy, _msgSender());
+        // TODO add events
+    }
+
+    /// @inheritdoc IRightsPolicyAuditor
+    /// @notice Revokes the audit of a given policy.
+    /// @param policy The address of the policy whose audit is to be revoked.
+    function revokeAudit(
+        address policy
+    ) external onlyPolicyContract(policy) onlyMod {
+        _revokeAudit(policy, _msgSender());
+        // TODO add events
+    }
+
+    /// @inheritdoc IRightsPolicyController
     /// @notice Delegates rights to a policy contract for content held by the holder.
     /// @param policy The address of the policy contract to which rights are being delegated.
     function authorizePolicy(
         address policy
-    ) external onlyPolicyContract(policy) {
+    ) external onlyAuditedPolicy(policy) {
         address holder = _msgSender();
         _authorizePolicy(policy, holder);
         emit RightsGranted(policy, holder);
     }
 
-    /// @inheritdoc IRightsPolicyControllerRevoker
+    /// @inheritdoc IRightsPolicyController
     /// @notice Revokes the delegation of rights to a policy contract.
     /// @param policy The address of the policy contract whose rights delegation is being revoked.
-    function revokePolicy(address policy) external onlyPolicyContract(policy) {
+    function revokePolicy(address policy) external onlyAuditedPolicy(policy) {
         address holder = _msgSender();
         _revokePolicy(policy, holder);
         emit RightsRevoked(policy, holder);
+    }
+
+    /// @notice Calculates the fees for both the treasury and the distributor based on the provided total amount.
+    /// @dev This function handles the fee calculation for the treasury and negotiates the distribution fees with the distributor.
+    ///      If the distributor or treasury does not support the specified currency, the function will revert.
+    /// @param total The total amount involved in the transaction.
+    /// @param currency The address of the ERC20 token (or native currency) being used in the transaction.
+    /// @param holder The address of the content holder whose content is being accessed.
+    /// @return treasury The calculated fee for the treasury.
+    /// @return distribution The calculated fee for the distributor.
+    function calcFees(
+        uint256 total,
+        address currency,
+        address holder
+    )
+        external
+        onlySupportedCurrency(currency)
+        returns (uint256 treasury, uint256 distribution)
+    {
+        address custodial = getCustody(holder);
+        uint256 custodials = getCustodyCount(custodial);
+        IDistributor distributor = IDistributor(custodial);
+        // !IMPORTANT if distributor or trasury does not support the currency, will revert..
+        // the max bps integrity is warrantied by treasure fees
+        treasury = total.perOf(getFees(currency)); // bps
+        distribution = distributor.negotiate(total, currency, custodials);
     }
 
     /// @inheritdoc IRightsDealBroker
@@ -325,22 +326,19 @@ contract RightsManager is
         address currency,
         address holder,
         address account
-    ) external returns (bytes32) {
-        address custodial = getCustody(holder);
-        uint256 custodials = getCustodyCount(custodial);
-        IDistributor distributor = IDistributor(custodial);
-        // !IMPORTANT if distributor or trasury does not support the currency, will revert..
-        // the max bps integrity is warrantied by treasure fees
-        uint256 treasury = total.perOf(getFees(currency)); // bps
-        uint256 accepted = distributor.negotiate(total, currency, custodials);
-        uint256 deductions = treasury + accepted;
+    ) external onlySupportedCurrency(currency) returns (bytes32) {
+        // calculate the fees involved in the deal based on distributor fees and treasury
+        (uint256 tFees, uint256 dFees) = calcFees(total, currency, holder);
+        uint256 deductions = tFees + dFees; // the total of fees involved in the deal
+        uint256 available = total - deductions; // the total after fees involved in the deal
         if (deductions > total) revert NoDeal("The fees are too high.");
+        
         // create a new deal to interact with register policy
         T.Deal memory deal = T.Deal(
             block.timestamp, // the deal creation date
             total, // the transaction total amount
-            accepted, // distribution fees
-            total - deductions, // the remaining amount after fees
+            dFees, // distribution fees
+            available, // the remaining amount after fees
             currency, // the currency used in transaction
             account, // the account related to deal
             holder, // the content rights holder
@@ -368,29 +366,59 @@ contract RightsManager is
         payable
         nonReentrant
         onlyValidProof(dealProof)
-        onlyPolicyContract(policyAddress)
+        onlyAuditedPolicy(policyAddress)
     {
         T.Deal memory deal = getDeal(dealProof);
         // check if policy is authorized by holder to operate over content
         if (!isPolicyAuthorized(policyAddress, deal.holder))
             revert InvalidNotRightsDelegated(policyAddress, deal.holder);
-
+        // transfer amounts to contract and allocate shares.
+        // if currency is not native, allowance is checked..
+        _msgSender().safeDeposit(deal.total, deal.currency);
+        // ensure funds to policy and custodial..
+        // the remaining is sent to policy contract to operate distribution..
+        deal.custodial.transfer(deal.fees, deal.currency);
+        policyAddress.transfer(deal.available, deal.currency);
+        // validate policy execution..
         IPolicy policy = IPolicy(policyAddress);
         (bool success, string memory reason) = policy.exec(deal, data);
         if (!success) revert NoDeal(reason);
 
-        // transfer amounts to contract and allocate shares.
-        // if currency is not native, allowance is checked..
-        _msgSender().safeDeposit(deal.total, deal.currency);
-        T.Shares[] memory shares = policy.shares(); // royalties distribution..
-        uint256 remaining = _allocate(deal.amount, deal.currency, shares);
-
-        // register split distribution in ledger..
-        deal.holder.transfer(remaining, deal.currency);
-        deal.custodial.transfer(deal.fees, deal.currency);
-
         _closeDeal(dealProof); // inactivate the deal after success..
         _registerPolicy(deal.account, policyAddress);
         emit AccessGranted(deal.account, dealProof, policyAddress);
+    }
+
+    /// @inheritdoc IRightsAccessController
+    /// @notice Retrieves the first active policy for a specific account and content id in LIFO order.
+    /// @param account The address of the account to evaluate.
+    /// @param contentId The ID of the content to evaluate policies for.
+    /// @return A tuple containing:
+    /// - A boolean indicating whether an active policy was found (`true`) or not (`false`).
+    /// - The address of the active policy if found, or `address(0)` if no active policy is found.
+    function getActivePolicy(
+        address account,
+        uint256 contentId
+    ) public view returns (bool, address) {
+        address[] memory policies = getPolicies(account);
+        uint256 i = policies.length - 1;
+
+        while (true) {
+            // LIFO precedence order: last registered policy is evaluated first.
+            // The first complying policy is returned.
+            // We need to check if the policy is still valid audited.
+            if (isPolicyAudited(policies[i])) {
+                bool comply = _verifyPolicy(account, contentId, policies[i]);
+                if (comply) return (true, policies[i]);
+            }
+
+            if (i == 0) break;
+            unchecked {
+                --i;
+            }
+        }
+
+        // No active policy found
+        return (false, address(0));
     }
 }

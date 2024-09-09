@@ -7,7 +7,7 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "contracts/interfaces/IRightsPolicyController.sol";
 
 /// @title Rights Manager Policy Controller Upgradeable
-/// @notice This abstract contract manages the delegation and revocation of rights 
+/// @notice This abstract contract manages the delegation and revocation of rights
 /// from content holders to various policies.
 /// @dev The contract is upgradeable and uses namespaced storage to manage the delegation of rights.
 abstract contract RightsManagerPolicyControllerUpgradeable is
@@ -45,8 +45,10 @@ abstract contract RightsManagerPolicyControllerUpgradeable is
     /// @dev Verify if the specified policy contract has been delegated the rights by the content holder.
     /// @param policy The address of the policy contract to check for delegation.
     /// @param holder The content rights holder to check for delegation.
-    /// Reverts if the rights have not been delegated for the specified content ID.
-    function isPolicyAuthorized(address policy, address holder) public view returns (bool){
+    function isPolicyAuthorized(
+        address policy,
+        address holder
+    ) public view returns (bool) {
         RightsStorage storage $ = _getRightsStorage();
         return $._delegation[holder].contains(policy);
     }

@@ -32,4 +32,16 @@ interface IRightsDealBroker {
         address policyAddress,
         bytes calldata data
     ) external payable;
+
+    /// @notice Calculates the fees for both the treasury and the distributor based on the provided total amount.
+    /// @param total The total amount involved in the transaction.
+    /// @param currency The address of the ERC20 token (or native currency) being used in the transaction.
+    /// @param holder The address of the content holder whose content is being accessed.
+    /// @return treasury The calculated fee for the treasury.
+    /// @return distribution The calculated fee for the distributor.
+    function calcFees(
+        uint256 total,
+        address currency,
+        address holder
+    ) external returns (uint256, uint256);
 }

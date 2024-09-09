@@ -24,6 +24,9 @@ abstract contract BasePolicy {
         ownership = IOwnership(ownershipAddress);
     }
 
+    /// @notice Function to receive native coin.
+    receive() external payable {}
+
     /// @notice Returns the content id holder registered in ownership contract.
     /// @param contentId The content id to retrieve holder.
     function getHolder(uint256 contentId) public view returns (address) {
