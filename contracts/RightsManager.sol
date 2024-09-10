@@ -7,6 +7,7 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
+import "contracts/base/upgradeable/LedgerUpgradeable.sol";
 import "contracts/base/upgradeable/FeesManagerUpgradeable.sol";
 import "contracts/base/upgradeable/TreasurerUpgradeable.sol";
 import "contracts/base/upgradeable/CurrencyManagerUpgradeable.sol";
@@ -36,6 +37,7 @@ contract RightsManager is
     Initializable,
     UUPSUpgradeable,
     FeesManagerUpgradeable,
+    LedgerUpgradeable,
     GovernableUpgradeable,
     TreasurerUpgradeable,
     ReentrancyGuardUpgradeable,
@@ -106,6 +108,8 @@ contract RightsManager is
     /// @dev Error thrown when a deal fails to execute.
     /// @param reason A string providing the reason for the failure.
     error NoDeal(string reason);
+    /// @dev Error thrown when the fund withdrawal fails.
+    error NoFundsToWithdraw(string);
 
     /// @dev Constructor that disables initializers to prevent the implementation contract from being initialized.
     /// https://forum.openzeppelin.com/t/uupsupgradeable-vulnerability-post-mortem/15680
@@ -122,6 +126,7 @@ contract RightsManager is
         address repository,
         uint256 initialFee
     ) public initializer onlyBasePointsAllowed(initialFee) {
+        __Ledger_init();
         __UUPSUpgradeable_init();
         __ReentrancyGuard_init();
         __CurrencyManager_init();
@@ -168,7 +173,7 @@ contract RightsManager is
     /// @notice Modifier to check if the distributor is active and not blocked.
     /// @param distributor The distributor address to check.
     modifier onlyActiveDistributor(address distributor) {
-        if (!_checkActiveDistributor(distributor))
+        if (distributor == address(0) || !_checkActiveDistributor(distributor))
             revert InvalidInactiveDistributor();
         _;
     }
@@ -210,6 +215,32 @@ contract RightsManager is
         address treasury = getTreasuryAddress();
         treasury.transfer(amount, currency);
         emit FeesDisbursed(treasury, amount, currency);
+    }
+
+    /// @inheritdoc IFundsManager
+    /// @notice Withdraws tokens from the contract to a specified recipient's address.
+    /// @dev This implementation enforce th withdraw of token only for distributors by registered manager.
+    /// @param recipient The address that will receive the withdrawn tokens.
+    /// @param amount The amount of tokens to withdraw.
+    /// @param currency The currency to associate fees with. Use address(0) for the native coin.
+    function withdraw(
+        address recipient,
+        uint256 amount,
+        address currency
+    ) external onlyValidCurrency(currency) onlyActiveDistributor(recipient) {
+        IDistributor distributor = IDistributor(recipient);
+        uint256 available = getLedgerEntry(recipient, currency);
+
+        if (available < amount)
+            revert NoFundsToWithdraw("Insuficient funds to withdraw.");
+
+        if (_msgSender() != distributor.getManager())
+            revert NoFundsToWithdraw(
+                "Only manager is allowed to withdraw funds."
+            );
+
+        recipient.transfer(amount, currency);
+        _subLedgerEntry(recipient, amount, currency);
     }
 
     /// @inheritdoc IRightsManager
@@ -286,30 +317,31 @@ contract RightsManager is
         emit RightsRevoked(policy, holder);
     }
 
+    /// @inheritdoc IRightsDealBroker
     /// @notice Calculates the fees for both the treasury and the distributor based on the provided total amount.
     /// @dev This function handles the fee calculation for the treasury and negotiates the distribution fees with the distributor.
     ///      If the distributor or treasury does not support the specified currency, the function will revert.
     /// @param total The total amount involved in the transaction.
     /// @param currency The address of the ERC20 token (or native currency) being used in the transaction.
-    /// @param holder The address of the content holder whose content is being accessed.
-    /// @return treasury The calculated fee for the treasury.
-    /// @return distribution The calculated fee for the distributor.
+    /// @param custodial The address of the distributor to negotiate fees.
+    /// @return tFees The calculated fee for the treasury.
+    /// @return dFees The calculated fee for the distributor.
     function calcFees(
         uint256 total,
         address currency,
-        address holder
+        address custodial
     )
         external
         onlySupportedCurrency(currency)
-        returns (uint256 treasury, uint256 distribution)
+        onlyActiveDistributor(custodial)
+        returns (uint256 tFees, uint256 dFees)
     {
-        address custodial = getCustody(holder);
         uint256 custodials = getCustodyCount(custodial);
         IDistributor distributor = IDistributor(custodial);
         // !IMPORTANT if distributor or trasury does not support the currency, will revert..
         // the max bps integrity is warrantied by treasure fees
-        treasury = total.perOf(getFees(currency)); // bps
-        distribution = distributor.negotiate(total, currency, custodials);
+        tFees = total.perOf(getFees(currency)); // bps
+        dFees = distributor.negotiate(total, currency, custodials);
     }
 
     /// @inheritdoc IRightsDealBroker
@@ -327,12 +359,14 @@ contract RightsManager is
         address holder,
         address account
     ) external onlySupportedCurrency(currency) returns (bytes32) {
+        address custodial = getCustody(holder);
         // calculate the fees involved in the deal based on distributor fees and treasury
-        (uint256 tFees, uint256 dFees) = calcFees(total, currency, holder);
+        (uint256 tFees, uint256 dFees) = calcFees(total, currency, custodial);
+
         uint256 deductions = tFees + dFees; // the total of fees involved in the deal
         uint256 available = total - deductions; // the total after fees involved in the deal
         if (deductions > total) revert NoDeal("The fees are too high.");
-        
+
         // create a new deal to interact with register policy
         T.Deal memory deal = T.Deal(
             block.timestamp, // the deal creation date
@@ -372,19 +406,18 @@ contract RightsManager is
         // check if policy is authorized by holder to operate over content
         if (!isPolicyAuthorized(policyAddress, deal.holder))
             revert InvalidNotRightsDelegated(policyAddress, deal.holder);
-        // transfer amounts to contract and allocate shares.
-        // if currency is not native, allowance is checked..
-        _msgSender().safeDeposit(deal.total, deal.currency);
-        // ensure funds to policy and custodial..
         // the remaining is sent to policy contract to operate distribution..
-        deal.custodial.transfer(deal.fees, deal.currency);
+        // transfer amounts to contract and allocate shares.
+        _msgSender().safeDeposit(deal.total, deal.currency);
         policyAddress.transfer(deal.available, deal.currency);
+
         // validate policy execution..
         IPolicy policy = IPolicy(policyAddress);
         (bool success, string memory reason) = policy.exec(deal, data);
         if (!success) revert NoDeal(reason);
 
         _closeDeal(dealProof); // inactivate the deal after success..
+        _sumLedgerEntry(distributor, deal.fees, deal.currency);
         _registerPolicy(deal.account, policyAddress);
         emit AccessGranted(deal.account, dealProof, policyAddress);
     }

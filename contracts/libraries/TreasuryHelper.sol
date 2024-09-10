@@ -83,10 +83,10 @@ library TreasuryHelper {
     }
 
     /// @notice Transfer funds from the contract to the specified address.
-    /// @dev Handles the withdrawal of native tokens and ERC20 tokens.
+    /// @dev Handles the transfer of native tokens and ERC20 tokens.
     /// @param to The address to which the tokens will be sent.
-    /// @param amount The amount of tokens to withdraw.
-    /// @param token The address of the ERC20 token to withdraw or address(0) for native token.
+    /// @param amount The amount of tokens to transfer.
+    /// @param token The address of the ERC20 token to transfer or address(0) for native token.
     function transfer(address to, uint256 amount, address token) internal {
         if (balanceOf(address(this), token) < amount)
             revert FailDuringTransfer("Insufficient balance.");

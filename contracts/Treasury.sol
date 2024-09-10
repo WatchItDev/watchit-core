@@ -49,7 +49,7 @@ contract Treasury is
         __Governable_init(_msgSender());
     }
 
-    function withdraw(uint256 amount, address currency) public onlyGov {}
+    function withdraw(address recipient, uint256 amount, address currency) public onlyGov {}
 
     // TODO multisignature withdraw
 }

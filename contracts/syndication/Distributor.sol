@@ -159,14 +159,16 @@ contract Distributor is
     }
 
     /// @inheritdoc IFundsManager
-    /// @notice Withdraws erc20 fund from the contract to a specified recipient's address.
-    /// @param amount The amount of funds to withdraw.
-    /// @param currency The currency to associate fees with.
+    /// @notice Withdraws tokens from the contract to a specified recipient's address.
+    /// @param recipient The address that will receive the withdrawn tokens.
+    /// @param amount The amount of tokens to withdraw.
+    /// @param currency The currency to associate fees with. Use address(0) for the native coin.
     function withdraw(
+        address recipient,
         uint256 amount,
         address currency
     ) external onlyOwner onlySupportedCurrency(currency) {
-        owner().transfer(amount, currency);
+        recipient.transfer(amount, currency);
         // TODO add event
     }
 
