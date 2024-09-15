@@ -4,25 +4,27 @@ pragma solidity ^0.8.24;
 import "./ITreasurer.sol";
 import "./IFeesManager.sol";
 import "./IDisburser.sol";
+import "./IContentVault.sol";
 import "./IRightsCustodial.sol";
+import "./IBalanceManager.sol";
 import "./IRightsDealBroker.sol";
 import "./IRightsPolicyAuditor.sol";
 import "./IRightsPolicyController.sol";
 import "./IRightsCustodialGranter.sol";
 import "./IRightsAccessController.sol";
-import "./IFundsManager.sol";
-import "./IContentVault.sol";
+import "./IBalanceManagerWithdrawable.sol";
 
 interface IRightsManager is
     ITreasurer,
     IDisburser,
     IFeesManager,
-    IFundsManager,
+    IBalanceManager,
     IRightsCustodial,
     IRightsDealBroker,
     IRightsAccessController,
     IRightsCustodialGranter,
     IRightsPolicyController,
+    IBalanceManagerWithdrawable,
     IRightsPolicyAuditor
 {
     /// @notice Checks if the content is eligible for distribution by the content holder's custodial.

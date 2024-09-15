@@ -4,9 +4,15 @@ pragma solidity ^0.8.24;
 
 import "./IFeesManager.sol";
 import "./ICurrencyManager.sol";
-import "./IFundsManager.sol";
+import "./IBalanceManager.sol";
+import "./IBalanceManagerWithdrawable.sol";
 
-interface IDistributor is IFeesManager, ICurrencyManager, IFundsManager {
+interface IDistributor is
+    IFeesManager,
+    ICurrencyManager,
+    IBalanceManager,
+    IBalanceManagerWithdrawable
+{
     /// @notice Set the endpoint of the distributor.
     /// @dev This function can only be called by the owner of the contract.
     /// @param _endpoint The new distributor's endpoint.

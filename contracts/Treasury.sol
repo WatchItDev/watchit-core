@@ -5,8 +5,8 @@ pragma solidity ^0.8.24;
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "contracts/base/upgradeable/GovernableUpgradeable.sol";
+import "contracts/interfaces/IBalanceManagerWithdrawable.sol";
 import "contracts/interfaces/IFeesManager.sol";
-import "contracts/interfaces/IFundsManager.sol";
 
 // TODO payment splitter
 // https://docs.openzeppelin.com/contracts/4.x/api/finance#PaymentSplitter
@@ -18,7 +18,7 @@ contract Treasury is
     Initializable,
     UUPSUpgradeable,
     GovernableUpgradeable,
-    IFundsManager
+    IBalanceManagerWithdrawable
 {
     /// @dev Constructor that disables initializers to prevent the implementation contract from being initialized.
     /// @notice This constructor prevents the implementation contract from being initialized.

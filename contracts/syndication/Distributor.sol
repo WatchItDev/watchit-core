@@ -46,12 +46,13 @@ contract Distributor is
         string memory _endpoint,
         address _owner
     ) public initializer {
+        if (bytes(_endpoint).length == 0) revert InvalidEndpoint();
+
         __ERC165_init();
         __Ownable_init(_owner);
         __CurrencyManager_init();
         __Fees_init(0, address(0));
 
-        if (bytes(_endpoint).length == 0) revert InvalidEndpoint();
         // balanced factors
         flattenFactor = 30;
         endpoint = _endpoint;
@@ -153,12 +154,17 @@ contract Distributor is
         return proposedFees < adjustedFloor ? adjustedFloor : proposedFees;
     }
 
-    // TODO finish this
-    function getBalance(address currency) external returns (uint256) {
+    /// @inheritdoc IBalanceManager
+    /// @notice Returns the contract's balance for the specified currency.
+    /// @param currency The address of the token to check the balance of (address(0) for native currency).
+    /// @return The balance of the contract in the specified currency.
+    function getBalance(
+        address currency
+    ) external view onlyOwner returns (uint256) {
         return address(this).balanceOf(currency);
     }
 
-    /// @inheritdoc IFundsManager
+    /// @inheritdoc IBalanceManagerWithdrawable
     /// @notice Withdraws tokens from the contract to a specified recipient's address.
     /// @param recipient The address that will receive the withdrawn tokens.
     /// @param amount The amount of tokens to withdraw.

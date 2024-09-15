@@ -146,6 +146,14 @@ contract Syndication is
         _setTreasuryAddress(newTreasuryAddress);
     }
 
+    /// @inheritdoc IBalanceManager
+    /// @notice Returns the contract's balance for the specified currency.
+    /// @param currency The address of the token to check the balance of (address(0) for native currency).
+    /// @return The balance of the contract in the specified currency.
+    function getBalance(address currency) external returns (uint256) {
+        return address(this).balanceOf(currency);
+    }
+
     /// @inheritdoc IDisburser
     /// @notice Disburses funds from the contract to a specified address.
     /// @param amount The amount of coins to disburse.
@@ -216,7 +224,7 @@ contract Syndication is
         address distributor
     ) external nonReentrant onlyDistributorContract(distributor) {
         address manager = _msgSender(); // the sender is expected to be the manager..
-        uint256 ledgerAmount = getLedgerEntry(manager, address(0)); // Wei, etc..
+        uint256 ledgerAmount = getLedgerBalance(manager, address(0)); // Wei, etc..
         if (ledgerAmount == 0) revert FailDuringQuit("Invalid enrollment.");
         // eg: (100 * bps) / BPS_MAX
         uint256 penal = ledgerAmount.perOf(penaltyRate);

@@ -150,7 +150,7 @@ describe('Syndication', function () {
       await syndication.register(distributorAddress, { value: fees })
 
       const manager = await distributorContract.getManager()
-      expect(await syndication.getLedgerEntry(manager, hre.ethers.ZeroAddress)).to.equal(fees)
+      expect(await syndication.getLedgerBalance(manager, hre.ethers.ZeroAddress)).to.equal(fees)
     })
 
     it('Should set waiting state during valid Distributor register.', async function () {
@@ -286,7 +286,7 @@ describe('Syndication', function () {
       await (await syndication.quit(distributorAddress)).wait()
 
       const manager = await distributorContract.getManager()
-      expect(await syndication.getLedgerEntry(manager, hre.ethers.ZeroAddress)).to.equal(0)
+      expect(await syndication.getLedgerBalance(manager, hre.ethers.ZeroAddress)).to.equal(0)
     })
   })
 
@@ -301,7 +301,7 @@ describe('Syndication', function () {
       const [syndication, distributorContract, distributorAddress] = await deploySyndicationWithRegisteredDistributor()
       await (await syndication.approve(distributorAddress)).wait()
       const manager = await distributorContract.getManager()
-      expect(await syndication.getLedgerEntry(manager, hre.ethers.ZeroAddress)).to.equal(0)
+      expect(await syndication.getLedgerBalance(manager, hre.ethers.ZeroAddress)).to.equal(0)
     })
 
     it('Should set valid active state after approval.', async function () {

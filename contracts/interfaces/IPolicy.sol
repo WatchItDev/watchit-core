@@ -10,7 +10,8 @@ interface IPolicy {
 
     /// @notice Returns the business/strategy model implemented by the policy.
     /// @return A detailed description of the subscription policy as bytes.
-    function description() external pure override returns (bytes memory);
+    /// @dev A bytes string encoded packed is expected on the return.
+    function description() external pure returns (bytes memory);
 
     /// @notice Retrieves the access terms for a specific account and content ID.
     /// @param account The address of the account for which access terms are being retrieved.

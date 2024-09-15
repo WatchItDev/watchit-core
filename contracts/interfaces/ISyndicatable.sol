@@ -7,6 +7,7 @@ import "./ITreasurer.sol";
 import "./IDisburser.sol";
 import "./IFeesManager.sol";
 import "./IRegistrable.sol";
+import "./IBalanceManager.sol";
 import "./IRegistrableRevokable.sol";
 import "./IRegistrableVerifiable.sol";
 
@@ -19,6 +20,7 @@ interface ISyndicatable is
     IDisburser,
     IRegistrable,
     IFeesManager,
+    IBalanceManager,
     IRegistrableRevokable,
     IRegistrableVerifiable
 {

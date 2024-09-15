@@ -83,7 +83,7 @@ abstract contract LedgerUpgradeable is Initializable, ILedger {
     /// @notice Retrieves the registered currency amount for the specified account.
     /// @param account The address of the account.
     /// @param currency The currency to retrieve ledger amount.
-    function getLedgerEntry(
+    function getLedgerBalance(
         address account,
         address currency
     ) public view returns (uint256) {

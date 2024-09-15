@@ -10,6 +10,7 @@ node_modules
 /typechain
 /typechain-types
 
+excluded/*
 # solidity-coverage files
 /coverage
 /coverage.json

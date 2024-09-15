@@ -134,6 +134,7 @@ contract RightsManager is
 
         // initialize dependencies for RM
         IRepository repo = IRepository(repository);
+        address wvc = repo.getContract(T.ContractTypes.WVC);
         address treasuryAddress = repo.getContract(T.ContractTypes.TRE);
         address syndicationAddress = repo.getContract(T.ContractTypes.SYN);
         address referendumAddress = repo.getContract(T.ContractTypes.REF);
@@ -141,7 +142,8 @@ contract RightsManager is
         syndication = IRegistrableVerifiable(syndicationAddress);
         referendum = IReferendumVerifiable(referendumAddress);
 
-        __Fees_init(initialFee, address(0));
+        // TODO aca WVC
+        __Fees_init(initialFee, wvc);
         __Treasurer_init(treasuryAddress);
     }
 
@@ -203,6 +205,14 @@ contract RightsManager is
         _setTreasuryAddress(newTreasuryAddress);
     }
 
+    /// @inheritdoc IBalanceManager
+    /// @notice Returns the contract's balance for the specified currency.
+    /// @param currency The address of the token to check the balance of (address(0) for native currency).
+    /// @return The balance of the contract in the specified currency.
+    function getBalance(address currency) external view returns (uint256) {
+        return address(this).balanceOf(currency);
+    }
+
     /// @inheritdoc IDisburser
     /// @notice Disburses funds from the contract to a specified address.
     /// @param amount The amount of currencies to disburse.
@@ -217,7 +227,7 @@ contract RightsManager is
         emit FeesDisbursed(treasury, amount, currency);
     }
 
-    /// @inheritdoc IFundsManager
+    /// @inheritdoc IBalanceManagerWithdrawable
     /// @notice Withdraws tokens from the contract to a specified recipient's address.
     /// @dev This implementation enforce th withdraw of token only for distributors by registered manager.
     /// @param recipient The address that will receive the withdrawn tokens.
@@ -229,9 +239,7 @@ contract RightsManager is
         address currency
     ) external onlyValidCurrency(currency) onlyActiveDistributor(recipient) {
         IDistributor distributor = IDistributor(recipient);
-        uint256 available = getLedgerEntry(recipient, currency);
-
-        if (available < amount)
+        if (getLedgerBalance(recipient, currency) < amount)
             revert NoFundsToWithdraw("Insuficient funds to withdraw.");
 
         if (_msgSender() != distributor.getManager())
@@ -331,7 +339,7 @@ contract RightsManager is
         address currency,
         address custodial
     )
-        external
+        public
         onlySupportedCurrency(currency)
         onlyActiveDistributor(custodial)
         returns (uint256 tFees, uint256 dFees)
@@ -417,7 +425,7 @@ contract RightsManager is
         if (!success) revert NoDeal(reason);
 
         _closeDeal(dealProof); // inactivate the deal after success..
-        _sumLedgerEntry(distributor, deal.fees, deal.currency);
+        _sumLedgerEntry(deal.custodial, deal.fees, deal.currency);
         _registerPolicy(deal.account, policyAddress);
         emit AccessGranted(deal.account, dealProof, policyAddress);
     }
