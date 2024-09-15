@@ -67,6 +67,17 @@ contract GatedContentPolicy is BasePolicy, IPolicy {
         }
     }
 
+    /// @notice Retrieves the access terms for a specific account and content ID.
+    /// @param account The address of the account for which access terms are being retrieved.
+    /// @param contentId The ID of the content associated with the access terms.
+    /// @return The access terms as a `bytes` array, which can contain the rental expiration timestamp.
+    function terms(
+        address account,
+        uint256 contentId
+    ) external view override returns (bytes memory) {
+        return "";
+    }
+
     /// @notice Returns a detailed description of the gated content policy.
     function description() external pure override returns (bytes memory) {
         return abi.encodePacked(
