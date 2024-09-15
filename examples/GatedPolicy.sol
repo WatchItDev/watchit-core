@@ -23,6 +23,12 @@ contract GatedContentPolicy is BasePolicy, IPolicy {
         nftToken = nftTokenAddress;
     }
 
+    /// @notice Returns the name of the policy.
+    /// @return The name of the policy, "RentalPolicy".
+    function name() external pure override returns (string memory) {
+        return "GatedPolicy";
+    }
+
     /// @notice Register a user on the whitelist for specific content.
     /// @param user The address of the user to be whitelisted.
     /// @param contentId The ID of the content.
