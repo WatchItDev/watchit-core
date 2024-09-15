@@ -150,7 +150,7 @@ contract Syndication is
     /// @notice Returns the contract's balance for the specified currency.
     /// @param currency The address of the token to check the balance of (address(0) for native currency).
     /// @return The balance of the contract in the specified currency.
-    function getBalance(address currency) external returns (uint256) {
+    function getBalance(address currency) external view returns (uint256) {
         return address(this).balanceOf(currency);
     }
 

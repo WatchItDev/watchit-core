@@ -53,7 +53,8 @@ contract GatedContentPolicy is BasePolicy, IPolicy {
         T.Deal calldata deal,
         bytes calldata data
     ) external onlyRM returns (bool, string memory) {
-        if (comply(deal.account, deal.contentId)) {
+        uint256 contentId = abi.decode(data, (uint256));
+        if (comply(deal.account, contentId)) {
             return (true, "Access granted");
         } else {
             return (false, "Access denied");

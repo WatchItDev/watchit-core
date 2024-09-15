@@ -325,7 +325,7 @@ contract RightsManager is
         emit RightsRevoked(policy, holder);
     }
 
-    /// @inheritdoc IRightsDealBroker
+    /// @inheritdoc IRightsManager
     /// @notice Calculates the fees for both the treasury and the distributor based on the provided total amount.
     /// @dev This function handles the fee calculation for the treasury and negotiates the distribution fees with the distributor.
     ///      If the distributor or treasury does not support the specified currency, the function will revert.
@@ -392,14 +392,14 @@ contract RightsManager is
         return _createProof(deal);
     }
 
-    /// @inheritdoc IRightsDealBroker
-    /// @notice Close the deal by confirming the terms and executing the necessary transactions.
-    /// @dev This function finalizes the deal created by the account. It validates the proposal,
-    /// executes the agreed terms, and allocates payments.
-    /// @param dealProof The unique identifier of the created deal.
-    /// @param policyAddress The address of the policy contract that governs the terms.
-    /// @param data Additional data required to close the deal.
-    function closeDeal(
+    /// @inheritdoc IRightsManager
+    /// @notice Finalizes the deal by registering the agreed-upon policy, effectively closing the deal.
+    /// @dev This function verifies the policy's authorization, executes the deal, processes financial transactions,
+    ///      and registers the policy in the system, representing the formal closure of the deal.
+    /// @param dealProof The unique identifier of the deal to be enforced.
+    /// @param policyAddress The address of the policy contract managing the deal.
+    /// @param data Additional data required to execute the deal.
+    function registerPolicy(
         bytes32 dealProof,
         address policyAddress,
         bytes calldata data

@@ -27,6 +27,18 @@ interface IRightsManager is
     IBalanceManagerWithdrawable,
     IRightsPolicyAuditor
 {
+    /// @notice Calculates the fees for both the treasury and the distributor based on the provided total amount.
+    /// @param total The total amount involved in the transaction.
+    /// @param currency The address of the ERC20 token (or native currency) being used in the transaction.
+    /// @param holder The address of the content holder whose content is being accessed.
+    /// @return treasury The calculated fee for the treasury.
+    /// @return distribution The calculated fee for the distributor.
+    function calcFees(
+        uint256 total,
+        address currency,
+        address holder
+    ) external returns (uint256, uint256);
+
     /// @notice Checks if the content is eligible for distribution by the content holder's custodial.
     /// @param contentId The ID of the content to check for distribution eligibility.
     /// @param contentHolder The address of the content holder whose custodial rights are being checked.
@@ -35,4 +47,16 @@ interface IRightsManager is
         uint256 contentId,
         address contentHolder
     ) external returns (bool);
+
+    /// @notice Finalizes the deal by registering the agreed-upon policy, effectively closing the deal.
+    /// @dev This function verifies the policy's authorization, executes the deal, processes financial transactions,
+    ///      and registers the policy in the system, representing the formal closure of the deal.
+    /// @param dealProof The unique identifier of the deal to be enforced.
+    /// @param policyAddress The address of the policy contract managing the deal.
+    /// @param data Additional data required to execute the deal.
+    function registerPolicy(
+        bytes32 dealProof,
+        address policyAddress,
+        bytes calldata data
+    ) external payable;
 }
