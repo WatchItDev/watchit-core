@@ -143,7 +143,8 @@ contract Referendum is
         if (signer != initiator) {
             revert InvalidSubmissionSignature();
         }
-
+        
+        // 
         submit(contentId, initiator);
     }
 
