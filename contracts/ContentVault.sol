@@ -3,7 +3,7 @@ pragma solidity ^0.8.24;
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "contracts/interfaces/IContentVault.sol";
 
-// TODO upgradeable y inicializar con DRM
+// TODO upgradeable y inicializar con Ownership 
 contract ContentVault is Initializable, IContentVault {
     mapping(uint256 => bytes) secured; // Mapping to store encrypted content by content ID
 
@@ -13,6 +13,8 @@ contract ContentVault is Initializable, IContentVault {
     function getContent(uint256 contentId) public view returns (bytes memory) {
         return secured[contentId];
     }
+
+    // TODO need access control
 
     /// @notice Stores encrypted content in the vault.
     /// @param contentId The identifier of the content.

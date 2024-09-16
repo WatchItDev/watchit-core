@@ -90,6 +90,8 @@ contract RightsManager is
     /// @param policy The policy contract address whose rights are being revoked.
     /// @param holder The address of the content rights holder.
     event RightsRevoked(address indexed policy, address holder);
+    event PolicyApproved(address indexed policy, address auditor);
+    event PolicyRevoked(address indexed policy, address auditor);
 
     /// KIM: any initialization here is ephimeral and not included in bytecode..
     /// so the code within a logic contract’s constructor or global declaration
@@ -291,8 +293,9 @@ contract RightsManager is
     function approveAudit(
         address policy
     ) external onlyPolicyContract(policy) onlyMod {
-        _approveAudit(policy, _msgSender());
-        // TODO add events
+        address auditor = _msgSender();
+        _approveAudit(policy, auditor);
+        emit PolicyApproved(policy, auditor);
     }
 
     /// @inheritdoc IRightsPolicyAuditor
@@ -301,8 +304,9 @@ contract RightsManager is
     function revokeAudit(
         address policy
     ) external onlyPolicyContract(policy) onlyMod {
-        _revokeAudit(policy, _msgSender());
-        // TODO add events
+        address auditor = _msgSender();
+        _revokeAudit(policy, auditor);
+        emit PolicyRevoked(policy, auditor);
     }
 
     /// @inheritdoc IRightsPolicyController
