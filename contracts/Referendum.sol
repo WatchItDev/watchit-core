@@ -32,7 +32,7 @@ contract Referendum is
     bytes32 private constant VERIFIED_ROLE = keccak256("VERIFIED_ROLE");
 
     // Error to be thrown when the submission initiator is invalid.
-    error InvalidSignature();
+    error InvalidSubmissionSignature();
 
     /// @dev Event emitted when a content is submitted for referendum.
     /// @param contentId The ID of the content submitted.
@@ -127,22 +127,21 @@ contract Referendum is
         T.EIP712Signature calldata sig
     ) external {
         // https://eips.ethereum.org/EIPS/eip-712
+        uint256 nonce = _useNonce(initiator);
         bytes32 structHash = keccak256(
             abi.encode(
                 C.REFERENDUM_SUBMIT_TYPEHASH,
                 contentId,
                 initiator,
-                _useNonce(initiator)
+                nonce
             )
         );
-        
-        bytes32 digest = _hashTypedDataV4(structHash); // expected keccak256("\x19\x01" ‖ domainSeparator ‖ hashStruct(message))
-        // retrieve the signer from digest and input signature to check if the signature correspond to expected signer
-        address signer = ecrecover(digest, sig.v, sig.r, sig.s);
 
-        // TODO move to lib
+        // retrieve the signer from digest and signature to check if the signature correspond to expected signer.
+        bytes32 digest = _hashTypedDataV4(structHash); // expected keccak256("\x19\x01" ‖ domainSeparator ‖ hashStruct(message))
+        address signer = ecrecover(digest, sig.v, sig.r, sig.s);
         if (signer != initiator) {
-            revert InvalidSignature();
+            revert InvalidSubmissionSignature();
         }
 
         submit(contentId, initiator);
