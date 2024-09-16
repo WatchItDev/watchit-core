@@ -140,11 +140,7 @@ contract Referendum is
         // retrieve the signer from digest and signature to check if the signature correspond to expected signer.
         bytes32 digest = _hashTypedDataV4(structHash); // expected keccak256("\x19\x01" ‖ domainSeparator ‖ hashStruct(message))
         address signer = ecrecover(digest, sig.v, sig.r, sig.s);
-        if (signer != initiator) {
-            revert InvalidSubmissionSignature();
-        }
-        
-        // 
+        if (signer != initiator) revert InvalidSubmissionSignature();
         submit(contentId, initiator);
     }
 
