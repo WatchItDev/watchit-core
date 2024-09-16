@@ -5,7 +5,7 @@ import "contracts/interfaces/IContentVault.sol";
 
 // TODO upgradeable y inicializar con Ownership 
 contract ContentVault is Initializable, IContentVault {
-    mapping(uint256 => bytes) secured; // Mapping to store encrypted content by content ID
+    mapping(uint256 => bytes) private secured; // Mapping to store encrypted content by content ID
 
     /// @notice Returns the encrypted content for a given content ID.
     /// @param contentId The identifier of the content.

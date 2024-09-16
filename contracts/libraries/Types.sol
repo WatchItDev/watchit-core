@@ -43,31 +43,12 @@ library T {
 
     /// @notice A struct containing the necessary information to reconstruct an EIP-712 typed data signature.
     /// @dev We could use this information to handle signature logic with delegated actions from the account owner.
-    /// @param signer The address of the signer. Specially needed as a parameter to support EIP-1271.
     /// @param v The signature's recovery parameter.
     /// @param r The signature's r parameter.
     /// @param s The signature's s parameter.
-    /// @param deadline The signature's deadline.
     struct EIP712Signature {
         uint8 v; // 1 byte
-        address signer; // 20 bytes
-        uint256 deadline; // 32 bytes
         bytes32 r; // 32 bytes
         bytes32 s; // 32 bytes
-    }
-
-    // This struct provides critical parameters that will be used during the referendum process
-    // to give voters context about the content and help distributors determine where the content
-    // can be appropriately projected. These parameters ensure the content meets local regulations,
-    // aligns with audience expectations, and is suitable for distribution.
-    // Define a struct for ContentParams
-    struct ContentParams {
-        string trailer;
-        string geofencing; // Expected geographic restriction for content distribution.
-        string rating; // Content rating (e.g., G, PG, PG-13, R).
-        string language; // Language of the content.
-        string license; // Distribution license information.
-        string contentWarnings; // Content warnings (e.g., violence, strong language).
-        string targetAudience; // Target audience of the content.
     }
 }

@@ -143,8 +143,7 @@ contract RightsManager is
 
         syndication = IRegistrableVerifiable(syndicationAddress);
         referendum = IReferendumVerifiable(referendumAddress);
-
-        // TODO aca WVC
+        
         __Fees_init(initialFee, wvc);
         __Treasurer_init(treasuryAddress);
     }

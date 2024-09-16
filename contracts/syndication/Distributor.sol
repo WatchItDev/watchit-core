@@ -30,9 +30,10 @@ contract Distributor is
     using TreasuryHelper for address;
     using FeesHelper for uint256;
 
-    mapping(address => uint256) private floor;
     string private endpoint;
-    uint256 flattenFactor; // To smooth or flatten the increase in fees as demand grows.
+    // To smooth or flatten the increase in fees as demand grows.
+    uint256 private flattenFactor;
+    mapping(address => uint256) private floor;
 
     /// @notice Event emitted when the endpoint is updated.
     /// @param oldEndpoint The old endpoint.

@@ -21,7 +21,6 @@ contract Repository is
 {
     /// @notice Stores the addresses of the contracts by their type.
     mapping(T.ContractTypes => address) public contracts;
-
     /// @notice Stores the versions of the contracts by their type.
     mapping(T.ContractTypes => uint256) public versions;
 

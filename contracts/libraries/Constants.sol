@@ -13,6 +13,6 @@ library C {
     uint16 public constant BPS_MAX = 10_000;
 
     bytes32 private constant REFERENDUM_SUBMIT_TYPEHASH =
-        keccak256("Submission(uint256 contentId, address initiator, uint256 nonce,uint256 deadline)");
+        keccak256("Submission(uint256 contentId, address initiator, uint256 nonce)");
 
 }

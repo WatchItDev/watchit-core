@@ -3,12 +3,16 @@
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/cryptography/EIP712Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/NoncesUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 
 import "contracts/base/upgradeable/GovernableUpgradeable.sol";
 import "contracts/base/upgradeable/QuorumUpgradeable.sol";
 import "contracts/interfaces/ICurable.sol";
+import "contracts/libraries/Constants.sol";
 import "contracts/libraries/Types.sol";
 
 /// @title Content curation contract.
@@ -17,30 +21,27 @@ contract Referendum is
     Initializable,
     UUPSUpgradeable,
     GovernableUpgradeable,
+    NoncesUpgradeable,
+    EIP712Upgradeable,
     QuorumUpgradeable,
     ICurable
 {
-    uint256 public count;
-    mapping(uint256 => address) public submissions;
+    using EnumerableSet for EnumerableSet.UintSet;
+    mapping(address => EnumerableSet.UintSet) public submissions;
     // This role is granted to any representant trusted account. eg: Verified Accounts, etc.
     bytes32 private constant VERIFIED_ROLE = keccak256("VERIFIED_ROLE");
 
     // Error to be thrown when the submission initiator is invalid.
-    error InvalidSubmissionInitiator();
+    error InvalidSignature();
 
     /// @dev Event emitted when a content is submitted for referendum.
     /// @param contentId The ID of the content submitted.
     /// @param initiator The address of the initiator who submitted the content.
-    event ContentSubmitted(
-        address initiator,
-        uint256 indexed contentId,
-        T.ContentParams conditions
-    );
+    event ContentSubmitted(address initiator, uint256 indexed contentId);
 
     /// @dev Event emitted when a content is approved.
     /// @param contentId The ID of the content approved.
     event ContentApproved(uint256 indexed contentId);
-
     /// @dev Event emitted when a content is revoked.
     /// @param contentId The ID of the content revoked.
     event ContentRevoked(uint256 indexed contentId);
@@ -56,6 +57,7 @@ contract Referendum is
     /// @notice Initializes the contract.
     function initialize() public initializer {
         __Quorum_init();
+        __EIP712_init("Referendum", "1");
         __UUPSUpgradeable_init();
         __Governable_init(_msgSender());
     }
@@ -83,7 +85,7 @@ contract Referendum is
         uint256 contentId
     ) public view returns (bool) {
         bool approved = isActive(contentId);
-        bool validAccount = submissions[contentId] == initiator;
+        bool validAccount = submissions[initiator].contains(contentId);
         bool verifiedRole = hasRole(VERIFIED_ROLE, initiator);
         // is approved with a valid submission account or is verified account..
         return (approved && validAccount) || verifiedRole;
@@ -92,67 +94,58 @@ contract Referendum is
     /// @notice Grants the verified role to a specific account.
     /// @param account The address of the account to verify.
     /// @dev Only governance is allowed to grant the role.
-    function grantVerified(address account) external onlyGov {
+    function grantVerifiedRole(address account) external onlyGov {
         _grantRole(VERIFIED_ROLE, account);
     }
 
     /// @notice Revoke the verified role to a specific account.
     /// @param account The address of the account to revoke.
     /// @dev Only governance is allowed to revoke the role.
-    function revokeVerified(address account) external onlyGov {
+    function revokeVerifiedRole(address account) external onlyGov {
         _revokeRole(VERIFIED_ROLE, account);
     }
 
     /// @notice Submits a content proposition for referendum.
     /// @param contentId The ID of the content to be submitted.
     /// @param initiator The address of the initiator submitting the content.
-    /// @dev The content ID is reviewed by a set number of people before voting.
-    function submit(
-        uint256 contentId,
-        address initiator,
-        // TODO aca en lugar de ser un tipo, podria ser bytes con standard format, 
-        /// para permitir enviar datos escalables..
-        /// TODO podria ser tambien que los datos que establezcan sean los de IP story
-        /// para determinas las condiciones como geofencing, etc.. ver que condiciones establecer IP
-        T.ContentParams calldata params
-    ) public {
+    /// @dev The content ID is reviewed by governance.
+    function submit(uint256 contentId, address initiator) external {
         if (initiator == address(0)) revert InvalidSubmissionInitiator();
 
-        count++;
-        submissions[contentId] = initiator;
         _register(contentId);
-
-        emit ContentSubmitted(initiator, contentId, params);
+        submissions[initiator].add(contentId);
+        emit ContentSubmitted(initiator, contentId);
     }
 
     /// @notice Submits a content proposition for referendum with a signature.
     /// @param contentId The ID of the content to be submitted.
     /// @param initiator The address of the initiator submitting the content.
-    /// @param params The content parameters being submitted.
-    /// @param signature The EIP712 signature for the submission.
+    /// @param sign The EIP712 signature for the submission.
     function submitWithSig(
         uint256 contentId,
         address initiator,
-        T.ContentParams calldata params,
-        T.EIP712Signature calldata signature
-    ) public {
-        if (initiator == address(0)) revert InvalidSubmissionInitiator();
+        T.EIP712Signature calldata sig
+    ) external {
+        // https://eips.ethereum.org/EIPS/eip-712
+        bytes32 structHash = keccak256(
+            abi.encode(
+                C.REFERENDUM_SUBMIT_TYPEHASH,
+                contentId,
+                initiator,
+                _useNonce(initiator)
+            )
+        );
+        
+        bytes32 digest = _hashTypedDataV4(structHash); // expected keccak256("\x19\x01" ‖ domainSeparator ‖ hashStruct(message))
+        // retrieve the signer from digest and input signature to check if the signature correspond to expected signer
+        address signer = ecrecover(digest, sig.v, sig.r, sig.s);
 
-        // TODO finish this..
-        // bytes32 structHash = keccak256(abi.encode(PERMIT_TYPEHASH,
-        // owner, spender, value, _useNonce(owner), deadline));
+        // TODO move to lib
+        if (signer != initiator) {
+            revert InvalidSignature();
+        }
 
-        // bytes32 hash = _hashTypedDataV4(structHash);
-
-        // address signer = ECDSA.recover(hash, v, r, s);
-        // if (signer != initiator) {
-        //     revert ERC2612InvalidSigner(signer, owner);
-        // }
-
-        _register(contentId);
-        submissions[contentId] = initiator;
-        count++;
-        emit ContentSubmitted(initiator, contentId, params);
+        submit(contentId, initiator);
     }
 
     /// @notice Reject a content proposition.
@@ -168,6 +161,4 @@ contract Referendum is
         _approve(contentId);
         emit ContentApproved(contentId);
     }
-
-    function submit(uint256 contentId, address initiator) external override {}
 }
