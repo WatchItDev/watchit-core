@@ -12,7 +12,7 @@ library C {
     uint8 public constant SCALE_FACTOR = 100;
     uint16 public constant BPS_MAX = 10_000;
 
-    bytes32 private constant REFERENDUM_SUBMIT_TYPEHASH =
+    bytes32 internal constant REFERENDUM_SUBMIT_TYPEHASH =
         keccak256("Submission(uint256 contentId, address initiator, uint256 nonce)");
 
 }

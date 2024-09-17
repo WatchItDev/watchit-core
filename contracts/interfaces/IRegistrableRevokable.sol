@@ -5,7 +5,10 @@ pragma solidity ^0.8.24;
 /// @dev Interface for managing entities' registration status, including quitting and revoking.
 interface IRegistrableRevokable {
     /// @notice Allows an entity to quit and receive a penalized refund.
-    function quit(address) external;
+    /// @param distributor The address of the distributor to quit.
+    /// @param currency The currency used to pay enrollment.
+    function quit(address, address) external;
+
     /// @notice Revokes the registration of an entity.
     function revoke(address) external;
 }

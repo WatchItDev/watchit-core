@@ -8,6 +8,7 @@ import "./IDisburser.sol";
 import "./IFeesManager.sol";
 import "./IRegistrable.sol";
 import "./IBalanceManager.sol";
+import "./IRegistrableExpirable.sol";
 import "./IRegistrableRevokable.sol";
 import "./IRegistrableVerifiable.sol";
 
@@ -21,12 +22,14 @@ interface ISyndicatable is
     IRegistrable,
     IFeesManager,
     IBalanceManager,
+    IRegistrableExpirable,
     IRegistrableRevokable,
     IRegistrableVerifiable
 {
     /// @notice Function to set the penalty rate for quitting enrollment.
     /// @param newPenaltyRate The new penalty rate to be set. It should be a value representing base points (bps).
+    /// @param currency The currency to set penalty rate.
     /// @dev The penalty rate is represented as base points (expressed as a uint256)
     /// That will be applied to the enrollment fee when a distributor quits.
-    function setPenaltyRate(uint256 newPenaltyRate) external;
+    function setPenaltyRate(uint256 newPenaltyRate, address currency) external;
 }

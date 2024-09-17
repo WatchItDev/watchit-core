@@ -27,12 +27,13 @@ contract Referendum is
     ICurable
 {
     using EnumerableSet for EnumerableSet.UintSet;
-    mapping(address => EnumerableSet.UintSet) public submissions;
+    mapping(address => EnumerableSet.UintSet) private submissions;
     // This role is granted to any representant trusted account. eg: Verified Accounts, etc.
     bytes32 private constant VERIFIED_ROLE = keccak256("VERIFIED_ROLE");
 
     // Error to be thrown when the submission initiator is invalid.
     error InvalidSubmissionSignature();
+    error InvalidSubmissionInitiator();
 
     /// @dev Event emitted when a content is submitted for referendum.
     /// @param contentId The ID of the content submitted.
@@ -109,7 +110,7 @@ contract Referendum is
     /// @param contentId The ID of the content to be submitted.
     /// @param initiator The address of the initiator submitting the content.
     /// @dev The content ID is reviewed by governance.
-    function submit(uint256 contentId, address initiator) external {
+    function submit(uint256 contentId, address initiator) public {
         if (initiator == address(0)) revert InvalidSubmissionInitiator();
 
         _register(contentId);
@@ -120,7 +121,7 @@ contract Referendum is
     /// @notice Submits a content proposition for referendum with a signature.
     /// @param contentId The ID of the content to be submitted.
     /// @param initiator The address of the initiator submitting the content.
-    /// @param sign The EIP712 signature for the submission.
+    /// @param sig The EIP712 signature for the submission.
     function submitWithSig(
         uint256 contentId,
         address initiator,

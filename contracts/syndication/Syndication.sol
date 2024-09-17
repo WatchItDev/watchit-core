@@ -38,30 +38,36 @@ contract Syndication is
     using ERC165Checker for address;
     using TreasuryHelper for address;
 
-    // 10% initial quitting penalization rate
-    uint256 public penaltyRate;
-    uint256 public enrollmentsCount;
     bytes4 private constant INTERFACE_ID_IDISTRIBUTOR =
         type(IDistributor).interfaceId;
 
-    /// @notice Error to be thrown when a distributor contract is invalid.
+    uint245 public enrollmentPeriod; // Period for enrollment
+    uint256 public enrollmentsCount; // Count of enrollments
+    mapping(address => uint256) public penaltyRates; // Penalty rates for distributors
+    mapping(address => uint256) public enrollmentTime; // Timestamp for enrollment periods
+
+    /// @notice Error thrown when a penalty rate is invalid
     error InvalidPenaltyRate();
+    /// @notice Error thrown when a distributor contract is invalid
     error InvalidDistributorContract();
-    error FailDuringEnrollment(string reason);
+    /// @notice Error thrown when a distributor fails during quitting
     error FailDuringQuit(string reason);
 
-    /// @notice Event emitted when an entity is registered.
-    /// @param distributor The address of the registered entity.
+    /// @notice Event emitted when a distributor is registered
+    /// @param distributor The address of the registered distributor
     event Registered(address indexed distributor);
-    /// @notice Event emitted when an entity is approved.
-    /// @param distributor The address of the approved entity.
+    /// @notice Event emitted when a distributor is approved
+    /// @param distributor The address of the approved distributor
     event Approved(address indexed distributor);
-    /// @notice Event emitted when an entity resigns.
-    /// @param distributor The address of the resigned entity.
+    /// @notice Event emitted when a distributor resigns
+    /// @param distributor The address of the resigned distributor
     event Resigned(address indexed distributor);
-    /// @notice Event emitted when an entity is revoked.
-    /// @param distributor The address of the revoked entity.
+    /// @notice Event emitted when a distributor is revoked
+    /// @param distributor The address of the revoked distributor
     event Revoked(address indexed distributor);
+    /// @notice Event emitted when fees are disbursed to the treasury
+    /// @param treasury The address of the treasury receiving the fees
+    /// @param amount The amount disbursed
     event FeesDisbursed(address indexed treasury, uint256 amount);
 
     /// @dev Constructor that disables initializers to prevent the implementation contract from being initialized.
@@ -95,16 +101,17 @@ contract Syndication is
         __Ledger_init();
         __ReentrancyGuard_init();
         __UUPSUpgradeable_init();
-        __ReentrancyGuard_init();
         __Governable_init(_msgSender());
 
-        penaltyRate = initialPenaltyRateBps; // bps
         // Get the registered treasury contract from the repository
         IRepository repo = IRepository(repository);
+        address wvc = repo.getContract(T.ContractTypes.WVC);
         address trasuryAddress = repo.getContract(T.ContractTypes.TRE);
+        penaltyRates[wvc] = initialPenaltyRateBps; // bps
+        enrollmentPeriod = 90 days; // 3 months initially..
 
-        // initially flat fees in native coin
-        __Fees_init(initialFee, address(0));
+        // initially flat fees..
+        __Fees_init(initialFee, wvc);
         __Treasurer_init(trasuryAddress);
     }
 
@@ -118,13 +125,20 @@ contract Syndication is
     /// @inheritdoc ISyndicatable
     /// @notice Function to set the penalty rate for quitting enrollment.
     /// @param newPenaltyRate The new penalty rate to be set. It should be a value representin base points (bps).
+    /// @param currency The currency to set penalty rate.
     /// @dev The penalty rate is represented as base points (expressed as a uint256)
     /// That will be applied to the enrollment fee when a distributor quits.
     function setPenaltyRate(
-        uint256 newPenaltyRate
-    ) external onlyGov onlyBasePointsAllowed(newPenaltyRate) {
+        uint256 newPenaltyRate,
+        address currency
+    )
+        external
+        onlyGov
+        onlyBasePointsAllowed(newPenaltyRate)
+        onlySupportedCurrency(currency)
+    {
         if (newPenaltyRate == 0) revert InvalidPenaltyRate();
-        penaltyRate = newPenaltyRate;
+        penaltyRates[currency] = newPenaltyRate;
     }
 
     /// @inheritdoc IFeesManager
@@ -144,6 +158,13 @@ contract Syndication is
     /// @dev Only callable by the governance role.
     function setTreasuryAddress(address newTreasuryAddress) external onlyGov {
         _setTreasuryAddress(newTreasuryAddress);
+    }
+
+    /// @inheritdoc IRegistrableExpirable
+    /// @dev Sets a new expiration period for an enrollment or registration.
+    /// @param newPeriod The new expiration period in seconds.
+    function setPeriod(uint256 newPeriod) external onlyGov {
+        enrollmentPeriod = newPeriod;
     }
 
     /// @inheritdoc IBalanceManager
@@ -173,7 +194,9 @@ contract Syndication is
     function isActive(
         address distributor
     ) public view onlyDistributorContract(distributor) returns (bool) {
-        return _status(uint160(distributor)) == Status.Active;
+        return
+            _status(uint160(distributor)) == Status.Active &&
+            enrollmentTime[distributor] > block.timestamp;
     }
 
     /// @inheritdoc IRegistrableVerifiable
@@ -201,16 +224,23 @@ contract Syndication is
     /// @inheritdoc IRegistrable
     /// @notice Registers a distributor by sending a payment to the contract.
     /// @param distributor The address of the distributor to register.
+    /// @param currency The currency used to pay enrollment.
     function register(
-        address distributor
-    ) external payable onlyDistributorContract(distributor) {
-        if (msg.value < getFees(address(0)))
-            revert FailDuringEnrollment("Invalid fee amount");
-
-        // the contract manager;
+        address distributor,
+        address currency
+    )
+        external
+        onlyDistributorContract(distributor)
+        onlySupportedCurrency(currency)
+    {
+        uint256 fees = getFees(currency);
         address manager = IDistributor(distributor).getManager();
+        uint256 total = manager.safeDeposit(fees, currency);
+        // set the distributor active enrollment period..
+        // after this time the distributor is considered inactive...
+        enrollmentTime[distributor] = block.timestamp + enrollmmentPeriod;
         // Persist the enrollment payment in case the distributor quits before approval
-        _setLedgerEntry(manager, msg.value, address(0));
+        _setLedgerEntry(manager, total, currency);
         // Set the distributor as pending approval
         _register(uint160(distributor));
         emit Registered(distributor);
@@ -219,21 +249,30 @@ contract Syndication is
     /// @inheritdoc IRegistrableRevokable
     /// @notice Allows a distributor to quit and receive a penalized refund.
     /// @param distributor The address of the distributor to quit.
+    /// @param currency The currency used to pay enrollment.
     /// @dev The function reverts if the distributor has not enrolled or if the refund fails.
     function quit(
-        address distributor
-    ) external nonReentrant onlyDistributorContract(distributor) {
+        address distributor,
+        address currency
+    )
+        external
+        nonReentrant
+        onlyDistributorContract(distributor)
+        onlySupportedCurrency(currency)
+    {
         address manager = _msgSender(); // the sender is expected to be the manager..
-        uint256 ledgerAmount = getLedgerBalance(manager, address(0)); // Wei, etc..
+        uint256 ledgerAmount = getLedgerBalance(manager, currency);
         if (ledgerAmount == 0) revert FailDuringQuit("Invalid enrollment.");
         // eg: (100 * bps) / BPS_MAX
-        uint256 penal = ledgerAmount.perOf(penaltyRate);
+        uint256 currencyPenalty = penaltyRates[currency];
+        uint256 penal = ledgerAmount.perOf(currencyPenalty);
         uint256 res = ledgerAmount - penal;
 
         // reset ledger..
         _quit(uint160(distributor));
-        _setLedgerEntry(manager, 0, address(0));
-        manager.transfer(res, address(0));
+        _setLedgerEntry(manager, 0, currency);
+        enrollmentTime[distributor] = 0;
+        manager.transfer(res, currency);
         emit Resigned(distributor);
     }
 
