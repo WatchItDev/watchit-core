@@ -1,5 +1,6 @@
 # Core (WIP)
-![image](https://github.com/user-attachments/assets/8f8c774b-0689-47d4-8ef6-d6ec853311ed)
+![image](https://github.com/user-attachments/assets/57cb6e9b-fa7d-4e49-b933-31bd465690b0)
+
 
 
 
