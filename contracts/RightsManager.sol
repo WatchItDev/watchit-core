@@ -334,9 +334,8 @@ contract RightsManager is
         address account
     ) external onlySupportedCurrency(currency) returns (bytes32) {
         uint256 deductions = calcFees(total, currency);
-        uint256 available = total - deductions; // the total after fees involved in the deal
         if (deductions > total) revert NoDeal("The fees are too high.");
-
+        uint256 available = total - deductions; // the total after fees 
         // create a new deal to interact with register policy
         T.Deal memory deal = T.Deal(
             block.timestamp, // the deal creation date
