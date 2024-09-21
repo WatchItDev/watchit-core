@@ -74,7 +74,7 @@ abstract contract RightsManagerBrokerUpgradeable is
                 deal.total,
                 deal.holder,
                 deal.account,
-                deal.custodial
+                deal.currency
             )
         );
 

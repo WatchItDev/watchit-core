@@ -1,83 +1,75 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts-upgradeable/utils/introspection/ERC165Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-
-import "contracts/base/upgradeable/CurrencyManagerUpgradeable.sol";
-import "contracts/base/upgradeable/FeesManagerUpgradeable.sol";
-import "contracts/libraries/TreasuryHelper.sol";
-import "contracts/libraries/FeesHelper.sol";
 import "contracts/interfaces/IDistributor.sol";
+import "contracts/libraries/TreasuryHelper.sol";
 
-/// @title Content Distributor contract.
-/// @notice Use this contract to handle all needed logic for distributors.
-/// @dev This contract inherits from Ownable and ERC165, and implements the IDistributor interface.
-/// Extending upgradeable contracts in a non-upgradeable contract to extend ERC-7201: Namespaced Storage Layout
-/// Same as below with __gap the issue could happen using this contract as implementation and receiving delegated calls.
-/// This contract can be deployed without needing to upgrade.
+/// @title Content Distributor Contract
+/// @notice This contract handles all the necessary logic for managing content distributors.
+/// @dev This contract inherits from Ownable, ERC165, and implements the IDistributor interface.
+/// It also uses the TreasuryHelper library for balance and withdrawal operations.
+/// This contract is designed to be used without requiring upgrades, and it follows the ERC-7201 
+/// Namespaced Storage Layout for better compatibility with upgradeable contracts.
 contract Distributor is
     Initializable,
     ERC165Upgradeable,
     OwnableUpgradeable,
-    FeesManagerUpgradeable,
-    CurrencyManagerUpgradeable,
     IDistributor
 {
-    using Math for uint256;
     using TreasuryHelper for address;
-    using FeesHelper for uint256;
 
+    /// @notice The distribution endpoint URL.
     string private endpoint;
-    // To smooth or flatten the increase in fees as demand grows.
-    uint256 private flattenFactor;
-    mapping(address => uint256) private floor;
 
-    /// @notice Event emitted when the endpoint is updated.
-    /// @param oldEndpoint The old endpoint.
-    /// @param newEndpoint The new endpoint.
+    /// @notice Event emitted when the distribution endpoint is updated.
+    /// @param oldEndpoint The previous endpoint before the update.
+    /// @param newEndpoint The new endpoint that is set.
     event EndpointUpdated(string oldEndpoint, string newEndpoint);
-    /// @notice Error to be thrown when an invalid endpoint is provided.
+
+    /// @notice Event emitted when a withdrawal is made.
+    /// @param recipient The address that received the withdrawn tokens or native currency.
+    /// @param amount The amount of tokens or native currency withdrawn.
+    /// @param currency The token address (or `address(0)` for native currency) that was withdrawn.
+    event FundWithdrawn(address indexed recipient, uint256 amount, address indexed currency);
+
+    /// @notice Error thrown when an invalid (empty) endpoint is provided.
     error InvalidEndpoint();
 
-    /// @notice Constructor to initialize the Distributor contract.
+    /// @notice Initializes the Distributor contract with the specified endpoint and owner.
+    /// @param _endpoint The distribution endpoint URL.
+    /// @param _owner The address of the owner who will manage the distributor.
+    /// @dev Ensures that the provided endpoint is valid and initializes ERC165 and Ownable contracts.
     function initialize(
         string memory _endpoint,
         address _owner
     ) public initializer {
         if (bytes(_endpoint).length == 0) revert InvalidEndpoint();
-
         __ERC165_init();
         __Ownable_init(_owner);
-        __CurrencyManager_init();
-        __Fees_init(0, address(0));
-
-        // balanced factors
-        flattenFactor = 30;
         endpoint = _endpoint;
     }
 
     /// @inheritdoc IDistributor
-    /// @notice Gets the manager of the distributor, which is the owner of the contract.
-    /// @return The address of the manager (owner) of the contract.
+    /// @notice Retrieves the manager (owner) of the distributor contract.
+    /// @return The address of the contract owner.
     function getManager() external view returns (address) {
         return owner();
     }
 
     /// @inheritdoc IDistributor
-    /// @notice Gets the current distribution endpoint URL.
+    /// @notice Returns the current distribution endpoint URL.
     /// @return The endpoint URL as a string.
     function getEndpoint() external view returns (string memory) {
         return endpoint;
     }
 
     /// @inheritdoc IDistributor
-    /// @notice Set the distribution endpoint URL.
+    /// @notice Updates the distribution endpoint URL.
     /// @param _endpoint The new endpoint URL to be set.
-    /// @dev This function reverts if the provided endpoint is an empty string.
-    /// @dev Emits an {EndpointUpdated} event.
+    /// @dev Reverts if the provided endpoint is an empty string. Emits an {EndpointUpdated} event.
     function setEndpoint(string calldata _endpoint) external onlyOwner {
         if (bytes(_endpoint).length == 0) revert InvalidEndpoint();
         string memory oldEndpoint = endpoint;
@@ -85,80 +77,11 @@ contract Distributor is
         emit EndpointUpdated(oldEndpoint, _endpoint);
     }
 
-    /// @inheritdoc IFeesManager
-    /// @notice Sets a new treasury fee for a specific currency.
-    /// @param newTreasuryFee The new fee expresed as base points to be set.
-    /// @param currency The currency to associate fees with. Use address(0) for the native coin.
-    function setFees(
-        uint256 newTreasuryFee,
-        address currency
-    )
-        external
-        onlyOwner
-        onlyValidCurrency(currency)
-        onlyBasePointsAllowed(newTreasuryFee)
-    {
-        _setFees(newTreasuryFee, currency);
-        _addCurrency(currency);
-    }
-
-    /// @notice Sets the scaling and flattening factors used to calculate fees.
-    /// @dev This function allows the administrator to adjust how sensitive the fees are to changes in demand.
-    /// @param flatten The flattening factor that controls how gradual or smooth the fee increase is.
-    function setFactors(uint256 flatten) public onlyOwner {
-        flattenFactor = flatten;
-    }
-
-    /// @inheritdoc IDistributor
-    /// @notice Sets the minimum floor value for fees associated with a specific currency.
-    /// @dev This function can only be called by the owner and for supported currencies.
-    /// @param currency The address of the currency for which the floor value is being set.
-    /// @param minimum The minimum fee that can be proposed for the given currency.
-    function setFloor(
-        address currency,
-        uint256 minimum
-    ) external onlyOwner onlySupportedCurrency(currency) {
-        floor[currency] = minimum;
-    }
-
-    /// @notice Calculates an adjusted floor value based on the logarithm of custodials.
-    /// @dev The function adjusts the base floor by adding a proportion
-    /// that scales with the logarithm of the custodials.
-    /// This ensures that the floor value increases gradually as custodials grow.
-    /// @param baseFloor The initial base floor value to be adjusted.
-    /// @param demand The number of custodials, which influences the adjustment.
-    function _getAdjustedFloor(
-        uint256 baseFloor,
-        uint256 demand
-    ) internal view returns (uint256) {
-        // Economies of scale.
-        // fees + (fees * (log2(demand) / flatten))
-        if (baseFloor == 0 || flattenFactor == 0) return 0;
-        uint256 safeOp = (demand == 0 ? (demand + 1) : demand);
-        return baseFloor + (baseFloor * (safeOp.log2() / flattenFactor));
-    }
-
-    /// @inheritdoc IDistributor
-    /// @notice Adjusts the proposed fee amount for the distributor according to the custodial charge.
-    /// @param fees The initial fee amount proposed by the distributor.
-    /// @param currency The currency in which the fees are denominated.
-    /// @param demand The amount of content under the distributor's custody.
-    /// @return The final fee amount after adjustment, ensuring it meets or exceeds the minimum floor value.
-    function negotiate(
-        uint256 fees,
-        address currency,
-        uint256 demand
-    ) external view returns (uint256) {
-        uint256 bps = getFees(currency);
-        uint256 proposedFees = fees.perOf(bps);
-        uint256 adjustedFloor = _getAdjustedFloor(floor[currency], demand);
-        return proposedFees < adjustedFloor ? adjustedFloor : proposedFees;
-    }
-
     /// @inheritdoc IBalanceManager
-    /// @notice Returns the contract's balance for the specified currency.
-    /// @param currency The address of the token to check the balance of (address(0) for native currency).
+    /// @notice Retrieves the contract's balance for a given currency.
+    /// @param currency The token address to check the balance of (use `address(0)` for native currency).
     /// @return The balance of the contract in the specified currency.
+    /// @dev This function is restricted to the contract owner.
     function getBalance(
         address currency
     ) external view onlyOwner returns (uint256) {
@@ -166,22 +89,24 @@ contract Distributor is
     }
 
     /// @inheritdoc IBalanceManagerWithdrawable
-    /// @notice Withdraws tokens from the contract to a specified recipient's address.
-    /// @param recipient The address that will receive the withdrawn tokens.
-    /// @param amount The amount of tokens to withdraw.
-    /// @param currency The currency to associate fees with. Use address(0) for the native coin.
+    /// @notice Withdraws tokens or native currency from the contract to the specified recipient.
+    /// @param recipient The address that will receive the withdrawn tokens or native currency.
+    /// @param amount The amount of tokens or native currency to withdraw.
+    /// @param currency The address of the token to withdraw (use `address(0)` for native currency).
+    /// @dev Transfers the specified amount of tokens or native currency to the recipient.
+    /// Emits a {FundWithdrawn} event.
     function withdraw(
         address recipient,
         uint256 amount,
         address currency
-    ) external onlyOwner onlySupportedCurrency(currency) {
+    ) external onlyOwner {
         recipient.transfer(amount, currency);
-        // TODO add event
+        emit FundWithdrawn(recipient, amount, currency);
     }
 
     /// @inheritdoc IERC165
-    /// @notice Checks if the contract supports a specific interface.
-    /// @param interfaceId The interface identifier to check.
+    /// @notice Checks if the contract supports a specific interface based on its ID.
+    /// @param interfaceId The ID of the interface to check.
     /// @return True if the interface is supported, otherwise false.
     function supportsInterface(
         bytes4 interfaceId

@@ -9,8 +9,8 @@ import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 
 // https://eips.ethereum.org/EIPS/eip-2612 - permit
 // https://eips.ethereum.org/EIPS/eip-1363 - payable
-contract WVC is ERC20, ERC20Permit, ERC20Burnable, ERC20Votes {
-    constructor() ERC20("Watchit", "WVC") ERC20Permit("Watchit") {}
+contract MMC is ERC20, ERC20Permit, ERC20Burnable, ERC20Votes {
+    constructor() ERC20("Watchit", "MMC") ERC20Permit("Watchit") {}
 
     /**
      * @inheritdoc IERC20Permit

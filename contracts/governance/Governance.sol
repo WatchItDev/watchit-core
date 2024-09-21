@@ -29,12 +29,12 @@ contract Governance is
 {
     /**
      * @notice Initializes the governance contract with the specified parameters.
-     * @param _wvc The ERC20Votes token contract to be used for voting.
+     * @param _mmc The ERC20Votes token contract to be used for voting.
      * @param _timelock The TimelockController contract to be used for queuing and executing proposals.
      *
      * The constructor sets up the governance contract with:
-     * - Governor("WatchitGovernance"): The name of the governance contract.
-     * - GovernorVotes(_wvc): The ERC20 token with voting capabilities.
+     * - Governor("MMCGovernance"): The name of the governance contract.
+     * - GovernorVotes(_mmc): The ERC20 token with voting capabilities.
      * - GovernorVotesQuorumFraction(4): The quorum required is 4% of the total token supply.
      * - GovernorSettings(1, 45818, 0): Configures the governance settings:
      *   - Voting Delay: 1 block (the time that must pass between the creation of a proposal and the start of voting).
@@ -42,11 +42,11 @@ contract Governance is
      *   - Proposal Threshold: 0 tokens (the minimum number of tokens required to propose a new proposal).
      */
     constructor(
-        ERC20Votes _wvc,
+        ERC20Votes _mmc,
         TimelockController _timelock
     )
-        Governor("WatchitGovernance")
-        GovernorVotes(_wvc)
+        Governor("MMCGovernance")
+        GovernorVotes(_mmc)
         GovernorVotesQuorumFraction(4)
         GovernorSettings(1 /* 1 block */, 45818 /* 1 week */, 0)
         GovernorTimelockControl(_timelock)

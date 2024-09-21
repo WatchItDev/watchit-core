@@ -13,12 +13,12 @@ import "contracts/base/upgradeable/TreasurerUpgradeable.sol";
 import "contracts/base/upgradeable/LedgerUpgradeable.sol";
 import "contracts/base/upgradeable/FeesManagerUpgradeable.sol";
 
-import "contracts/libraries/Types.sol";
 import "contracts/interfaces/IRepository.sol";
 import "contracts/interfaces/IDistributor.sol";
 import "contracts/interfaces/ISyndicatable.sol";
 import "contracts/libraries/TreasuryHelper.sol";
 import "contracts/libraries/FeesHelper.sol";
+import "contracts/libraries/Types.sol";
 
 /// @title Distributors Syndication contract.
 /// @notice Use this contract to handle all distribution logic needed for creators and distributors.
@@ -41,7 +41,7 @@ contract Syndication is
     bytes4 private constant INTERFACE_ID_IDISTRIBUTOR =
         type(IDistributor).interfaceId;
 
-    uint245 public enrollmentPeriod; // Period for enrollment
+    uint256 public enrollmentPeriod; // Period for enrollment
     uint256 public enrollmentsCount; // Count of enrollments
     mapping(address => uint256) public penaltyRates; // Penalty rates for distributors
     mapping(address => uint256) public enrollmentTime; // Timestamp for enrollment periods
@@ -105,13 +105,13 @@ contract Syndication is
 
         // Get the registered treasury contract from the repository
         IRepository repo = IRepository(repository);
-        address wvc = repo.getContract(T.ContractTypes.WVC);
+        address mmc = repo.getContract(T.ContractTypes.MMC);
         address trasuryAddress = repo.getContract(T.ContractTypes.TRE);
-        penaltyRates[wvc] = initialPenaltyRateBps; // bps
-        enrollmentPeriod = 90 days; // 3 months initially..
+        penaltyRates[mmc] = initialPenaltyRateBps; // bps
+        enrollmentPeriod = 180 days; // 6 months initially..
 
         // initially flat fees..
-        __Fees_init(initialFee, wvc);
+        __Fees_init(initialFee, mmc);
         __Treasurer_init(trasuryAddress);
     }
 
@@ -238,7 +238,7 @@ contract Syndication is
         uint256 total = manager.safeDeposit(fees, currency);
         // set the distributor active enrollment period..
         // after this time the distributor is considered inactive...
-        enrollmentTime[distributor] = block.timestamp + enrollmmentPeriod;
+        enrollmentTime[distributor] = block.timestamp + enrollmentPeriod;
         // Persist the enrollment payment in case the distributor quits before approval
         _setLedgerEntry(manager, total, currency);
         // Set the distributor as pending approval

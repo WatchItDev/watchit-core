@@ -13,16 +13,7 @@ library T {
         TRE, // Treasury contract
         REF, // Content referendum
         RM, // Rights Management contract
-        WVC
-    }
-
-    /// @title Shares
-    /// @dev Represents the distribution of funds to a specific address.
-    /// @notice This struct is used to define the share of funds (e.g., royalties, service fees) 
-    /// that should be allocated to a particular address.
-    struct Shares {
-        address target;
-        uint256 bps; // Basis points, with 10000 bps being equivalent to 100%.
+        MMC
     }
 
     /// @title Deal
@@ -32,12 +23,10 @@ library T {
     struct Deal {
         uint256 time; // the deal creation date
         uint256 total; // the transaction total amount
-        uint256 fees; // distribution fees
         uint256 available; // the remaining amount after fees
         address currency; // the currency used in transaction
         address account; // the account related to deal
         address holder; // the content holder
-        address custodial; // the distributor address
         bool active; // the deal status
     }
 

@@ -12,7 +12,6 @@ import "./IRightsPolicyAuditor.sol";
 import "./IRightsPolicyController.sol";
 import "./IRightsCustodialGranter.sol";
 import "./IRightsAccessController.sol";
-import "./IBalanceManagerWithdrawable.sol";
 
 interface IRightsManager is
     ITreasurer,
@@ -24,20 +23,16 @@ interface IRightsManager is
     IRightsAccessController,
     IRightsCustodialGranter,
     IRightsPolicyController,
-    IBalanceManagerWithdrawable,
     IRightsPolicyAuditor
 {
-    /// @notice Calculates the fees for both the treasury and the distributor based on the provided total amount.
+    /// @notice Calculates the fees for the treasury based on the provided total amount.
     /// @param total The total amount involved in the transaction.
     /// @param currency The address of the ERC20 token (or native currency) being used in the transaction.
-    /// @param holder The address of the content holder whose content is being accessed.
     /// @return treasury The calculated fee for the treasury.
-    /// @return distribution The calculated fee for the distributor.
     function calcFees(
         uint256 total,
-        address currency,
-        address holder
-    ) external returns (uint256, uint256);
+        address currency
+    ) external returns (uint256);
 
     /// @notice Checks if the content is eligible for distribution by the content holder's custodial.
     /// @param contentId The ID of the content to check for distribution eligibility.

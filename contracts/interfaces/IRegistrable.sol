@@ -10,5 +10,6 @@ interface IRegistrable {
     function register(address distributor, address currency) external;
 
     /// @notice Approves the data associated with the given identifier.
-    function approve(address) external;
+    /// @param distributor The address of the distributor to approve.
+    function approve(address distributor) external;
 }
