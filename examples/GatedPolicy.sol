@@ -51,16 +51,16 @@ contract GatedContentPolicy is BasePolicy, IPolicy {
     }
 
     /// @notice Execute the logic of access validation.
-    /// @param deal The deal object containing the terms agreed upon between the content holder and the user.
-    /// @param data Additional data needed for processing the deal.
+    /// @param agreement The agreement object containing the terms agreed upon between the content holder and the user.
+    /// @param data Additional data needed for processing the agreement.
     /// @return bool A boolean indicating whether the execution was successful.
     /// @return string A message providing context for the execution result.
     function exec(
-        T.Deal calldata deal,
+        T.Agreement calldata agreement,
         bytes calldata data
     ) external onlyRM returns (bool, string memory) {
         uint256 contentId = abi.decode(data, (uint256));
-        if (comply(deal.account, contentId)) {
+        if (comply(agreement.account, contentId)) {
             return (true, "Access granted");
         } else {
             return (false, "Access denied");

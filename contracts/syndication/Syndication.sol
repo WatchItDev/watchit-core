@@ -160,7 +160,7 @@ contract Syndication is
         _setTreasuryAddress(newTreasuryAddress);
     }
 
-    /// @inheritdoc IRegistrableExpirable
+    /// @inheritdoc ISyndicatableExpirable
     /// @dev Sets a new expiration period for an enrollment or registration.
     /// @param newPeriod The new expiration period in seconds.
     function setPeriod(uint256 newPeriod) external onlyGov {
@@ -186,7 +186,7 @@ contract Syndication is
         emit FeesDisbursed(treasury, amount);
     }
 
-    /// @inheritdoc IRegistrableVerifiable
+    /// @inheritdoc ISyndicatableVerifiable
     /// @notice Checks if the entity is active.
     /// @dev This function verifies the active status of the distributor.
     /// @param distributor The distributor's address to check.
@@ -199,7 +199,7 @@ contract Syndication is
             enrollmentTime[distributor] > block.timestamp;
     }
 
-    /// @inheritdoc IRegistrableVerifiable
+    /// @inheritdoc ISyndicatableVerifiable
     /// @notice Checks if the entity is waiting.
     /// @dev This function verifies the waiting status of the distributor.
     /// @param distributor The distributor's address to check.
@@ -210,7 +210,7 @@ contract Syndication is
         return _status(uint160(distributor)) == Status.Waiting;
     }
 
-    /// @inheritdoc IRegistrableVerifiable
+    /// @inheritdoc ISyndicatableVerifiable
     /// @notice Checks if the entity is blocked.
     /// @dev This function verifies the blocked status of the distributor.
     /// @param distributor The distributor's address to check.
@@ -221,7 +221,7 @@ contract Syndication is
         return _status(uint160(distributor)) == Status.Blocked;
     }
 
-    /// @inheritdoc IRegistrable
+    /// @inheritdoc ISyndicatableRegistrable
     /// @notice Registers a distributor by sending a payment to the contract.
     /// @param distributor The address of the distributor to register.
     /// @param currency The currency used to pay enrollment.
@@ -246,7 +246,7 @@ contract Syndication is
         emit Registered(distributor);
     }
 
-    /// @inheritdoc IRegistrableRevokable
+    /// @inheritdoc ISyndicatableRevokable
     /// @notice Allows a distributor to quit and receive a penalized refund.
     /// @param distributor The address of the distributor to quit.
     /// @param currency The currency used to pay enrollment.
@@ -276,7 +276,7 @@ contract Syndication is
         emit Resigned(distributor);
     }
 
-    /// @inheritdoc IRegistrableRevokable
+    /// @inheritdoc ISyndicatableRevokable
     /// @notice Revokes the registration of a distributor.
     /// @param distributor The address of the distributor to revoke.
     function revoke(
@@ -286,7 +286,7 @@ contract Syndication is
         emit Revoked(distributor);
     }
 
-    /// @inheritdoc IRegistrable
+    /// @inheritdoc ISyndicatableRegistrable
     /// @notice Approves a distributor's registration.
     /// @param distributor The address of the distributor to approve.
     function approve(

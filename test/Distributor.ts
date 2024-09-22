@@ -10,7 +10,7 @@ import {
   deployAndInitializeDistributorContract
 } from './helpers/DistributorHelper'
 
-const DISTRIBUTOR_INTERFACE_ID = '0x89f0c269'
+const DISTRIBUTOR_INTERFACE_ID = '0xc75d177b'
 
 async function getAccounts() {
   return await hre.ethers.getSigners()

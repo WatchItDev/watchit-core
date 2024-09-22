@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+import "./IReferendumVerifiable.sol";
+import "./IReferendumRoleManager.sol";
+
 /// @title Referendum Interface
 /// @notice This interface defines the essential functions for a referendum contract.
 /// @dev Implement this interface to create a referendum contract.
-interface IReferendum {
-
+interface IReferendum is IReferendumVerifiable, IReferendumRoleManager {
     /// @notice Submits a new proposition for referendum.
     /// @param contentId The ID of the content to be submitted.
     /// @param initiator The address of the initiator submitting the content.

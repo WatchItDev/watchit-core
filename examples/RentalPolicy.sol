@@ -81,30 +81,30 @@ contract RentalPolicy is BasePolicy, IPolicy {
         rentals[account][contentId] = block.timestamp + expire;
     }
 
-    /// @notice Executes the deal between the content holder and the account based on the policy's rules.
+    /// @notice Executes the agreement between the content holder and the account based on the policy's rules.
     /// @dev This function is expected to be called only by the Rights Manager (RM) contract.
     /// It handles any logic related to access and validation of the rental terms.
-    /// @param deal The deal object containing the agreed terms between the content holder and the account.
-    /// @param data Additional data required for processing the deal, e.g., content ID.
-    /// @return bool Indicates whether the deal was successfully executed.
+    /// @param agreement The agreement object containing the agreed terms between the content holder and the account.
+    /// @param data Additional data required for processing the agreement, e.g., content ID.
+    /// @return bool Indicates whether the agreement was successfully executed.
     /// @return string Provides a message describing the result of the execution.
     function exec(
-        T.Deal calldata deal,
+        T.Agreement calldata agreement,
         bytes calldata data
     ) external onlyRM returns (bool, string memory) {
         uint256 contentId = abi.decode(data, (uint256));
         Content memory content = contents[contentId];
 
         if (contentId == 0) return (false, "Invalid content ID");
-        if (getHolder(contentId) != deal.holder)
+        if (getHolder(contentId) != agreement.holder)
             return (false, "Invalid content ID holder");
-        if (deal.total < content.price)
+        if (agreement.total < content.price)
             return (false, "Insufficient funds for rental");
 
         // Transfer the funds to the content holder.
-        deal.holder.transfer(deal.available, deal.currency);
+        agreement.holder.transfer(agreement.available, agreement.currency);
         // Register the rental for the account with the rental duration.
-        _registerRent(deal.account, contentId, content.rentalDuration);
+        _registerRent(agreement.account, contentId, content.rentalDuration);
 
         return (true, "Rental successfully executed");
     }

@@ -1,14 +1,17 @@
 import hre from 'hardhat'
 import { expect } from 'chai'
 import { switcher } from './helpers/CommonHelper'
+import { deployPopulatedRepository } from './helpers/RepositoryHelper'
 import {
   deployContentVault
 } from './helpers/ContentVaultHelper'
 
-const DISTRIBUTOR_INTERFACE_ID = '0x3a8b2846'
 
-async function getAccounts() {
-  return await hre.ethers.getSigners()
+async function deployInitializedSyndication() {
+  // Contracts are deployed using the first signer/account by default
+  const repo = await deployPopulatedRepository()
+  const factory = await deployContentVault(await repo.getAddress())
+  return factory
 }
 
 describe('ContentVault', function () {
@@ -29,7 +32,7 @@ describe('ContentVault', function () {
 
   tests.forEach((test, index) => {
     it(`Should store and retrieve ${test.name} successfully.`, async function () {
-      const contentVault = await switcher(deployContentVault);
+      const contentVault = await switcher(deployInitializedSyndication);
       const encoder = hre.ethers.AbiCoder.defaultAbiCoder()
   
       const cypherBytes = encoder.encode(["string"], [test.data])

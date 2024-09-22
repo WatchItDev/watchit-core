@@ -6,25 +6,24 @@ import "./ILedger.sol";
 import "./ITreasurer.sol";
 import "./IDisburser.sol";
 import "./IFeesManager.sol";
-import "./IRegistrable.sol";
 import "./IBalanceManager.sol";
-import "./IRegistrableExpirable.sol";
-import "./IRegistrableRevokable.sol";
-import "./IRegistrableVerifiable.sol";
+import "./ISyndicatableRegistrable.sol";
+import "./ISyndicatableExpirable.sol";
+import "./ISyndicatableRevokable.sol";
+import "./ISyndicatableVerifiable.sol";
 
 /// @title Content Syndication Interface
 /// @notice This interface spec all distribution logic needed for creators and distributors.
-/// @dev This interface extends ITreasurer, IFeesManager, and IRegistrable interfaces.
 interface ISyndicatable is
     ILedger,
     ITreasurer,
     IDisburser,
-    IRegistrable,
     IFeesManager,
     IBalanceManager,
-    IRegistrableExpirable,
-    IRegistrableRevokable,
-    IRegistrableVerifiable
+    ISyndicatableRegistrable,
+    ISyndicatableExpirable,
+    ISyndicatableRevokable,
+    ISyndicatableVerifiable
 {
     /// @notice Function to set the penalty rate for quitting enrollment.
     /// @param newPenaltyRate The new penalty rate to be set. It should be a value representing base points (bps).

@@ -11,7 +11,7 @@ import "@openzeppelin/contracts/utils/Address.sol";
 
 import "contracts/base/upgradeable/GovernableUpgradeable.sol";
 import "contracts/base/upgradeable/QuorumUpgradeable.sol";
-import "contracts/interfaces/ICurable.sol";
+import "contracts/interfaces/IReferendum.sol";
 import "contracts/libraries/Constants.sol";
 import "contracts/libraries/Types.sol";
 
@@ -24,7 +24,7 @@ contract Referendum is
     NoncesUpgradeable,
     EIP712Upgradeable,
     QuorumUpgradeable,
-    ICurable
+    IReferendum
 {
     using EnumerableSet for EnumerableSet.UintSet;
     mapping(address => EnumerableSet.UintSet) private submissions;

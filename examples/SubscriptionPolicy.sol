@@ -65,19 +65,19 @@ contract SubscriptionPolicy is BasePolicy, IPolicy {
     // this function should be called only by RM and its used to establish
     // any logic or validation needed to set the authorization parameters
     function exec(
-        T.Deal calldata deal,
+        T.Agreement calldata agreement,
         bytes calldata
     ) external onlyRM returns (bool, string memory) {
-        Package memory pkg = packages[deal.holder];
-        if (deal.total < pck.price)
+        Package memory pkg = packages[agreement.holder];
+        if (agreement.total < pck.price)
             return (false, "Insufficient funds for subscription");
 
         // set rental expire
         // Transfer the funds to the content holder.
-        deal.holder.transfer(deal.available, deal.currency);
+        agreement.holder.transfer(agreement.available, agreement.currency);
         uint256 subTime = block.timestamp + pck.subscriptionDuration;
         // subscribe to content owner's catalog (content package)
-        subscriptions[deal.account][deal.holder] = subTime;
+        subscriptions[agreement.account][agreement.holder] = subTime;
         return (true, "ok");
     }
 

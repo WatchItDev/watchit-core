@@ -19,7 +19,7 @@ import "contracts/base/upgradeable/extensions/RightsManagerCustodialUpgradeable.
 import "contracts/base/upgradeable/extensions/RightsManagerPolicyControllerUpgradeable.sol";
 import "contracts/base/upgradeable/extensions/RightsManagerPolicyAuditorUpgradeable.sol";
 
-import "contracts/interfaces/IRegistrableVerifiable.sol";
+import "contracts/interfaces/ISyndicatableVerifiable.sol";
 import "contracts/interfaces/IReferendumVerifiable.sol";
 import "contracts/interfaces/IRightsManager.sol";
 import "contracts/interfaces/IPolicy.sol";
@@ -74,7 +74,7 @@ contract RightsManager is
 
     /// @notice Emitted when access rights are granted to an account based on a policy.
     /// @param account The address of the account granted access.
-    /// @param proof A unique identifier for the deal or transaction.
+    /// @param proof A unique identifier for the agreement or transaction.
     /// @param policy The policy contract address governing the access.
     event AccessGranted(
         address indexed account,
@@ -97,7 +97,7 @@ contract RightsManager is
     /// so the code within a logic contract’s constructor or global declaration
     /// will never be executed in the context of the proxy’s state
     /// https://docs.openzeppelin.com/upgrades-plugins/1.x/proxies#the-constructor-caveat
-    IRegistrableVerifiable public syndication;
+    ISyndicatableVerifiable public syndication;
     IReferendumVerifiable public referendum;
 
     /// @dev Error thrown when attempting to operate on a policy that has not
@@ -107,9 +107,9 @@ contract RightsManager is
     error InvalidNotRightsDelegated(address policy, address holder);
     /// @dev Error that is thrown when a content hash is already registered.
     error InvalidInactiveDistributor();
-    /// @dev Error thrown when a deal fails to execute.
+    /// @dev Error thrown when a proposed agreement fails to execute.
     /// @param reason A string providing the reason for the failure.
-    error NoDeal(string reason);
+    error NoAgreement(string reason);
     /// @dev Error thrown when the fund withdrawal fails.
     error NoFundsToWithdraw(string);
 
@@ -141,7 +141,7 @@ contract RightsManager is
         address syndicationAddress = repo.getContract(T.ContractTypes.SYN);
         address referendumAddress = repo.getContract(T.ContractTypes.REF);
 
-        syndication = IRegistrableVerifiable(syndicationAddress);
+        syndication = ISyndicatableVerifiable(syndicationAddress);
         referendum = IReferendumVerifiable(referendumAddress);
 
         __Fees_init(initialFee, mmc);
@@ -312,79 +312,101 @@ contract RightsManager is
     function calcFees(
         uint256 total,
         address currency
-    ) public onlySupportedCurrency(currency) returns (uint256) {
+    ) public view onlySupportedCurrency(currency) returns (uint256) {
         // !IMPORTANT if trasury does not support the currency, will revert..
         // the max bps integrity is warrantied by treasure fees
         return total.perOf(getFees(currency)); // bps
     }
 
-    /// @inheritdoc IRightsDealBroker
-    /// @notice Creates a new deal between the account and the content holder, returning a unique deal identifier.
-    /// @dev This function handles the creation of a new deal by negotiating terms, calculating fees,
-    /// and generating a unique proof of the deal.
-    /// @param total The total amount involved in the deal.
-    /// @param currency The address of the ERC20 token (or native currency) being used in the deal.
+    /// @inheritdoc IRightsAgreementBroker
+    /// @notice Creates a new agreement between the account and the content holder, returning a unique agreement identifier.
+    /// @dev This function handles the creation of a new agreement by negotiating terms, calculating fees,
+    /// and generating a unique proof of the agreement.
+    /// @param total The total amount involved in the agreement.
+    /// @param currency The address of the ERC20 token (or native currency) being used in the agreement.
     /// @param holder The address of the content holder whose content is being accessed.
-    /// @param account The address of the account proposing the deal.
-    /// @return bytes32 A unique identifier (dealProof) representing the created deal.
-    function createDeal(
+    /// @param account The address of the account proposing the agreement.
+    /// @return bytes32 A unique identifier (agreementProof) representing the created agreement.
+    function createAgreement(
         uint256 total,
         address currency,
         address holder,
         address account
-    ) external onlySupportedCurrency(currency) returns (bytes32) {
+    ) public onlySupportedCurrency(currency) returns (bytes32) {
         uint256 deductions = calcFees(total, currency);
-        if (deductions > total) revert NoDeal("The fees are too high.");
-        uint256 available = total - deductions; // the total after fees 
-        // create a new deal to interact with register policy
-        T.Deal memory deal = T.Deal(
-            block.timestamp, // the deal creation date
+        if (deductions > total) revert NoAgreement("The fees are too high.");
+        uint256 available = total - deductions; // the total after fees
+        // create a new agreement to interact with register policy
+        T.Agreement memory agreement = T.Agreement(
+            block.timestamp, // the agreementl creation date
             total, // the transaction total amount
             available, // the remaining amount after fees
             currency, // the currency used in transaction
-            account, // the account related to deal
+            account, // the account related to agreement
             holder, // the content rights holder
-            true // the deal status, true for active, false for closed.
+            true // the agreement status, true for active, false for closed.
         );
 
-        // keccak256(abi.encodePacked(deal..))
-        return _createProof(deal);
+        // keccak256(abi.encodePacked(agreement..))
+        return _createProof(agreement);
     }
 
     /// @inheritdoc IRightsManager
-    /// @notice Finalizes the deal by registering the agreed-upon policy, effectively closing the deal.
-    /// @dev This function verifies the policy's authorization, executes the deal, processes financial transactions,
-    ///      and registers the policy in the system, representing the formal closure of the deal.
-    /// @param dealProof The unique identifier of the deal to be enforced.
-    /// @param policyAddress The address of the policy contract managing the deal.
-    /// @param data Additional data required to execute the deal.
+    /// @notice Finalizes the agreement by registering the agreed-upon policy, effectively closing the agreement.
+    /// @dev This function verifies the policy's authorization, executes the agreement, processes financial transactions,
+    ///      and registers the policy in the system, representing the formal closure of the agreement.
+    /// @param proof The unique identifier of the agreement to be enforced.
+    /// @param policyAddress The address of the policy contract managing the agreement.
+    /// @param data Additional data required to execute the agreement.
     function registerPolicy(
-        bytes32 dealProof,
+        bytes32 proof,
         address policyAddress,
         bytes calldata data
     )
-        external
+        public
         payable
         nonReentrant
-        onlyValidProof(dealProof)
+        onlyValidProof(proof)
         onlyAuditedPolicy(policyAddress)
     {
-        T.Deal memory deal = getDeal(dealProof);
+        T.Agreement memory agreement = getAgreement(proof);
         // check if policy is authorized by holder to operate over content
-        if (!isPolicyAuthorized(policyAddress, deal.holder))
-            revert InvalidNotRightsDelegated(policyAddress, deal.holder);
+        if (!isPolicyAuthorized(policyAddress, agreement.holder))
+            revert InvalidNotRightsDelegated(policyAddress, agreement.holder);
         // the remaining is sent to policy contract to operate distribution..
-        _msgSender().safeDeposit(deal.total, deal.currency);
-        policyAddress.transfer(deal.available, deal.currency);
+        _msgSender().safeDeposit(agreement.total, agreement.currency);
+        policyAddress.transfer(agreement.available, agreement.currency);
 
         // validate policy execution..
         IPolicy policy = IPolicy(policyAddress);
-        (bool success, string memory reason) = policy.exec(deal, data);
-        if (!success) revert NoDeal(reason);
+        (bool success, string memory reason) = policy.exec(agreement, data);
+        if (!success) revert NoAgreement(reason);
 
-        _closeDeal(dealProof); // inactivate the deal after success..
-        _registerPolicy(deal.account, policyAddress);
-        emit AccessGranted(deal.account, dealProof, policyAddress);
+        _closeAgreement(proof); // inactivate the agreement after success..
+        _registerPolicy(agreement.account, policyAddress);
+        emit AccessGranted(agreement.account, proof, policyAddress);
+    }
+
+    /// @notice Executes the creation of an agreement and immediately registers the policy in a single transaction.
+    /// @dev This function streamlines the process by creating the agreement and registering the policy in one step,
+    ///      ensuring that the content access and policy execution are handled efficiently.
+    /// @param total The total amount involved in the agreement.
+    /// @param currency The address of the ERC20 token (or native currency) used in the transaction.
+    /// @param holder The address of the content rights holder whose content is being accessed.
+    /// @param account The address of the user or account proposing the agreement.
+    /// @param policyAddress The address of the policy contract managing the agreement.
+    /// @param data Additional data required to execute the policy.
+    function flashAgreement(
+        uint256 total,
+        address currency,
+        address holder,
+        address account,
+        address policyAddress,
+        bytes calldata data
+    ) public returns (bytes32) {
+        bytes32 proof = createAgreement(total, currency, holder, account);
+        registerPolicy(proof, policyAddress, data);
+        return proof;
     }
 
     /// @inheritdoc IRightsAccessController

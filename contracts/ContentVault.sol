@@ -29,12 +29,11 @@ contract ContentVault is
     /// @notice Error thrown when a non-owner tries to modify or access the content.
     error InvalidContentHolder();
 
-    /// @dev Constructor that disables initializers to prevent the implementation contract 
-    /// from being initialized. This is part of the UUPS security model.
-    /// @notice For more information on the UUPS vulnerability and the importance of disabling initializers, 
-    /// see:
-    /// https://forum.openzeppelin.com/t/uupsupgradeable-vulnerability-post-mortem/15680
+    /// @dev Constructor that disables initializers to prevent the implementation contract from being initialized.
+    /// @notice This constructor prevents the implementation contract from being initialized.
+    /// @dev See https://forum.openzeppelin.com/t/uupsupgradeable-vulnerability-post-mortem/15680
     /// https://forum.openzeppelin.com/t/what-does-disableinitializers-function-mean/28730/5
+    /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
     }

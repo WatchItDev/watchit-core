@@ -57,6 +57,7 @@ library TreasuryHelper {
         uint256 amount,
         address token
     ) internal returns (uint256) {
+        if (amount == 0) return amount;
         if (token == address(0)) {
             if (amount > msg.value)
                 revert FailDuringTransfer("Invalid transaction amount sent");
@@ -88,6 +89,7 @@ library TreasuryHelper {
     /// @param amount The amount of tokens to transfer.
     /// @param token The address of the ERC20 token to transfer or address(0) for native token.
     function transfer(address to, uint256 amount, address token) internal {
+        if (amount == 0) return;
         if (balanceOf(address(this), token) < amount)
             revert FailDuringTransfer("Insufficient balance.");
         if (token == address(0)) return _nativeTransfer(to, amount);
