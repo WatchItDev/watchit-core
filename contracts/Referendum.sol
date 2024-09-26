@@ -12,6 +12,8 @@ import "@openzeppelin/contracts/utils/Address.sol";
 import "contracts/base/upgradeable/GovernableUpgradeable.sol";
 import "contracts/base/upgradeable/QuorumUpgradeable.sol";
 import "contracts/interfaces/IReferendum.sol";
+import "contracts/interfaces/IReferendumRoleManager.sol";
+import "contracts/interfaces/IReferendumVerifiable.sol";
 import "contracts/libraries/Constants.sol";
 import "contracts/libraries/Types.sol";
 
@@ -24,7 +26,9 @@ contract Referendum is
     NoncesUpgradeable,
     EIP712Upgradeable,
     QuorumUpgradeable,
-    IReferendum
+    IReferendum,
+    IReferendumVerifiable,
+    IReferendumRoleManager
 {
     using EnumerableSet for EnumerableSet.UintSet;
     mapping(address => EnumerableSet.UintSet) private submissions;
@@ -51,6 +55,7 @@ contract Referendum is
     /// @notice This constructor prevents the implementation contract from being initialized.
     /// @dev See https://forum.openzeppelin.com/t/uupsupgradeable-vulnerability-post-mortem/15680
     /// https://forum.openzeppelin.com/t/what-does-disableinitializers-function-mean/28730/5
+    /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
     }
@@ -58,8 +63,8 @@ contract Referendum is
     /// @notice Initializes the contract.
     function initialize() public initializer {
         __Quorum_init();
-        __EIP712_init("Referendum", "1");
         __UUPSUpgradeable_init();
+        __EIP712_init("Referendum", "1");
         __Governable_init(_msgSender());
     }
 

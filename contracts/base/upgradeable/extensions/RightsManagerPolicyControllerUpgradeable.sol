@@ -4,7 +4,7 @@ pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "contracts/interfaces/IRightsPolicyController.sol";
+import "contracts/interfaces/IRightsManagerPolicies.sol";
 
 /// @title Rights Manager Policy Controller Upgradeable
 /// @notice This abstract contract manages the delegation and revocation of rights
@@ -12,7 +12,7 @@ import "contracts/interfaces/IRightsPolicyController.sol";
 /// @dev The contract is upgradeable and uses namespaced storage to manage the delegation of rights.
 abstract contract RightsManagerPolicyControllerUpgradeable is
     Initializable,
-    IRightsPolicyController
+    IRightsManagerPolicies
 {
     using EnumerableSet for EnumerableSet.AddressSet;
 

@@ -9,3 +9,7 @@ export async function switcher (decorable: any): Promise<any> {
   if (networkName === 'hardhat') { return await loadFixture(decorable) }
   return await decorable()
 }
+
+export async function getAccounts() {
+  return await hre.ethers.getSigners()
+}

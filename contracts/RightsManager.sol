@@ -17,14 +17,17 @@ import "contracts/base/upgradeable/extensions/RightsManagerBrokerUpgradeable.sol
 import "contracts/base/upgradeable/extensions/RightsManagerContentAccessUpgradeable.sol";
 import "contracts/base/upgradeable/extensions/RightsManagerCustodialUpgradeable.sol";
 import "contracts/base/upgradeable/extensions/RightsManagerPolicyControllerUpgradeable.sol";
-import "contracts/base/upgradeable/extensions/RightsManagerPolicyAuditorUpgradeable.sol";
 
 import "contracts/interfaces/ISyndicatableVerifiable.sol";
 import "contracts/interfaces/IReferendumVerifiable.sol";
-import "contracts/interfaces/IRightsManager.sol";
+import "contracts/interfaces/IPolicyAuditorVerifiable.sol";
+import "contracts/interfaces/IRightsManagerVerifiable.sol";
+import "contracts/interfaces/IBalanceManager.sol";
+import "contracts/interfaces/IBalanceWithdrawable.sol";
+import "contracts/interfaces/IDisburser.sol";
 import "contracts/interfaces/IPolicy.sol";
 import "contracts/interfaces/IDistributor.sol";
-import "contracts/interfaces/IRepository.sol";
+
 import "contracts/libraries/TreasuryHelper.sol";
 import "contracts/libraries/FeesHelper.sol";
 import "contracts/libraries/Constants.sol";
@@ -36,18 +39,20 @@ import "contracts/libraries/Types.sol";
 contract RightsManager is
     Initializable,
     UUPSUpgradeable,
-    FeesManagerUpgradeable,
     LedgerUpgradeable,
     GovernableUpgradeable,
     TreasurerUpgradeable,
+    FeesManagerUpgradeable,
     ReentrancyGuardUpgradeable,
     CurrencyManagerUpgradeable,
     RightsManagerBrokerUpgradeable,
     RightsManagerCustodialUpgradeable,
     RightsManagerContentAccessUpgradeable,
-    RightsManagerPolicyAuditorUpgradeable,
     RightsManagerPolicyControllerUpgradeable,
-    IRightsManager
+    IRightsManagerVerifiable,
+    IBalanceWithdrawable,
+    IBalanceManager,
+    IDisburser
 {
     using TreasuryHelper for address;
     using FeesHelper for uint256;
@@ -90,13 +95,11 @@ contract RightsManager is
     /// @param policy The policy contract address whose rights are being revoked.
     /// @param holder The address of the content rights holder.
     event RightsRevoked(address indexed policy, address holder);
-    event PolicyApproved(address indexed policy, address auditor);
-    event PolicyRevoked(address indexed policy, address auditor);
-
     /// KIM: any initialization here is ephimeral and not included in bytecode..
     /// so the code within a logic contract’s constructor or global declaration
     /// will never be executed in the context of the proxy’s state
     /// https://docs.openzeppelin.com/upgrades-plugins/1.x/proxies#the-constructor-caveat
+    IPolicyAuditorVerifiable public audit;
     ISyndicatableVerifiable public syndication;
     IReferendumVerifiable public referendum;
 
@@ -105,6 +108,7 @@ contract RightsManager is
     /// @param policy The address of the policy contract attempting to access rights.
     /// @param holder The content rights holder.
     error InvalidNotRightsDelegated(address policy, address holder);
+    error InvalidNotAuditedPolicy(address policy);
     /// @dev Error that is thrown when a content hash is already registered.
     error InvalidInactiveDistributor();
     /// @dev Error thrown when a proposed agreement fails to execute.
@@ -120,32 +124,28 @@ contract RightsManager is
         _disableInitializers();
     }
 
-    /// @notice Initializes the contract with the given dependencies.
-    /// @param repository The contract registry to retrieve needed contracts instance.
-    /// @param initialFee The initial fee for the treasury in basis points (bps).
-    /// @dev This function is called only once during the contract deployment.
+    /// @notice Initializes the contract with the necessary dependencies.
+    /// @param treasury The address of the treasury contract to manage funds.
+    /// @param syndication_ The address of the syndication contract, which verifies distributor agreements and manages syndication logic.
+    /// @param referendum_ The address of the referendum contract, which handles governance voting on decisions.
+    /// @param audit_ The address of the audit contract, which verifies policies audit.
+    /// @dev This function can only be called once during the contract's deployment and sets up core components including the Ledger, Fees, and Treasurer.
     function initialize(
-        address repository,
-        uint256 initialFee
-    ) public initializer onlyBasePointsAllowed(initialFee) {
+        address treasury,
+        address syndication_,
+        address referendum_,
+        address audit_
+    ) public initializer {
         __Ledger_init();
         __UUPSUpgradeable_init();
         __ReentrancyGuard_init();
         __CurrencyManager_init();
         __Governable_init(_msgSender());
+        __Treasurer_init(treasury);
 
-        // initialize dependencies for RM
-        IRepository repo = IRepository(repository);
-        address mmc = repo.getContract(T.ContractTypes.MMC);
-        address treasuryAddress = repo.getContract(T.ContractTypes.TRE);
-        address syndicationAddress = repo.getContract(T.ContractTypes.SYN);
-        address referendumAddress = repo.getContract(T.ContractTypes.REF);
-
-        syndication = ISyndicatableVerifiable(syndicationAddress);
-        referendum = IReferendumVerifiable(referendumAddress);
-
-        __Fees_init(initialFee, mmc);
-        __Treasurer_init(treasuryAddress);
+        syndication = ISyndicatableVerifiable(syndication_);
+        referendum = IReferendumVerifiable(referendum_);
+        audit = IPolicyAuditorVerifiable(audit_);
     }
 
     /// @dev Authorizes the upgrade of the contract.
@@ -181,6 +181,70 @@ contract RightsManager is
         _;
     }
 
+    /// @dev Modifier to ensure that only audited policies can perform certain actions.
+    /// @param policy The address of the policy contract to check for audit status.
+    modifier onlyAuditedPolicy(address policy) {
+        if (policy == address(0) || !audit.isAudited(policy))
+            revert InvalidNotAuditedPolicy(policy);
+        _;
+    }
+
+    /// @notice Calculates the fees for the treasury based on the provided total amount.
+    /// @param total The total amount involved in the transaction.
+    /// @param currency The address of the ERC20 token (or native currency) being used in the transaction.
+    /// @return treasury The calculated fee for the treasury.
+    function calcFees(
+        uint256 total,
+        address currency
+    ) public view onlySupportedCurrency(currency) returns (uint256) {
+        // !IMPORTANT if trasury does not support the currency, will revert..
+        // the max bps integrity is warrantied by treasure fees
+        return total.perOf(getFees(currency)); // bps
+    }
+
+    /// @notice Checks if the content is eligible for distribution by the content holder's custodial.
+    /// @dev This function verifies whether the specified content can be distributed,
+    /// based on the status of the custodial rights and the content's activation state in related contracts.
+    /// @param contentId The ID of the content to check for distribution eligibility.
+    /// @param contentHolder The address of the content holder whose custodial rights are being checked.
+    /// @return True if the content can be distributed, false otherwise.
+    function isEligibleForDistribution(
+        uint256 contentId,
+        address contentHolder
+    ) public returns (bool) {
+        // Perform checks to ensure the content/distributor has not been blocked.
+        // Check if the content's custodial is active in the Syndication contract
+        // and if the content is active in the Referendum contract.
+        return
+            _checkActiveDistributor(getCustody(contentHolder)) &&
+            _checkActiveContent(contentId);
+    }
+
+    /// @inheritdoc IBalanceManager
+    /// @notice Returns the contract's balance for the specified currency.
+    /// @param currency The address of the token to check the balance of (address(0) for native currency).
+    /// @return The balance of the contract in the specified currency.
+    function getBalance(address currency) external view returns (uint256) {
+        return address(this).balanceOf(currency);
+    }
+
+    /// @inheritdoc IBalanceWithdrawable
+    /// @notice Withdraws tokens from the contract to a specified recipient's address.
+    /// @dev This function withdraws funds from the caller's balance (checked via _msgSender()) and transfers them to the recipient.
+    /// @param recipient The address that will receive the withdrawn tokens.
+    /// @param amount The amount of tokens to withdraw.
+    /// @param currency The currency to associate fees with. Use address(0) for the native coin.
+    function withdraw(
+        address recipient,
+        uint256 amount,
+        address currency
+    ) external onlyValidCurrency(currency) {
+        if (getLedgerBalance(_msgSender(), currency) < amount)
+            revert NoFundsToWithdraw("Insuficient funds to withdraw.");
+        _subLedgerEntry(_msgSender(), amount, currency);
+        recipient.transfer(amount, currency);
+    }
+
     /// @inheritdoc IFeesManager
     /// @notice Sets a new treasury fee for a specific currency.
     /// @param newTreasuryFee The new fee amount to be set.
@@ -206,14 +270,6 @@ contract RightsManager is
         _setTreasuryAddress(newTreasuryAddress);
     }
 
-    /// @inheritdoc IBalanceManager
-    /// @notice Returns the contract's balance for the specified currency.
-    /// @param currency The address of the token to check the balance of (address(0) for native currency).
-    /// @return The balance of the contract in the specified currency.
-    function getBalance(address currency) external view returns (uint256) {
-        return address(this).balanceOf(currency);
-    }
-
     /// @inheritdoc IDisburser
     /// @notice Disburses funds from the contract to a specified address.
     /// @param amount The amount of currencies to disburse.
@@ -228,26 +284,7 @@ contract RightsManager is
         emit FeesDisbursed(treasury, amount, currency);
     }
 
-    /// @inheritdoc IRightsManager
-    /// @notice Checks if the content is eligible for distribution by the content holder's custodial.
-    /// @dev This function verifies whether the specified content can be distributed,
-    /// based on the status of the custodial rights and the content's activation state in related contracts.
-    /// @param contentId The ID of the content to check for distribution eligibility.
-    /// @param contentHolder The address of the content holder whose custodial rights are being checked.
-    /// @return True if the content can be distributed, false otherwise.
-    function isEligibleForDistribution(
-        uint256 contentId,
-        address contentHolder
-    ) public returns (bool) {
-        // Perform checks to ensure the content/distributor has not been blocked.
-        // Check if the content's custodial is active in the Syndication contract
-        // and if the content is active in the Referendum contract.
-        return
-            _checkActiveDistributor(getCustody(contentHolder)) &&
-            _checkActiveContent(contentId);
-    }
-
-    /// @inheritdoc IRightsCustodialGranter
+    /// @inheritdoc IRightsManagerCustodial
     /// @notice Grants custodial rights over the content held by a holder to a distributor.
     /// @dev This function assigns custodial rights for the content held by a specific
     /// account to a designated distributor.
@@ -262,29 +299,7 @@ contract RightsManager is
         emit CustodialGranted(prevCustody, distributor, contentHolder);
     }
 
-    /// @inheritdoc IRightsPolicyAuditor
-    /// @notice Approves the audit of a given policy.
-    /// @param policy The address of the policy to be audited.
-    function approveAudit(
-        address policy
-    ) external onlyPolicyContract(policy) onlyMod {
-        address auditor = _msgSender();
-        _approveAudit(policy, auditor);
-        emit PolicyApproved(policy, auditor);
-    }
-
-    /// @inheritdoc IRightsPolicyAuditor
-    /// @notice Revokes the audit of a given policy.
-    /// @param policy The address of the policy whose audit is to be revoked.
-    function revokeAudit(
-        address policy
-    ) external onlyPolicyContract(policy) onlyMod {
-        address auditor = _msgSender();
-        _revokeAudit(policy, auditor);
-        emit PolicyRevoked(policy, auditor);
-    }
-
-    /// @inheritdoc IRightsPolicyController
+    /// @inheritdoc IRightsManagerPolicies
     /// @notice Delegates rights to a policy contract for content held by the holder.
     /// @param policy The address of the policy contract to which rights are being delegated.
     function authorizePolicy(
@@ -295,30 +310,16 @@ contract RightsManager is
         emit RightsGranted(policy, holder);
     }
 
-    /// @inheritdoc IRightsPolicyController
+    /// @inheritdoc IRightsManagerPolicies
     /// @notice Revokes the delegation of rights to a policy contract.
     /// @param policy The address of the policy contract whose rights delegation is being revoked.
-    function revokePolicy(address policy) external onlyAuditedPolicy(policy) {
+    function revokePolicy(address policy) external {
         address holder = _msgSender();
         _revokePolicy(policy, holder);
         emit RightsRevoked(policy, holder);
     }
 
-    /// @inheritdoc IRightsManager
-    /// @notice Calculates the fees for the treasury based on the provided total amount.
-    /// @param total The total amount involved in the transaction.
-    /// @param currency The address of the ERC20 token (or native currency) being used in the transaction.
-    /// @return treasury The calculated fee for the treasury.
-    function calcFees(
-        uint256 total,
-        address currency
-    ) public view onlySupportedCurrency(currency) returns (uint256) {
-        // !IMPORTANT if trasury does not support the currency, will revert..
-        // the max bps integrity is warrantied by treasure fees
-        return total.perOf(getFees(currency)); // bps
-    }
-
-    /// @inheritdoc IRightsAgreementBroker
+    /// @inheritdoc IRightsManagerAgreement
     /// @notice Creates a new agreement between the account and the content holder, returning a unique agreement identifier.
     /// @dev This function handles the creation of a new agreement by negotiating terms, calculating fees,
     /// and generating a unique proof of the agreement.
@@ -351,7 +352,7 @@ contract RightsManager is
         return _createProof(agreement);
     }
 
-    /// @inheritdoc IRightsManager
+    /// @inheritdoc IRightsManagerAccessController
     /// @notice Finalizes the agreement by registering the agreed-upon policy, effectively closing the agreement.
     /// @dev This function verifies the policy's authorization, executes the agreement, processes financial transactions,
     ///      and registers the policy in the system, representing the formal closure of the agreement.
@@ -373,9 +374,8 @@ contract RightsManager is
         // check if policy is authorized by holder to operate over content
         if (!isPolicyAuthorized(policyAddress, agreement.holder))
             revert InvalidNotRightsDelegated(policyAddress, agreement.holder);
-        // the remaining is sent to policy contract to operate distribution..
+        // the remaining is registered to policy contract to operate distribution..
         _msgSender().safeDeposit(agreement.total, agreement.currency);
-        policyAddress.transfer(agreement.available, agreement.currency);
 
         // validate policy execution..
         IPolicy policy = IPolicy(policyAddress);
@@ -384,6 +384,7 @@ contract RightsManager is
 
         _closeAgreement(proof); // inactivate the agreement after success..
         _registerPolicy(agreement.account, policyAddress);
+        _sumLedgerEntry(policyAddress, agreement.available, agreement.currency);
         emit AccessGranted(agreement.account, proof, policyAddress);
     }
 
@@ -409,7 +410,7 @@ contract RightsManager is
         return proof;
     }
 
-    /// @inheritdoc IRightsAccessController
+    /// @inheritdoc IRightsManagerAccessController
     /// @notice Retrieves the first active policy for a specific account and content id in LIFO order.
     /// @param account The address of the account to evaluate.
     /// @param contentId The ID of the content to evaluate policies for.
@@ -424,14 +425,8 @@ contract RightsManager is
         uint256 i = policies.length - 1;
 
         while (true) {
-            // LIFO precedence order: last registered policy is evaluated first.
-            // The first complying policy is returned.
-            // We need to check if the policy is still valid audited.
-            if (isPolicyAudited(policies[i])) {
-                bool comply = _verifyPolicy(account, contentId, policies[i]);
-                if (comply) return (true, policies[i]);
-            }
-
+            bool comply = _verifyPolicy(account, contentId, policies[i]);
+            if (comply) return (true, policies[i]);
             if (i == 0) break;
             unchecked {
                 --i;

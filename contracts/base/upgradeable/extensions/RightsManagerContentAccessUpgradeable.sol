@@ -5,7 +5,7 @@ pragma solidity ^0.8.24;
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
-import "contracts/interfaces/IRightsAccessController.sol";
+import "contracts/interfaces/IRightsManagerAccessController.sol";
 import "contracts/interfaces/IPolicy.sol";
 
 /// @title Rights Manager Content Access Upgradeable
@@ -13,14 +13,11 @@ import "contracts/interfaces/IPolicy.sol";
 /// policy contract that must implement the IPolicy interface.
 abstract contract RightsManagerContentAccessUpgradeable is
     Initializable,
-    IRightsAccessController
+    IRightsManagerAccessController
 {
     using ERC165Checker for address;
     using EnumerableSet for EnumerableSet.AddressSet;
 
-    // uint256 private constant MAX_POLICIES = 3; // Max limit of policies for account.
-    /// @dev The interface ID for IPolicy, used to verify that a policy contract implements the correct interface.
-    bytes4 private constant INTERFACE_POLICY = type(IPolicy).interfaceId;
     /// @custom:storage-location erc7201:rightscontentaccess.upgradeable
     /// @dev Storage struct for the access control list (ACL) that maps content IDs and accounts to policy contracts.
     struct ACLStorage {
@@ -42,20 +39,6 @@ abstract contract RightsManagerContentAccessUpgradeable is
         assembly {
             $.slot := ACCESS_CONTROL_SLOT
         }
-    }
-
-    /// @dev Error thrown when the policy contract does not implement the IPolicy interface.
-    error InvalidPolicyContract(address);
-    error MaxPoliciesReached();
-
-    /// @dev Modifier to check that a policy contract implements the IPolicy interface.
-    /// @param policy The address of the license policy contract.
-    /// Reverts if the policy does not implement the required interface.
-    modifier onlyPolicyContract(address policy) {
-        if (!policy.supportsInterface(INTERFACE_POLICY)) {
-            revert InvalidPolicyContract(policy);
-        }
-        _;
     }
 
     /// @notice Registers a new policy for a specific account and policy, maintaining a chain of precedence.
@@ -84,7 +67,7 @@ abstract contract RightsManagerContentAccessUpgradeable is
         return policy_.comply(account, contentId);
     }
 
-    /// @inheritdoc IRightsAccessController
+    /// @inheritdoc IRightsManagerAccessController
     /// @notice Retrieves the list of policys associated with a specific account and content ID.
     /// @param account The address of the account for which policies are being retrieved.
     /// @return An array of addresses representing the policies associated with the account and content ID.
@@ -95,8 +78,8 @@ abstract contract RightsManagerContentAccessUpgradeable is
         // https://docs.openzeppelin.com/contracts/5.x/api/utils#EnumerableSet-values-struct-EnumerableSet-AddressSet-
         // This operation will copy the entire storage to memory, which can be quite expensive.
         // This is designed to mostly be used by view accessors that are queried without any gas fees.
-        // Developers should keep in mind that this function has an unbounded cost, 
-        /// and using it as part of a state-changing function may render the function uncallable 
+        // Developers should keep in mind that this function has an unbounded cost,
+        /// and using it as part of a state-changing function may render the function uncallable
         /// if the set grows to a point where copying to memory consumes too much gas to fit in a block.
         return $._acl[account].values();
     }
@@ -104,5 +87,4 @@ abstract contract RightsManagerContentAccessUpgradeable is
     // TODO potential improvement getChainedPolicies
     // allowing concatenate policies to evaluate compliance...
     // This approach supports complex access control scenarios where multiple factors need to be considered.
-
 }

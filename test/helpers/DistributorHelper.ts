@@ -56,3 +56,12 @@ export async function commitRegister (factory: DistributorFactory, domain: strin
   // Unfortunately, it's not possible to get the return value of a state-changing function outside the off-chain.
   return await distributorCreatedWithLastEvent(factory)
 }
+
+
+export async function deployAndAttachDistributor() {
+  // Contracts are deployed using the first signer/account by default
+  const beacon = await switcher(deployDistributorFactory)
+  const beaconProxyAddress = await commitRegister(beacon, 'watchit6.movie')
+  const beaconProxyDistributorContract = await attachBeaconDistributorContract(beaconProxyAddress)
+  return beaconProxyDistributorContract
+}

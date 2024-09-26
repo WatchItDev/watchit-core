@@ -4,7 +4,7 @@ pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
-import "contracts/interfaces/IRightsAgreementBroker.sol";
+import "contracts/interfaces/IRightsManagerAgreement.sol";
 import "contracts/interfaces/IPolicy.sol";
 import "contracts/libraries/Types.sol";
 
@@ -15,7 +15,7 @@ import "contracts/libraries/Types.sol";
 /// facilitating secure and flexible interactions between different components of the system.
 abstract contract RightsManagerBrokerUpgradeable is
     Initializable,
-    IRightsAgreementBroker
+    IRightsManagerAgreement
 {
     using ERC165Checker for address;
 

@@ -5,7 +5,8 @@ pragma solidity ^0.8.24;
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "contracts/base/upgradeable/GovernableUpgradeable.sol";
-import "contracts/interfaces/IBalanceManagerWithdrawable.sol";
+import "contracts/interfaces/IBalanceManager.sol";
+import "contracts/interfaces/IBalanceWithdrawable.sol";
 import "contracts/interfaces/IFeesManager.sol";
 
 // TODO payment splitter
@@ -18,7 +19,8 @@ contract Treasury is
     Initializable,
     UUPSUpgradeable,
     GovernableUpgradeable,
-    IBalanceManagerWithdrawable
+    IBalanceManager,
+    IBalanceWithdrawable
 {
     /// @dev Constructor that disables initializers to prevent the implementation contract from being initialized.
     /// @notice This constructor prevents the implementation contract from being initialized.
@@ -34,7 +36,9 @@ contract Treasury is
 
     /// @notice Function to get the balance of the contract (to be implemented).
     // TODO: Implement get balance function
-    // TODO desde aca se pueden llamar a funciones sponsored como delegateCustodialWithSig etc
+    // TODO  multisignature withdraw
+    // TODO distribution of earnings, here we can handle vesting?
+    // TODO aca se llevara a cabo las quemas durante la extraccion de tokens.. cuando alguien hace withdraw se quema un % de los token
 
     /// @notice Function that should revert when msg.sender is not authorized to upgrade the contract.
     /// @param newImplementation The address of the new implementation contract.
@@ -50,6 +54,7 @@ contract Treasury is
     }
 
     function withdraw(address recipient, uint256 amount, address currency) public onlyGov {}
+    function getBalance(address currency) external view returns (uint256) {}
 
-    // TODO multisignature withdraw
+    
 }

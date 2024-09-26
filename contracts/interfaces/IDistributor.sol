@@ -4,13 +4,8 @@ pragma solidity ^0.8.24;
 
 import "./IFeesManager.sol";
 import "./ICurrencyManager.sol";
-import "./IBalanceManager.sol";
-import "./IBalanceManagerWithdrawable.sol";
 
-interface IDistributor is
-    IBalanceManager,
-    IBalanceManagerWithdrawable
-{
+interface IDistributor  {
     /// @notice Set the endpoint of the distributor.
     /// @dev This function can only be called by the owner of the contract.
     /// @param _endpoint The new distributor's endpoint.
@@ -25,5 +20,4 @@ interface IDistributor is
     /// @dev This function allows users to view the current manager of the distributor.
     /// @return The address of the current manager of the distributor.
     function getManager() external view returns (address);
-
 }

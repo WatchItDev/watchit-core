@@ -12,10 +12,15 @@ import "contracts/base/upgradeable/QuorumUpgradeable.sol";
 import "contracts/base/upgradeable/TreasurerUpgradeable.sol";
 import "contracts/base/upgradeable/LedgerUpgradeable.sol";
 import "contracts/base/upgradeable/FeesManagerUpgradeable.sol";
-
-import "contracts/interfaces/IRepository.sol";
+import "contracts/interfaces/ISyndicatablePenalizer.sol";
+import "contracts/interfaces/ISyndicatableRegistrable.sol";
+import "contracts/interfaces/ISyndicatableRegistrable.sol";
+import "contracts/interfaces/ISyndicatableExpirable.sol";
+import "contracts/interfaces/ISyndicatableRevokable.sol";
+import "contracts/interfaces/ISyndicatableVerifiable.sol";
+import "contracts/interfaces/IBalanceManager.sol";
 import "contracts/interfaces/IDistributor.sol";
-import "contracts/interfaces/ISyndicatable.sol";
+import "contracts/interfaces/IDisburser.sol";
 import "contracts/libraries/TreasuryHelper.sol";
 import "contracts/libraries/FeesHelper.sol";
 import "contracts/libraries/Types.sol";
@@ -32,7 +37,13 @@ contract Syndication is
     GovernableUpgradeable,
     FeesManagerUpgradeable,
     ReentrancyGuardUpgradeable,
-    ISyndicatable
+    ISyndicatablePenalizer,
+    ISyndicatableRegistrable,
+    ISyndicatableExpirable,
+    ISyndicatableRevokable,
+    ISyndicatableVerifiable,
+    IBalanceManager,
+    IDisburser
 {
     using FeesHelper for uint256;
     using ERC165Checker for address;
@@ -68,7 +79,8 @@ contract Syndication is
     /// @notice Event emitted when fees are disbursed to the treasury
     /// @param treasury The address of the treasury receiving the fees
     /// @param amount The amount disbursed
-    event FeesDisbursed(address indexed treasury, uint256 amount);
+    /// @param currency The disbursed currency
+    event FeesDisbursed(address indexed treasury, uint256 amount, address currency);
 
     /// @dev Constructor that disables initializers to prevent the implementation contract from being initialized.
     /// @notice This constructor prevents the implementation contract from being initialized.
@@ -87,32 +99,21 @@ contract Syndication is
         _;
     }
 
-    /// @notice Initializes the contract with the given repository, enrollment fee, and initial penalty rate.
-    /// @param repository The address of the repository contract.
-    /// @param initialFee The initial flat fee for the treasury in native currency.
-    /// @param initialPenaltyRateBps The initial penalty rate in basis points (bps).
-    /// @dev This function is called only once during the contract deployment.
+    /// @notice Initializes the contract with the given multimedia coin (MMC), treasury, enrollment fee, and initial penalty rate.
+    /// @param treasury The address of the treasury contract, which manages fund handling and storage.
+    /// @dev This function can only be called once during contract deployment. It sets up the contract's core components like the quorum,
+    /// ledger, reentrancy protection, and upgrade mechanisms. It also defines the initial flat fees and penalty rates.
     function initialize(
-        address repository,
-        uint256 initialFee,
-        uint256 initialPenaltyRateBps
-    ) public initializer onlyBasePointsAllowed(initialPenaltyRateBps) {
+        address treasury
+    ) public initializer {
         __Quorum_init();
         __Ledger_init();
         __ReentrancyGuard_init();
         __UUPSUpgradeable_init();
         __Governable_init(_msgSender());
-
-        // Get the registered treasury contract from the repository
-        IRepository repo = IRepository(repository);
-        address mmc = repo.getContract(T.ContractTypes.MMC);
-        address trasuryAddress = repo.getContract(T.ContractTypes.TRE);
-        penaltyRates[mmc] = initialPenaltyRateBps; // bps
-        enrollmentPeriod = 180 days; // 6 months initially..
-
-        // initially flat fees..
-        __Fees_init(initialFee, mmc);
-        __Treasurer_init(trasuryAddress);
+        __Treasurer_init(treasury);
+        // 6 months initially..
+        enrollmentPeriod = 180 days; 
     }
 
     /// @notice Function that should revert when msg.sender is not authorized to upgrade the contract.
@@ -122,7 +123,7 @@ contract Syndication is
         address newImplementation
     ) internal override onlyAdmin {}
 
-    /// @inheritdoc ISyndicatable
+    /// @inheritdoc ISyndicatablePenalizer
     /// @notice Function to set the penalty rate for quitting enrollment.
     /// @param newPenaltyRate The new penalty rate to be set. It should be a value representin base points (bps).
     /// @param currency The currency to set penalty rate.
@@ -183,7 +184,7 @@ contract Syndication is
     function disburse(uint256 amount, address currency) external onlyGov {
         address treasury = getTreasuryAddress();
         treasury.transfer(amount, currency); // sent..
-        emit FeesDisbursed(treasury, amount);
+        emit FeesDisbursed(treasury, amount, currency);
     }
 
     /// @inheritdoc ISyndicatableVerifiable

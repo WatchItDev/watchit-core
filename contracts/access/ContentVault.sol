@@ -6,13 +6,12 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "contracts/base/upgradeable/GovernableUpgradeable.sol";
 import "contracts/interfaces/IOwnership.sol";
 import "contracts/interfaces/IContentVault.sol";
-import "contracts/interfaces/IRepository.sol";
 
 /// @title ContentVault
 /// @notice This contract stores encrypted content and ensures only the rightful content holder
-/// can access or modify the content. It is designed to be upgradeable through UUPS and governed by a 
+/// can access or modify the content. It is designed to be upgradeable through UUPS and governed by a
 /// decentralized authority.
-/// @dev The contract uses the OpenZeppelin UUPS (Universal Upgradeable Proxy Standard) upgrade mechanism 
+/// @dev The contract uses the OpenZeppelin UUPS (Universal Upgradeable Proxy Standard) upgrade mechanism
 /// and inherits Governable for governance control.
 contract ContentVault is
     Initializable,
@@ -22,10 +21,8 @@ contract ContentVault is
 {
     /// @notice The Ownership contract that tracks content holders.
     IOwnership public ownership;
-
     /// @dev Mapping to store encrypted content, identified by content ID.
-    mapping(uint256 => bytes) private secured; 
-
+    mapping(uint256 => bytes) private secured;
     /// @notice Error thrown when a non-owner tries to modify or access the content.
     error InvalidContentHolder();
 
@@ -38,18 +35,14 @@ contract ContentVault is
         _disableInitializers();
     }
 
-    /// @notice Initializes the contract with the necessary dependencies, such as the repository
-    /// contract that contains references to the Ownership contract.
-    /// @param repository The contract address of the repository where dependencies are stored.
-    /// @dev This function can only be called once during the contract's lifecycle and sets up the UUPS 
-    /// upgradeability and governance mechanisms.
-    function initialize(address repository) public initializer {
+    /// @notice Initializes the contract with the necessary dependencies, including the Ownership contract.
+    /// @param ownership_ The address of the Ownership contract, which manages ownership records and verification.
+    /// @dev This function can only be called once during the contract's initialization. It sets up UUPS upgradeability
+    /// mechanisms and governance controls, linking the Ownership contract for future use.
+    function initialize(address ownership_) public initializer {
         __UUPSUpgradeable_init();
         __Governable_init(_msgSender());
-
-        IRepository repo = IRepository(repository);
-        address ownershipAddress = repo.getContract(T.ContractTypes.OWN);
-        ownership = IOwnership(ownershipAddress);
+        ownership = IOwnership(ownership_);
     }
 
     /// @notice Modifier that restricts access to the content holder only.
@@ -61,10 +54,10 @@ contract ContentVault is
         _;
     }
 
-    /// @notice Function that authorizes the contract upgrade. It ensures that only the admin 
+    /// @notice Function that authorizes the contract upgrade. It ensures that only the admin
     /// can authorize a contract upgrade to a new implementation.
     /// @param newImplementation The address of the new contract implementation.
-    /// @dev Overrides the `_authorizeUpgrade` function from UUPSUpgradeable to enforce admin-only 
+    /// @dev Overrides the `_authorizeUpgrade` function from UUPSUpgradeable to enforce admin-only
     /// access for upgrades.
     /// @dev See https://docs.openzeppelin.com/contracts/4.x/api/proxy#UUPSUpgradeable-_authorizeUpgrade-address-
     function _authorizeUpgrade(
@@ -74,7 +67,7 @@ contract ContentVault is
     /// @notice Retrieves the encrypted content for a given content ID.
     /// @param contentId The identifier of the content.
     /// @return The encrypted content as bytes.
-    /// @dev This function is used to access encrypted data stored in the vault, 
+    /// @dev This function is used to access encrypted data stored in the vault,
     /// which can include various types of encrypted information such as LIT chain data or shared key-encrypted data.
     function getContent(uint256 contentId) public view returns (bytes memory) {
         return secured[contentId];

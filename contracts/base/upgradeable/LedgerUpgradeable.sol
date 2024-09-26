@@ -5,20 +5,25 @@ pragma solidity ^0.8.24;
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "contracts/interfaces/ILedger.sol";
 
+/// @title LedgerUpgradeable
+/// @notice Abstract contract for managing ledger entries that support upgradability.
+/// @dev This contract uses the storage pattern for upgradeable contracts and ensures that storage layout conflicts are avoided.
 abstract contract LedgerUpgradeable is Initializable, ILedger {
     /// @custom:storage-location erc7201:ledgerupgradeable
+    /// @dev The LedgerStorage struct holds the ledger mapping.
     struct LedgerStorage {
         mapping(address => mapping(address => uint256)) _ledger;
     }
 
-    // ERC-7201: Namespaced Storage Layout is another convention that can be used to avoid storage layout errors
-    // keccak256(abi.encode(uint256(keccak256("watchit.ledger.trasure")) - 1)) & ~bytes32(uint256(0xff))
+    /// @dev Storage slot for LedgerStorage, calculated using a unique namespace to avoid conflicts.
+    /// The `LEDGER_SLOT` constant is used to point to the location of the storage.
     bytes32 private constant LEDGER_SLOT =
         0xcb711bda070b7bbcc2b711ef3993cc17677144f4419b29e303bef375c5f40f00;
 
     /**
      * @notice Internal function to get the ledger storage.
-     * @return $ The ledger storage.
+     * @return $ A reference to the LedgerStorage struct located at the `LEDGER_SLOT`.
+     * @dev Uses assembly to retrieve the storage at the pre-calculated storage slot.
      */
     function _getLedgerStorage()
         private
@@ -30,18 +35,18 @@ abstract contract LedgerUpgradeable is Initializable, ILedger {
         }
     }
 
-    /// @dev As standard to avoid doubts about if a upgradeable contract
-    /// need to be initalized, all the contracts specify the init even
-    /// if the initialization is harmless..
+    /// @dev Initializes the contract and ensures it is upgradeable.
+    /// Even if the initialization is harmless, this ensures the contract follows upgradeable contract patterns.
     function __Ledger_init() internal onlyInitializing {}
 
+    /// @dev Function to initialize the contract without chaining, typically used in child contracts.
     function __Ledger_init_unchained() internal onlyInitializing {}
 
-    /// @notice Internal function to store the currency fees for account.
-    /// @param account The address of the account.
-    /// @param amount The amount to register to account.
-    /// @param currency The currency to register to account.
-    /// @dev This function is used to store the fees for acount.
+    /// @notice Internal function to set a ledger entry for an account in a specific currency.
+    /// @param account The address of the account to set the ledger entry for.
+    /// @param amount The amount to register for the account.
+    /// @param currency The address of the currency being registered.
+    /// @dev This function directly overwrites the existing ledger entry for the specified account and currency.
     function _setLedgerEntry(
         address account,
         uint256 amount,
@@ -51,11 +56,11 @@ abstract contract LedgerUpgradeable is Initializable, ILedger {
         $._ledger[account][currency] = amount;
     }
 
-    /// @notice Internal function to accumulate currency fees for account.
-    /// @param account The address of the account.
-    /// @param amount The amount to register to account.
-    /// @param currency The currency to register to account.
-    /// @dev This function is used to store the fees for acount.
+    /// @notice Internal function to accumulate currency fees for an account.
+    /// @param account The address of the account to accumulate the ledger entry for.
+    /// @param amount The amount to add to the existing ledger entry.
+    /// @param currency The address of the currency being accumulated.
+    /// @dev This function adds the amount to the current ledger entry for the specified account and currency.
     function _sumLedgerEntry(
         address account,
         uint256 amount,
@@ -65,11 +70,11 @@ abstract contract LedgerUpgradeable is Initializable, ILedger {
         $._ledger[account][currency] += amount;
     }
 
-    /// @notice Internal function to subtract currency fees for account.
-    /// @param account The address of the account.
-    /// @param amount The amount to register to account.
-    /// @param currency The currency to register to account.
-    /// @dev This function is used to store the fees for acount.
+    /// @notice Internal function to subtract currency fees for an account.
+    /// @param account The address of the account to subtract the ledger entry from.
+    /// @param amount The amount to subtract from the existing ledger entry.
+    /// @param currency The address of the currency being subtracted.
+    /// @dev This function subtracts the amount from the current ledger entry for the specified account and currency.
     function _subLedgerEntry(
         address account,
         uint256 amount,
@@ -80,9 +85,10 @@ abstract contract LedgerUpgradeable is Initializable, ILedger {
     }
 
     /// @inheritdoc ILedger
-    /// @notice Retrieves the registered currency amount for the specified account.
-    /// @param account The address of the account.
-    /// @param currency The currency to retrieve ledger amount.
+    /// @notice Retrieves the ledger balance of an account for a specific currency.
+    /// @param account The address of the account whose balance is being queried.
+    /// @param currency The address of the currency to retrieve the balance for.
+    /// @return The current balance of the specified account in the specified currency.
     function getLedgerBalance(
         address account,
         address currency

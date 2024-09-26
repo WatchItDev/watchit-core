@@ -2,12 +2,15 @@
 pragma solidity ^0.8.24;
 
 import "contracts/base/BasePolicy.sol";
-import "contracts/interfaces/IPolicy.sol";
 import "contracts/libraries/Types.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /// @title SubscriptionPolicy
 /// @notice Implements a subscription-based content access policy, allowing users to subscribe to content catalogs for a set duration.
-contract SubscriptionPolicy is BasePolicy, IPolicy {
+contract SubscriptionPolicy is BasePolicy {
+    using SafeERC20 for IERC20;
+
     /// @dev Structure to define a subscription package.
     struct Package {
         uint256 subscriptionDuration; // Duration in seconds for which the subscription is valid.
@@ -69,15 +72,21 @@ contract SubscriptionPolicy is BasePolicy, IPolicy {
         bytes calldata
     ) external onlyRM returns (bool, string memory) {
         Package memory pkg = packages[agreement.holder];
-        if (agreement.total < pck.price)
+        // we need to be sure the user paid for the total of the price..
+        if (agreement.total < pkg.price)
             return (false, "Insufficient funds for subscription");
-
-        // set rental expire
-        // Transfer the funds to the content holder.
-        agreement.holder.transfer(agreement.available, agreement.currency);
-        uint256 subTime = block.timestamp + pck.subscriptionDuration;
+        uint256 subTime = block.timestamp + pkg.subscriptionDuration;
         // subscribe to content owner's catalog (content package)
         subscriptions[agreement.account][agreement.holder] = subTime;
+        // We can take two approach here:
+        // 1- distribute the funds
+        // 2- register the total to rights holder
+        _sumLedgerEntry(
+            agreement.holder,
+            agreement.available,
+            agreement.currency
+        );
+        
         return (true, "ok");
     }
 

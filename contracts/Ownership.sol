@@ -8,14 +8,13 @@ import "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721EnumerableUpgradeable.sol";
 import "contracts/base/upgradeable/GovernableUpgradeable.sol";
 import "contracts/interfaces/IReferendumVerifiable.sol";
-import "contracts/interfaces/IRepository.sol";
 import "contracts/interfaces/IOwnership.sol";
 
-// TODO imp ERC404 
+// TODO imp ERC404
 
 /// @title Ownership ERC721 Upgradeable
 /// @notice This abstract contract manages the ownership.
-abstract contract Ownership is
+contract Ownership is
     Initializable,
     UUPSUpgradeable,
     GovernableUpgradeable,
@@ -27,42 +26,33 @@ abstract contract Ownership is
     event RegisteredContent(uint256 contentId);
     error InvalidNotApprovedContent();
 
-    // TODO 1 - la licencia que se establezca en watchit es comercial
-    // 2 - las condiciones comerciales se verifican en la política y se concede los accesos en base al modelo de
-    // negocio establecido en cada política, eg: acceso por medio de renta tiempo limitado etc..
-    // esto para con el fin de tener un manejo flexible y desacoplado con las policies..
-    // el como las condiciones de acceso, o los royalties deben manejarse se derivarse desde el IP
-    // eg: royalties o condiciones de uso.. etc
-
     // 3- Las condiciones adicionales como acceso por país, etc! Deben ser dados en el IP register url,
     // si no tiene estas condiciones, simplemente no se validan..
 
     // Evaluar si al registrar el token en Watchit se puede hacer algo similar a lo que hace story con los token URI,
 
-    // Cuando se haga mint, obtener la información del token originario, digamos que sea un NFT externo y hacer un 
+    // Cuando se haga mint, obtener la información del token originario, digamos que sea un NFT externo y hacer un
     // remint en nuestro contrato con los detalles del contrato origen?
 
-
     /// @dev Constructor that disables initializers to prevent the implementation contract from being initialized.
-    /// https://forum.openzeppelin.com/t/uupsupgradeable-vulnerability-post-mortem/15680
+    /// @notice This constructor prevents the implementation contract from being initialized.
+    /// @dev See https://forum.openzeppelin.com/t/uupsupgradeable-vulnerability-post-mortem/15680
     /// https://forum.openzeppelin.com/t/what-does-disableinitializers-function-mean/28730/5
+    /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
     }
 
-    /// @notice Initializes the contract with the given dependencies.
-    /// @param repository The contract registry to retrieve needed contracts instance.
-    /// @dev This function is called only once during the contract deployment.
-    function initialize(address repository) public initializer {
+    /// @notice Initializes the contract with the given dependencies, including the Referendum contract for governance-related verifications.
+    /// @param referendum_ The address of the Referendum contract, which is responsible for verifying governance decisions related to content.
+    /// @dev This function can only be called once during the contract's deployment. It sets up UUPS upgradeability,
+    /// ERC721 token functionality, and governance mechanisms. The Referendum contract is linked to handle governance verifications.
+    function initialize(address referendum_) public initializer {
         __UUPSUpgradeable_init();
         __ERC721Enumerable_init();
-        __ERC721_init("Ownership", "WOT");
+        __ERC721_init("Ownership", "OWN");
         __Governable_init(_msgSender());
-
-        IRepository repo = IRepository(repository);
-        address referendumAddress = repo.getContract(T.ContractTypes.REF);
-        referendum = IReferendumVerifiable(referendumAddress);
-
+        referendum = IReferendumVerifiable(referendum_);
     }
 
     /// @notice Function that should revert when msg.sender is not authorized to upgrade the contract.

@@ -62,7 +62,7 @@ describe('Distributor', function () {
 
     it('Should emit a valid DistributorCreated after register distributor.', async function () {
       const beacon = await switcher(deployDistributorFactory)
-      expect(beacon.register('watchit.movie')).to.emit(beacon, 'DistributorCreated')
+      await expect(beacon.register('watchit.movie')).to.emit(beacon, 'DistributorCreated')
     })
 
     it('Should pause/unpause properly.', async function () {
@@ -105,9 +105,9 @@ describe('Distributor', function () {
       const old = lastEvent?.oldEndpoint.toString()
       const new_ = lastEvent?.newEndpoint.toString()
 
-      expect(updater).to.emit(distributor, 'EndpointUpdated')
       expect(old).to.be.equal('watchit.movie')
       expect(new_).to.be.equal('watchit3.movie')
+      await expect(updater).to.emit(distributor, 'EndpointUpdated').withArgs(old, new_)
     })
 
     it('Should fail if `updateEndpoint` is called with invalid empty endpoint.', async function () {

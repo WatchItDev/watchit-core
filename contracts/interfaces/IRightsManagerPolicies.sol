@@ -2,7 +2,7 @@
 pragma solidity ^0.8.24;
 import "contracts/libraries/Types.sol";
 
-interface IRightsPolicyController {
+interface IRightsManagerPolicies {
     /// @notice Retrieves all policies to which rights have been delegated by a specific content holder.
     /// @param holder The content rights holder whose delegated policies are being queried.
     /// @return An array of policy contract addresses that have been delegated rights by the specified content holder.
@@ -19,9 +19,7 @@ interface IRightsPolicyController {
         address holder
     ) external view returns (bool);
     
-        /// @notice Delegates rights for a specific content ID to a policy contract.
-    /// @dev This function stores the delegation details in the RightsStorage struct,
-    ///      allowing the specified policy contract to manage rights for the content holder.
+    /// @notice Delegates rights for a specific content ID to a policy contract.
     /// @param policy The address of the policy contract to which rights are being delegated.
     function authorizePolicy(address policy) external;
 

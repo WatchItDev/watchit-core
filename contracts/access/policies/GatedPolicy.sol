@@ -2,12 +2,11 @@
 pragma solidity ^0.8.24;
 
 import "contracts/base/BasePolicy.sol";
-import "contracts/interfaces/IPolicy.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol"; // For NFT gating
 
 /// @title GatedContentPolicy
 /// @notice Implements a content access policy where users must meet specific criteria to access the gated content.
-contract GatedContentPolicy is BasePolicy, IPolicy {
+contract GatedContentPolicy is BasePolicy {
     address public nftToken; // Address of the NFT token used for gating access.
     mapping(address => mapping(uint256 => bool)) public accessList; // Tracks access by contentId.
 
@@ -32,7 +31,10 @@ contract GatedContentPolicy is BasePolicy, IPolicy {
     /// @notice Register a user on the whitelist for specific content.
     /// @param user The address of the user to be whitelisted.
     /// @param contentId The ID of the content.
-    function addToWhitelist(address user, uint256 contentId) external onlyOwner {
+    function addToWhitelist(
+        address user,
+        uint256 contentId
+    ) external onlyOwner(contentId) {
         accessList[user][contentId] = true;
     }
 
@@ -43,7 +45,7 @@ contract GatedContentPolicy is BasePolicy, IPolicy {
     function comply(
         address account,
         uint256 contentId
-    ) external view override returns (bool) {
+    ) public view override returns (bool) {
         bool ownsNFT = IERC721(nftToken).balanceOf(account) > 0;
         bool isWhitelisted = accessList[account][contentId];
 
@@ -59,12 +61,7 @@ contract GatedContentPolicy is BasePolicy, IPolicy {
         T.Agreement calldata agreement,
         bytes calldata data
     ) external onlyRM returns (bool, string memory) {
-        uint256 contentId = abi.decode(data, (uint256));
-        if (comply(agreement.account, contentId)) {
-            return (true, "Access granted");
-        } else {
-            return (false, "Access denied");
-        }
+        // TODO custom list of conditions..
     }
 
     /// @notice Retrieves the access terms for a specific account and content ID.
@@ -80,11 +77,11 @@ contract GatedContentPolicy is BasePolicy, IPolicy {
 
     /// @notice Returns a detailed description of the gated content policy.
     function description() external pure override returns (bytes memory) {
-        return abi.encodePacked(
-            "The GatedContentPolicy restricts access to content based on user criteria such as owning a specific NFT, ",
-            "being whitelisted by the content holder, or paying an access fee. Users must fulfill at least one of these criteria ",
-            "to access the gated content.";
-        )
+        return
+            abi.encodePacked(
+                "The GatedContentPolicy restricts access to content based on user criteria such as owning a specific NFT, ",
+                "being whitelisted by the content holder, or paying an access fee. Users must fulfill at least one of these criteria ",
+                "to access the gated content."
+            );
     }
-
 }

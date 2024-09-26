@@ -9,7 +9,7 @@ import "contracts/libraries/TreasuryHelper.sol";
 /// @title RentalPolicy
 /// @notice This contract implements the IPolicy interface to manage content rental terms.
 /// It allows for registering content with rental durations and prices and handles the rental process.
-contract RentalPolicy is BasePolicy, IPolicy {
+contract RentalPolicy is BasePolicy {
     using TreasuryHelper for address;
 
     /// @dev Structure to hold rental details for content.
@@ -101,11 +101,17 @@ contract RentalPolicy is BasePolicy, IPolicy {
         if (agreement.total < content.price)
             return (false, "Insufficient funds for rental");
 
-        // Transfer the funds to the content holder.
-        agreement.holder.transfer(agreement.available, agreement.currency);
+        // We can take two approach here:
+        // 1- distribute the funds
+        // 2- register the total to rights holder
+        _sumLedgerEntry(
+            agreement.holder,
+            agreement.available,
+            agreement.currency
+        );
+
         // Register the rental for the account with the rental duration.
         _registerRent(agreement.account, contentId, content.rentalDuration);
-
         return (true, "Rental successfully executed");
     }
 

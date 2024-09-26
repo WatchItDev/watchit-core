@@ -34,19 +34,19 @@ abstract contract TreasurerUpgradeable is Initializable, ITreasurer {
     }
 
     /// @notice Initializes the treasurer with the given address.
-    /// @param treasureAddress The address of the treasury.
+    /// @param treasuryAddress The address of the treasury.
     function __Treasurer_init(
-        address treasureAddress
+        address treasuryAddress
     ) internal onlyInitializing {
-        __Treasurer_init_unchained(treasureAddress);
+        __Treasurer_init_unchained(treasuryAddress);
     }
 
     /// @notice Unchained initializer for the treasurer with the given address.
-    /// @param treasureAddress The address of the treasury.
+    /// @param treasuryAddress The address of the treasury.
     function __Treasurer_init_unchained(
-        address treasureAddress
+        address treasuryAddress
     ) internal onlyInitializing {
-        _setTreasuryAddress(treasureAddress);
+        _setTreasuryAddress(treasuryAddress);
     }
 
     /// @notice Internal function to set the address of the treasury.

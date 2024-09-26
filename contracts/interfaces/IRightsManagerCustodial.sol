@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-interface IRightsCustodial {
+interface IRightsManagerCustodial {
     /// @notice Retrieves the custodial address for a given content holder.
     /// @param holder The address of the content rights holder whose custodial address is being retrieved.
     /// @return The address of the active custodian responsible for the content associated with the specified holder.
@@ -18,4 +18,8 @@ interface IRightsCustodial {
     function getCustodyRegistry(
         address distributor
     ) external view returns (address[] memory);
+
+    /// @notice Grants custodial rights over the content held by a holder to a distributor.
+    /// @param distributor The address of the distributor who will receive custodial rights.
+    function grantCustody(address distributor) external;
 }

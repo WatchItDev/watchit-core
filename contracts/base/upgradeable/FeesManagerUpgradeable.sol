@@ -41,26 +41,6 @@ abstract contract FeesManagerUpgradeable is Initializable, IFeesManager {
         }
     }
 
-    /// @notice Initializes the fees with the given initial fee and currency.
-    /// @param initialFee The initial fee for the fees.
-    /// @param currency The address of the currency.
-    function __Fees_init(
-        uint256 initialFee,
-        address currency
-    ) internal onlyInitializing {
-        __Fees_init_unchained(initialFee, currency);
-    }
-
-    /// @notice Unchained initializer for the fees with the given initial fee and currency.
-    /// @param initialFee The initial fee for the fees.
-    /// @param currency The address of the currency.
-    function __Fees_init_unchained(
-        uint256 initialFee,
-        address currency
-    ) internal onlyInitializing {
-        _setFees(initialFee, currency);
-    }
-
     /// @notice Modifier to ensure only supported currency are used.
     /// @param currency The address of the currency to check.
     modifier onlySupportedCurrency(address currency) {

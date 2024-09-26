@@ -4,6 +4,8 @@ pragma solidity ^0.8.24;
 import "@openzeppelin/contracts-upgradeable/utils/introspection/ERC165Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "contracts/interfaces/IBalanceManager.sol";
+import "contracts/interfaces/IBalanceWithdrawable.sol";
 import "contracts/interfaces/IDistributor.sol";
 import "contracts/libraries/TreasuryHelper.sol";
 
@@ -17,6 +19,8 @@ contract Distributor is
     Initializable,
     ERC165Upgradeable,
     OwnableUpgradeable,
+    IBalanceWithdrawable,
+    IBalanceManager,
     IDistributor
 {
     using TreasuryHelper for address;
@@ -88,7 +92,6 @@ contract Distributor is
         return address(this).balanceOf(currency);
     }
 
-    /// @inheritdoc IBalanceManagerWithdrawable
     /// @notice Withdraws tokens or native currency from the contract to the specified recipient.
     /// @param recipient The address that will receive the withdrawn tokens or native currency.
     /// @param amount The amount of tokens or native currency to withdraw.
