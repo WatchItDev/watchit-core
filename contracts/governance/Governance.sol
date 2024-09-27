@@ -2,9 +2,9 @@
 // Compatible with OpenZeppelin Contracts ^5.0.0
 pragma solidity ^0.8.24;
 
+import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Governor} from "@openzeppelin/contracts/governance/Governor.sol";
-import {Time} from "@openzeppelin/contracts/utils/types/Time.sol";
 import {ERC20Votes} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Votes.sol";
 import {TimelockController} from "@openzeppelin/contracts/governance/TimelockController.sol";
 import {GovernorVotes} from "@openzeppelin/contracts/governance/extensions/GovernorVotes.sol";
