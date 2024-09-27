@@ -148,30 +148,6 @@ contract RightsManager is
         audit = IPolicyAuditorVerifiable(audit_);
     }
 
-    /// @dev Authorizes the upgrade of the contract.
-    /// @notice Only the owner can authorize the upgrade.
-    /// @param newImplementation The address of the new implementation contract.
-    function _authorizeUpgrade(
-        address newImplementation
-    ) internal override onlyAdmin {}
-
-    /// @notice Checks if the given distributor is active and not blocked.
-    /// @param distributor The address of the distributor to check.
-    /// @return True if the distributor is active, false otherwise.
-    function _checkActiveDistributor(
-        address distributor
-    ) private returns (bool) {
-        return syndication.isActive(distributor); // is active status in syndication
-    }
-
-    /// @notice Checks if the given content is active and not blocked.
-    /// @param contentId The ID of the content to check.
-    /// @return True if the content is active, false otherwise.
-    function _checkActiveContent(
-        uint256 contentId
-    ) private view returns (bool) {
-        return referendum.isActive(contentId); // is active in referendum
-    }
 
     /// @notice Modifier to check if the distributor is active and not blocked.
     /// @param distributor The distributor address to check.
@@ -187,37 +163,6 @@ contract RightsManager is
         if (policy == address(0) || !audit.isAudited(policy))
             revert InvalidNotAuditedPolicy(policy);
         _;
-    }
-
-    /// @notice Calculates the fees for the treasury based on the provided total amount.
-    /// @param total The total amount involved in the transaction.
-    /// @param currency The address of the ERC20 token (or native currency) being used in the transaction.
-    /// @return treasury The calculated fee for the treasury.
-    function calcFees(
-        uint256 total,
-        address currency
-    ) public view onlySupportedCurrency(currency) returns (uint256) {
-        // !IMPORTANT if trasury does not support the currency, will revert..
-        // the max bps integrity is warrantied by treasure fees
-        return total.perOf(getFees(currency)); // bps
-    }
-
-    /// @notice Checks if the content is eligible for distribution by the content holder's custodial.
-    /// @dev This function verifies whether the specified content can be distributed,
-    /// based on the status of the custodial rights and the content's activation state in related contracts.
-    /// @param contentId The ID of the content to check for distribution eligibility.
-    /// @param contentHolder The address of the content holder whose custodial rights are being checked.
-    /// @return True if the content can be distributed, false otherwise.
-    function isEligibleForDistribution(
-        uint256 contentId,
-        address contentHolder
-    ) public returns (bool) {
-        // Perform checks to ensure the content/distributor has not been blocked.
-        // Check if the content's custodial is active in the Syndication contract
-        // and if the content is active in the Referendum contract.
-        return
-            _checkActiveDistributor(getCustody(contentHolder)) &&
-            _checkActiveContent(contentId);
     }
 
     /// @notice Returns the contract's balance for the specified currency.
@@ -309,6 +254,37 @@ contract RightsManager is
         address holder = _msgSender();
         _revokePolicy(policy, holder);
         emit RightsRevoked(policy, holder);
+    }
+
+        /// @notice Calculates the fees for the treasury based on the provided total amount.
+    /// @param total The total amount involved in the transaction.
+    /// @param currency The address of the ERC20 token (or native currency) being used in the transaction.
+    /// @return treasury The calculated fee for the treasury.
+    function calcFees(
+        uint256 total,
+        address currency
+    ) public view onlySupportedCurrency(currency) returns (uint256) {
+        // !IMPORTANT if trasury does not support the currency, will revert..
+        // the max bps integrity is warrantied by treasure fees
+        return total.perOf(getFees(currency)); // bps
+    }
+
+    /// @notice Checks if the content is eligible for distribution by the content holder's custodial.
+    /// @dev This function verifies whether the specified content can be distributed,
+    /// based on the status of the custodial rights and the content's activation state in related contracts.
+    /// @param contentId The ID of the content to check for distribution eligibility.
+    /// @param contentHolder The address of the content holder whose custodial rights are being checked.
+    /// @return True if the content can be distributed, false otherwise.
+    function isEligibleForDistribution(
+        uint256 contentId,
+        address contentHolder
+    ) public returns (bool) {
+        // Perform checks to ensure the content/distributor has not been blocked.
+        // Check if the content's custodial is active in the Syndication contract
+        // and if the content is active in the Referendum contract.
+        return
+            _checkActiveDistributor(getCustody(contentHolder)) &&
+            _checkActiveContent(contentId);
     }
 
     /// @notice Creates a new agreement between the account and the content holder, returning a unique agreement identifier.
@@ -425,4 +401,30 @@ contract RightsManager is
         // No active policy found
         return (false, address(0));
     }
+
+     /// @dev Authorizes the upgrade of the contract.
+    /// @notice Only the owner can authorize the upgrade.
+    /// @param newImplementation The address of the new implementation contract.
+    function _authorizeUpgrade(
+        address newImplementation
+    ) internal override onlyAdmin {}
+
+    /// @notice Checks if the given distributor is active and not blocked.
+    /// @param distributor The address of the distributor to check.
+    /// @return True if the distributor is active, false otherwise.
+    function _checkActiveDistributor(
+        address distributor
+    ) private returns (bool) {
+        return syndication.isActive(distributor); // is active status in syndication
+    }
+
+    /// @notice Checks if the given content is active and not blocked.
+    /// @param contentId The ID of the content to check.
+    /// @return True if the content is active, false otherwise.
+    function _checkActiveContent(
+        uint256 contentId
+    ) private view returns (bool) {
+        return referendum.isActive(contentId); // is active in referendum
+    }
+
 }
