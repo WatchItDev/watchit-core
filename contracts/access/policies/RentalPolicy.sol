@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import "contracts/base/BasePolicy.sol";
-import "contracts/interfaces/IPolicy.sol";
-import "contracts/libraries/Types.sol";
-import "contracts/libraries/TreasuryHelper.sol";
+import {BasePolicy} from "contracts/base/BasePolicy.sol";
+import {IPolicy} from "contracts/interfaces/IPolicy.sol";
+import {TreasuryHelper} from "contracts/libraries/TreasuryHelper.sol";
+import {T} from "contracts/libraries/Types.sol";
+
 
 /// @title RentalPolicy
 /// @notice This contract implements the IPolicy interface to manage content rental terms.

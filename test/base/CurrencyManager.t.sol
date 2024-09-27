@@ -1,10 +1,9 @@
 pragma solidity 0.8.24;
 
 import "forge-std/Test.sol";
-import "contracts/base/upgradeable/CurrencyManagerUpgradeable.sol";
+import {CurrencyManagerUpgradeable} from "contracts/base/upgradeable/CurrencyManagerUpgradeable.sol";
 
 contract CurrencyManagerTest is Test, CurrencyManagerUpgradeable {
-
     function test_addCurrency() public {
         address currency = vm.addr(1); // example address
         _addCurrency(currency);
@@ -18,7 +17,7 @@ contract CurrencyManagerTest is Test, CurrencyManagerUpgradeable {
         assertEq(isCurrencySupported(currency), false);
     }
 
-     function test_addSupportedCurrencyLength() public {
+    function test_addSupportedCurrencyLength() public {
         address currency = vm.addr(1); // example address
         address currency2 = vm.addr(2); // example address
         address currency3 = vm.addr(3); // example address
@@ -55,7 +54,7 @@ contract CurrencyManagerTest is Test, CurrencyManagerUpgradeable {
         assertEq(got, expected);
     }
 
-     function test_skipAddExisting() public {
+    function test_skipAddExisting() public {
         address currency = vm.addr(1); // example address
         _addCurrency(currency);
         _addCurrency(currency);

@@ -2,8 +2,8 @@
 // NatSpec format convention - https://docs.soliditylang.org/en/v0.8.24/natspec-format.html
 pragma solidity ^0.8.24;
 
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "contracts/interfaces/ILedger.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {ILedger} from "contracts/interfaces/ILedger.sol";
 
 /// @title LedgerUpgradeable
 /// @notice Abstract contract for managing ledger entries that support upgradability.

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
-import "contracts/libraries/Types.sol";
+import {T} from "contracts/libraries/Types.sol";
 
 /// @title IPolicy
 /// @notice Interface for managing access to content based on licensing terms,

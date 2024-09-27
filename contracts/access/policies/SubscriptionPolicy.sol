@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import "contracts/base/BasePolicy.sol";
-import "contracts/libraries/Types.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {BasePolicy} from "contracts/base/BasePolicy.sol";
+import {T} from "contracts/libraries/Types.sol";
+
 
 /// @title SubscriptionPolicy
 /// @notice Implements a subscription-based content access policy, allowing users to subscribe to content catalogs for a set duration.

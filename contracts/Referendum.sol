@@ -2,20 +2,21 @@
 // NatSpec format convention - https://docs.soliditylang.org/en/v0.5.10/natspec-format.html
 pragma solidity ^0.8.24;
 
-import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/utils/cryptography/EIP712Upgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/utils/NoncesUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-import "@openzeppelin/contracts/utils/Address.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {EIP712Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/cryptography/EIP712Upgradeable.sol";
+import {NoncesUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/NoncesUpgradeable.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 
-import "contracts/base/upgradeable/GovernableUpgradeable.sol";
-import "contracts/base/upgradeable/QuorumUpgradeable.sol";
-import "contracts/interfaces/IReferendum.sol";
-import "contracts/interfaces/IReferendumRoleManager.sol";
-import "contracts/interfaces/IReferendumVerifiable.sol";
-import "contracts/libraries/Constants.sol";
-import "contracts/libraries/Types.sol";
+import {GovernableUpgradeable} from "contracts/base/upgradeable/GovernableUpgradeable.sol";
+import {QuorumUpgradeable} from "contracts/base/upgradeable/QuorumUpgradeable.sol";
+import {IReferendum} from "contracts/interfaces/IReferendum.sol";
+import {IReferendumRoleManager} from "contracts/interfaces/IReferendumRoleManager.sol";
+import {IReferendumVerifiable} from "contracts/interfaces/IReferendumVerifiable.sol";
+
+import {C} from "contracts/libraries/Constants.sol";
+import {T} from "contracts/libraries/Types.sol";
 
 /// @title Content curation contract.
 /// @notice This contract allows for the submission, voting, and approval/rejection of content.

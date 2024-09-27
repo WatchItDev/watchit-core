@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import "contracts/base/BasePolicy.sol";
-import "@openzeppelin/contracts/token/ERC721/IERC721.sol"; // For NFT gating
+import {BasePolicy} from "contracts/base/BasePolicy.sol";
+import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol"; // For NFT gating
+import {T} from "contracts/libraries/Types.sol";
 
 /// @title GatedContentPolicy
 /// @notice Implements a content access policy where users must meet specific criteria to access the gated content.

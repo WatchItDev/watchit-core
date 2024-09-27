@@ -2,8 +2,8 @@
 // NatSpec format convention - https://docs.soliditylang.org/en/v0.8.24/natspec-format.html
 pragma solidity ^0.8.24;
 
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "contracts/interfaces/ITreasurer.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {ITreasurer} from "contracts/interfaces/ITreasurer.sol";
 
 /// @title TreasurerUpgradeable Contract
 /// @notice This contract is responsible for managing the address of the treasury in an upgradeable manner.
@@ -14,6 +14,7 @@ abstract contract TreasurerUpgradeable is Initializable, ITreasurer {
         address _treasury;
     }
 
+    error InvalidTreasuryAddress(address);
     // ERC-7201: Namespaced Storage Layout is another convention that can be used to avoid storage layout errors
     // keccak256(abi.encode(uint256(keccak256("watchit.treasurer.trasure"")) - 1)) & ~bytes32(uint256(0xff))
     bytes32 private constant TREASURER_SLOT =
@@ -52,6 +53,8 @@ abstract contract TreasurerUpgradeable is Initializable, ITreasurer {
     /// @notice Internal function to set the address of the treasury.
     /// @param newTreasuryAddress The new address of the treasury.
     function _setTreasuryAddress(address newTreasuryAddress) internal {
+        if (newTreasuryAddress == address(0))
+            revert InvalidTreasuryAddress(newTreasuryAddress);
         TreasurerStorage storage $ = _getTreasurerStorage();
         $._treasury = newTreasuryAddress;
     }

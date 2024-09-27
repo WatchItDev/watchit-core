@@ -1,10 +1,10 @@
 pragma solidity 0.8.24;
 
 import "forge-std/Test.sol";
-import "contracts/base/upgradeable/QuorumUpgradeable.sol";
+import {QuorumUpgradeable} from "contracts/base/upgradeable/QuorumUpgradeable.sol";
 
 /* The expected flow of these tests is:
- * 
+ *
  *   Default (0: Pending)
  *      |
  *      v

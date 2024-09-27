@@ -2,28 +2,29 @@
 // NatSpec format convention - https://docs.soliditylang.org/en/v0.5.10/natspec-format.html
 pragma solidity ^0.8.24;
 
-import "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import {ERC165Checker} from "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
-import "contracts/base/upgradeable/GovernableUpgradeable.sol";
-import "contracts/base/upgradeable/QuorumUpgradeable.sol";
-import "contracts/base/upgradeable/TreasurerUpgradeable.sol";
-import "contracts/base/upgradeable/LedgerUpgradeable.sol";
-import "contracts/base/upgradeable/FeesManagerUpgradeable.sol";
-import "contracts/interfaces/ISyndicatablePenalizer.sol";
-import "contracts/interfaces/ISyndicatableRegistrable.sol";
-import "contracts/interfaces/ISyndicatableRegistrable.sol";
-import "contracts/interfaces/ISyndicatableExpirable.sol";
-import "contracts/interfaces/ISyndicatableRevokable.sol";
-import "contracts/interfaces/ISyndicatableVerifiable.sol";
-import "contracts/interfaces/IBalanceManager.sol";
-import "contracts/interfaces/IDistributor.sol";
-import "contracts/interfaces/IDisburser.sol";
-import "contracts/libraries/TreasuryHelper.sol";
-import "contracts/libraries/FeesHelper.sol";
-import "contracts/libraries/Types.sol";
+import {GovernableUpgradeable} from "contracts/base/upgradeable/GovernableUpgradeable.sol";
+import {QuorumUpgradeable} from "contracts/base/upgradeable/QuorumUpgradeable.sol";
+import {TreasurerUpgradeable} from "contracts/base/upgradeable/TreasurerUpgradeable.sol";
+import {LedgerUpgradeable} from "contracts/base/upgradeable/LedgerUpgradeable.sol";
+import {FeesManagerUpgradeable} from "contracts/base/upgradeable/FeesManagerUpgradeable.sol";
+
+import {ISyndicatablePenalizer} from "contracts/interfaces/ISyndicatablePenalizer.sol";
+import {ISyndicatableRegistrable} from "contracts/interfaces/ISyndicatableRegistrable.sol";
+import {ISyndicatableExpirable} from "contracts/interfaces/ISyndicatableExpirable.sol";
+import {ISyndicatableRevokable} from "contracts/interfaces/ISyndicatableRevokable.sol";
+import {ISyndicatableVerifiable} from "contracts/interfaces/ISyndicatableVerifiable.sol";
+import {IBalanceVerifiable} from "contracts/interfaces/IBalanceVerifiable.sol";
+import {IDistributor} from "contracts/interfaces/IDistributor.sol";
+import {IDisburser} from "contracts/interfaces/IDisburser.sol";
+
+import {TreasuryHelper} from "contracts/libraries/TreasuryHelper.sol";
+import {FeesHelper} from "contracts/libraries/FeesHelper.sol";
+import {T} from "contracts/libraries/Types.sol";
 
 /// @title Distributors Syndication contract.
 /// @notice Use this contract to handle all distribution logic needed for creators and distributors.
@@ -42,7 +43,7 @@ contract Syndication is
     ISyndicatableExpirable,
     ISyndicatableRevokable,
     ISyndicatableVerifiable,
-    IBalanceManager,
+    IBalanceVerifiable,
     IDisburser
 {
     using FeesHelper for uint256;
@@ -80,7 +81,11 @@ contract Syndication is
     /// @param treasury The address of the treasury receiving the fees
     /// @param amount The amount disbursed
     /// @param currency The disbursed currency
-    event FeesDisbursed(address indexed treasury, uint256 amount, address currency);
+    event FeesDisbursed(
+        address indexed treasury,
+        uint256 amount,
+        address currency
+    );
 
     /// @dev Constructor that disables initializers to prevent the implementation contract from being initialized.
     /// @notice This constructor prevents the implementation contract from being initialized.
@@ -103,9 +108,7 @@ contract Syndication is
     /// @param treasury The address of the treasury contract, which manages fund handling and storage.
     /// @dev This function can only be called once during contract deployment. It sets up the contract's core components like the quorum,
     /// ledger, reentrancy protection, and upgrade mechanisms. It also defines the initial flat fees and penalty rates.
-    function initialize(
-        address treasury
-    ) public initializer {
+    function initialize(address treasury) public initializer {
         __Quorum_init();
         __Ledger_init();
         __ReentrancyGuard_init();
@@ -113,7 +116,7 @@ contract Syndication is
         __Governable_init(_msgSender());
         __Treasurer_init(treasury);
         // 6 months initially..
-        enrollmentPeriod = 180 days; 
+        enrollmentPeriod = 180 days;
     }
 
     /// @notice Function that should revert when msg.sender is not authorized to upgrade the contract.
@@ -123,7 +126,6 @@ contract Syndication is
         address newImplementation
     ) internal override onlyAdmin {}
 
-    /// @inheritdoc ISyndicatablePenalizer
     /// @notice Function to set the penalty rate for quitting enrollment.
     /// @param newPenaltyRate The new penalty rate to be set. It should be a value representin base points (bps).
     /// @param currency The currency to set penalty rate.
@@ -142,7 +144,6 @@ contract Syndication is
         penaltyRates[currency] = newPenaltyRate;
     }
 
-    /// @inheritdoc IFeesManager
     /// @notice Sets a new treasury fee for a specific token.
     /// @param newTreasuryFee The new treasury fee to be set.
     /// @param currency The currency to associate fees with. Use address(0) for the native coin.
@@ -153,7 +154,6 @@ contract Syndication is
         _setFees(newTreasuryFee, currency);
     }
 
-    /// @inheritdoc ITreasurer
     /// @notice Sets the address of the treasury.
     /// @param newTreasuryAddress The new treasury address to be set.
     /// @dev Only callable by the governance role.
@@ -168,7 +168,7 @@ contract Syndication is
         enrollmentPeriod = newPeriod;
     }
 
-    /// @inheritdoc IBalanceManager
+    /// @inheritdoc IBalanceVerifiable
     /// @notice Returns the contract's balance for the specified currency.
     /// @param currency The address of the token to check the balance of (address(0) for native currency).
     /// @return The balance of the contract in the specified currency.

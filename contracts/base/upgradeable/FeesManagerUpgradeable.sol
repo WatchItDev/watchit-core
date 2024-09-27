@@ -2,14 +2,13 @@
 // NatSpec format convention - https://docs.soliditylang.org/en/v0.8.24/natspec-format.html
 pragma solidity ^0.8.24;
 
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "contracts/interfaces/IFeesManager.sol";
-import "contracts/libraries/Constants.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {IFeesManager} from "contracts/interfaces/IFeesManager.sol";
+import {C} from "contracts/libraries/Constants.sol";
 
-/**
- * @dev Abstract contract for managing fee funds.
- * It inherits from Initializable and IFeesManager interfaces.
- */
+
+/// @dev Abstract contract for managing fee funds.
+/// It inherits from Initializable and IFeesManager interfaces.
 abstract contract FeesManagerUpgradeable is Initializable, IFeesManager {
 
     /// @custom:storage-location erc7201:feesupgradeable

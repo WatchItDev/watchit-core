@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import "@openzeppelin/contracts-upgradeable/utils/introspection/ERC165Upgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "contracts/interfaces/IBalanceManager.sol";
-import "contracts/interfaces/IBalanceWithdrawable.sol";
-import "contracts/interfaces/IDistributor.sol";
-import "contracts/libraries/TreasuryHelper.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {ERC165Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/introspection/ERC165Upgradeable.sol";
+import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {IBalanceVerifiable} from "contracts/interfaces/IBalanceVerifiable.sol";
+import {IBalanceWithdrawable} from "contracts/interfaces/IBalanceWithdrawable.sol";
+import {IDistributor} from "contracts/interfaces/IDistributor.sol";
+import {TreasuryHelper} from "contracts/libraries/TreasuryHelper.sol";
+
 
 /// @title Content Distributor Contract
 /// @notice This contract handles all the necessary logic for managing content distributors.
@@ -20,7 +21,7 @@ contract Distributor is
     ERC165Upgradeable,
     OwnableUpgradeable,
     IBalanceWithdrawable,
-    IBalanceManager,
+    IBalanceVerifiable,
     IDistributor
 {
     using TreasuryHelper for address;
@@ -56,21 +57,18 @@ contract Distributor is
         endpoint = _endpoint;
     }
 
-    /// @inheritdoc IDistributor
     /// @notice Retrieves the manager (owner) of the distributor contract.
     /// @return The address of the contract owner.
     function getManager() external view returns (address) {
         return owner();
     }
 
-    /// @inheritdoc IDistributor
     /// @notice Returns the current distribution endpoint URL.
     /// @return The endpoint URL as a string.
     function getEndpoint() external view returns (string memory) {
         return endpoint;
     }
 
-    /// @inheritdoc IDistributor
     /// @notice Updates the distribution endpoint URL.
     /// @param _endpoint The new endpoint URL to be set.
     /// @dev Reverts if the provided endpoint is an empty string. Emits an {EndpointUpdated} event.
@@ -81,7 +79,6 @@ contract Distributor is
         emit EndpointUpdated(oldEndpoint, _endpoint);
     }
 
-    /// @inheritdoc IBalanceManager
     /// @notice Retrieves the contract's balance for a given currency.
     /// @param currency The token address to check the balance of (use `address(0)` for native currency).
     /// @return The balance of the contract in the specified currency.
@@ -107,7 +104,6 @@ contract Distributor is
         emit FundWithdrawn(recipient, amount, currency);
     }
 
-    /// @inheritdoc IERC165
     /// @notice Checks if the contract supports a specific interface based on its ID.
     /// @param interfaceId The ID of the interface to check.
     /// @return True if the interface is supported, otherwise false.

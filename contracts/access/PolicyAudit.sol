@@ -1,15 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "contracts/base/upgradeable/GovernableUpgradeable.sol";
-import "contracts/base/upgradeable/QuorumUpgradeable.sol";
+import {ERC165Checker} from "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
-import "contracts/interfaces/IPolicy.sol";
-import "contracts/interfaces/IPolicyAuditor.sol";
-import "contracts/interfaces/IPolicyAuditorVerifiable.sol";
+import {GovernableUpgradeable} from "contracts/base/upgradeable/GovernableUpgradeable.sol";
+import {QuorumUpgradeable} from "contracts/base/upgradeable/QuorumUpgradeable.sol";
+
+import {IPolicy} from "contracts/interfaces/IPolicy.sol";
+import {IPolicyAuditor} from "contracts/interfaces/IPolicyAuditor.sol";
+import {IPolicyAuditorVerifiable} from "contracts/interfaces/IPolicyAuditorVerifiable.sol";
+
 
 /// @title PolicyAudit
 /// @notice This contract audits content policies and ensures that only authorized entities can approve or revoke policy audits.

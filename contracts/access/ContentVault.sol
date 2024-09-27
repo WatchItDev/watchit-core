@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "contracts/base/upgradeable/GovernableUpgradeable.sol";
-import "contracts/interfaces/IOwnership.sol";
-import "contracts/interfaces/IContentVault.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+
+import {GovernableUpgradeable} from "contracts/base/upgradeable/GovernableUpgradeable.sol";
+import {IOwnership} from "contracts/interfaces/IOwnership.sol";
+import {IContentVault} from "contracts/interfaces/IContentVault.sol";
+
 
 /// @title ContentVault
 /// @notice This contract stores encrypted content and ensures only the rightful content holder

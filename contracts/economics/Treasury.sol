@@ -2,12 +2,12 @@
 // NatSpec format convention - https://docs.soliditylang.org/en/v0.5.10/natspec-format.html
 pragma solidity ^0.8.24;
 
-import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "contracts/base/upgradeable/GovernableUpgradeable.sol";
-import "contracts/interfaces/IBalanceManager.sol";
-import "contracts/interfaces/IBalanceWithdrawable.sol";
-import "contracts/interfaces/IFeesManager.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {GovernableUpgradeable} from "contracts/base/upgradeable/GovernableUpgradeable.sol";
+import {IBalanceVerifiable} from "contracts/interfaces/IBalanceVerifiable.sol";
+import {IBalanceWithdrawable} from "contracts/interfaces/IBalanceWithdrawable.sol";
+import {IFeesManager} from "contracts/interfaces/IFeesManager.sol";
 
 // TODO payment splitter
 // https://docs.openzeppelin.com/contracts/4.x/api/finance#PaymentSplitter
@@ -19,7 +19,7 @@ contract Treasury is
     Initializable,
     UUPSUpgradeable,
     GovernableUpgradeable,
-    IBalanceManager,
+    IBalanceVerifiable,
     IBalanceWithdrawable
 {
     /// @dev Constructor that disables initializers to prevent the implementation contract from being initialized.

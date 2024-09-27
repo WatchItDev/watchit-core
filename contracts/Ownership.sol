@@ -2,13 +2,16 @@
 // NatSpec format convention - https://docs.soliditylang.org/en/v0.5.10/natspec-format.html
 pragma solidity ^0.8.24;
 
-import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721EnumerableUpgradeable.sol";
-import "contracts/base/upgradeable/GovernableUpgradeable.sol";
-import "contracts/interfaces/IReferendumVerifiable.sol";
-import "contracts/interfaces/IOwnership.sol";
+import {IERC165} from "@openzeppelin/contracts/interfaces/IERC165.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {ERC721Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
+import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import {ERC721EnumerableUpgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721EnumerableUpgradeable.sol";
+
+import {GovernableUpgradeable} from "contracts/base/upgradeable/GovernableUpgradeable.sol";
+import {IReferendumVerifiable} from "contracts/interfaces/IReferendumVerifiable.sol";
+import {IOwnership} from "contracts/interfaces/IOwnership.sol";
 
 // TODO imp ERC404
 
@@ -75,7 +78,6 @@ contract Ownership is
         _;
     }
 
-    /// @inheritdoc IOwnership
     /// @notice Mints a new NFT to the specified address.
     /// @dev Our naive assumption is that only those who know the content id can mint the corresponding token.
     /// @param to The address to mint the NFT to.

@@ -2,7 +2,7 @@
 // NatSpec format convention - https://docs.soliditylang.org/en/v0.8.24/natspec-format.html
 pragma solidity ^0.8.24;
 
-import "contracts/interfaces/ILedger.sol";
+import {ILedger} from "contracts/interfaces/ILedger.sol";
 
 /// @title Ledger
 /// @notice Abstract contract to manage and store ledger entries for different accounts and currencies.

@@ -2,11 +2,12 @@
 // NatSpec format convention - https://docs.soliditylang.org/en/v0.5.10/natspec-format.html
 pragma solidity ^0.8.24;
 
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
-import "contracts/interfaces/IRightsManagerAgreement.sol";
-import "contracts/interfaces/IPolicy.sol";
-import "contracts/libraries/Types.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {ERC165Checker} from "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
+import {IRightsManagerAgreement} from "contracts/interfaces/IRightsManagerAgreement.sol";
+import {IPolicy} from "contracts/interfaces/IPolicy.sol";
+import {T} from "contracts/libraries/Types.sol";
+
 
 /// @title RightsManagerBrokerUpgradeable
 /// @notice This abstract contract handles the agreement-proofs logic to interact with policies.

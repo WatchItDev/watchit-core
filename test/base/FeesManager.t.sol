@@ -1,10 +1,9 @@
 pragma solidity 0.8.24;
 
 import "forge-std/Test.sol";
-import "contracts/base/upgradeable/FeesManagerUpgradeable.sol";
+import {FeesManagerUpgradeable} from "contracts/base/upgradeable/FeesManagerUpgradeable.sol";
 
 contract FeesManagerTest is Test, FeesManagerUpgradeable {
-
     function setFees(
         uint256 fee,
         address token

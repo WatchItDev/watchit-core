@@ -2,9 +2,6 @@
 // NatSpec format convention - https://docs.soliditylang.org/en/v0.5.10/natspec-format.html
 pragma solidity ^0.8.24;
 
-import "./IFeesManager.sol";
-import "./ICurrencyManager.sol";
-
 interface IDistributor  {
     /// @notice Set the endpoint of the distributor.
     /// @dev This function can only be called by the owner of the contract.

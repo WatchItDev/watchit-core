@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
-import "contracts/libraries/Types.sol";
+import {T} from "contracts/libraries/Types.sol";
 
 interface IRightsManagerAgreement {
     /// @notice Retrieves a agreement associated with the given proof.

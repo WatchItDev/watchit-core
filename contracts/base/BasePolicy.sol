@@ -2,10 +2,10 @@
 
 pragma solidity ^0.8.24;
 
-import "contracts/base/Ledger.sol";
-import "contracts/interfaces/IPolicy.sol";
-import "contracts/interfaces/IOwnership.sol";
-import "contracts/interfaces/IBalanceWithdrawable.sol";
+import {Ledger} from "contracts/base/Ledger.sol";
+import {IPolicy} from "contracts/interfaces/IPolicy.sol";
+import {IOwnership} from "contracts/interfaces/IOwnership.sol";
+import {IBalanceWithdrawable} from "contracts/interfaces/IBalanceWithdrawable.sol";
 
 /// @title BasePolicy
 /// @notice This abstract contract serves as a base for policies that manage access to content.

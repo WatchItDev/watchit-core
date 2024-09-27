@@ -2,11 +2,11 @@
 // NatSpec format convention - https://docs.soliditylang.org/en/v0.5.10/natspec-format.html
 pragma solidity ^0.8.24;
 
-import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
-import "contracts/interfaces/IRightsManagerAccessController.sol";
-import "contracts/interfaces/IPolicy.sol";
+import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import {ERC165Checker} from "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {IRightsManagerAccessController} from "contracts/interfaces/IRightsManagerAccessController.sol";
+import {IPolicy} from "contracts/interfaces/IPolicy.sol";
 
 /// @title Rights Manager Content Access Upgradeable
 /// @notice This abstract contract manages content access control using a license

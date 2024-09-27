@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import "contracts/libraries/Constants.sol";
+import {C} from "contracts/libraries/Constants.sol";
 
 library FeesHelper {
     /// @dev Calculates the percentage of `amount` based on the given `bps` (basis points).

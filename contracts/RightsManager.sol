@@ -2,36 +2,36 @@
 // NatSpec format convention - https://docs.soliditylang.org/en/v0.5.10/natspec-format.html
 pragma solidity ^0.8.24;
 
-import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
-import "contracts/base/upgradeable/LedgerUpgradeable.sol";
-import "contracts/base/upgradeable/FeesManagerUpgradeable.sol";
-import "contracts/base/upgradeable/TreasurerUpgradeable.sol";
-import "contracts/base/upgradeable/CurrencyManagerUpgradeable.sol";
-import "contracts/base/upgradeable/GovernableUpgradeable.sol";
+import {LedgerUpgradeable} from "contracts/base/upgradeable/LedgerUpgradeable.sol";
+import {FeesManagerUpgradeable} from "contracts/base/upgradeable/FeesManagerUpgradeable.sol";
+import {TreasurerUpgradeable} from "contracts/base/upgradeable/TreasurerUpgradeable.sol";
+import {CurrencyManagerUpgradeable} from "contracts/base/upgradeable/CurrencyManagerUpgradeable.sol";
+import {GovernableUpgradeable} from "contracts/base/upgradeable/GovernableUpgradeable.sol";
 
-import "contracts/base/upgradeable/extensions/RightsManagerBrokerUpgradeable.sol";
-import "contracts/base/upgradeable/extensions/RightsManagerContentAccessUpgradeable.sol";
-import "contracts/base/upgradeable/extensions/RightsManagerCustodialUpgradeable.sol";
-import "contracts/base/upgradeable/extensions/RightsManagerPolicyControllerUpgradeable.sol";
+import {RightsManagerBrokerUpgradeable} from "contracts/base/upgradeable/extensions/RightsManagerBrokerUpgradeable.sol";
+import {RightsManagerContentAccessUpgradeable} from "contracts/base/upgradeable/extensions/RightsManagerContentAccessUpgradeable.sol";
+import {RightsManagerCustodialUpgradeable} from "contracts/base/upgradeable/extensions/RightsManagerCustodialUpgradeable.sol";
+import {RightsManagerPolicyControllerUpgradeable} from "contracts/base/upgradeable/extensions/RightsManagerPolicyControllerUpgradeable.sol";
 
-import "contracts/interfaces/ISyndicatableVerifiable.sol";
-import "contracts/interfaces/IReferendumVerifiable.sol";
-import "contracts/interfaces/IPolicyAuditorVerifiable.sol";
-import "contracts/interfaces/IRightsManagerVerifiable.sol";
-import "contracts/interfaces/IBalanceManager.sol";
-import "contracts/interfaces/IBalanceWithdrawable.sol";
-import "contracts/interfaces/IDisburser.sol";
-import "contracts/interfaces/IPolicy.sol";
-import "contracts/interfaces/IDistributor.sol";
+import {ISyndicatableVerifiable} from "contracts/interfaces/ISyndicatableVerifiable.sol";
+import {IReferendumVerifiable} from "contracts/interfaces/IReferendumVerifiable.sol";
+import {IPolicyAuditorVerifiable} from "contracts/interfaces/IPolicyAuditorVerifiable.sol";
+import {IRightsManagerVerifiable} from "contracts/interfaces/IRightsManagerVerifiable.sol";
+import {IBalanceVerifiable} from "contracts/interfaces/IBalanceVerifiable.sol";
+import {IBalanceWithdrawable} from "contracts/interfaces/IBalanceWithdrawable.sol";
+import {IDisburser} from "contracts/interfaces/IDisburser.sol";
+import {IPolicy} from "contracts/interfaces/IPolicy.sol";
+import {IDistributor} from "contracts/interfaces/IDistributor.sol";
 
-import "contracts/libraries/TreasuryHelper.sol";
-import "contracts/libraries/FeesHelper.sol";
-import "contracts/libraries/Constants.sol";
-import "contracts/libraries/Types.sol";
+import {TreasuryHelper} from "contracts/libraries/TreasuryHelper.sol";
+import {FeesHelper} from "contracts/libraries/FeesHelper.sol";
+import {C} from "contracts/libraries/Constants.sol";
+import {T} from "contracts/libraries/Types.sol";
 
 /// @title Rights Manager
 /// @notice This contract manages digital rights, allowing content holders to set prices, rent content, etc.
@@ -51,11 +51,19 @@ contract RightsManager is
     RightsManagerPolicyControllerUpgradeable,
     IRightsManagerVerifiable,
     IBalanceWithdrawable,
-    IBalanceManager,
+    IBalanceVerifiable,
     IDisburser
 {
     using TreasuryHelper for address;
     using FeesHelper for uint256;
+
+    /// KIM: any initialization here is ephimeral and not included in bytecode..
+    /// so the code within a logic contract’s constructor or global declaration
+    /// will never be executed in the context of the proxy’s state
+    /// https://docs.openzeppelin.com/upgrades-plugins/1.x/proxies#the-constructor-caveat
+    IPolicyAuditorVerifiable public audit;
+    ISyndicatableVerifiable public syndication;
+    IReferendumVerifiable public referendum;
 
     /// @notice Emitted when distribution custodial rights are granted to a distributor.
     /// @param prevCustody The previous distributor custodial address.
@@ -95,14 +103,6 @@ contract RightsManager is
     /// @param policy The policy contract address whose rights are being revoked.
     /// @param holder The address of the content rights holder.
     event RightsRevoked(address indexed policy, address holder);
-    /// KIM: any initialization here is ephimeral and not included in bytecode..
-    /// so the code within a logic contract’s constructor or global declaration
-    /// will never be executed in the context of the proxy’s state
-    /// https://docs.openzeppelin.com/upgrades-plugins/1.x/proxies#the-constructor-caveat
-    IPolicyAuditorVerifiable public audit;
-    ISyndicatableVerifiable public syndication;
-    IReferendumVerifiable public referendum;
-
     /// @dev Error thrown when attempting to operate on a policy that has not
     /// been delegated rights for the specified content.
     /// @param policy The address of the policy contract attempting to access rights.
@@ -220,7 +220,6 @@ contract RightsManager is
             _checkActiveContent(contentId);
     }
 
-    /// @inheritdoc IBalanceManager
     /// @notice Returns the contract's balance for the specified currency.
     /// @param currency The address of the token to check the balance of (address(0) for native currency).
     /// @return The balance of the contract in the specified currency.
@@ -228,7 +227,6 @@ contract RightsManager is
         return address(this).balanceOf(currency);
     }
 
-    /// @inheritdoc IBalanceWithdrawable
     /// @notice Withdraws tokens from the contract to a specified recipient's address.
     /// @dev This function withdraws funds from the caller's balance (checked via _msgSender()) and transfers them to the recipient.
     /// @param recipient The address that will receive the withdrawn tokens.
@@ -245,7 +243,6 @@ contract RightsManager is
         recipient.transfer(amount, currency);
     }
 
-    /// @inheritdoc IFeesManager
     /// @notice Sets a new treasury fee for a specific currency.
     /// @param newTreasuryFee The new fee amount to be set.
     /// @param currency The currency to associate fees with. Use address(0) for the native coin.
@@ -262,7 +259,6 @@ contract RightsManager is
         _addCurrency(currency);
     }
 
-    /// @inheritdoc ITreasurer
     /// @notice Sets the address of the treasury.
     /// @param newTreasuryAddress The new treasury address to be set.
     /// @dev Only callable by the governance role.
@@ -270,7 +266,6 @@ contract RightsManager is
         _setTreasuryAddress(newTreasuryAddress);
     }
 
-    /// @inheritdoc IDisburser
     /// @notice Disburses funds from the contract to a specified address.
     /// @param amount The amount of currencies to disburse.
     /// @param currency The address of the ERC20 token to disburse tokens.
@@ -284,7 +279,6 @@ contract RightsManager is
         emit FeesDisbursed(treasury, amount, currency);
     }
 
-    /// @inheritdoc IRightsManagerCustodial
     /// @notice Grants custodial rights over the content held by a holder to a distributor.
     /// @dev This function assigns custodial rights for the content held by a specific
     /// account to a designated distributor.
@@ -299,7 +293,6 @@ contract RightsManager is
         emit CustodialGranted(prevCustody, distributor, contentHolder);
     }
 
-    /// @inheritdoc IRightsManagerPolicies
     /// @notice Delegates rights to a policy contract for content held by the holder.
     /// @param policy The address of the policy contract to which rights are being delegated.
     function authorizePolicy(
@@ -310,7 +303,6 @@ contract RightsManager is
         emit RightsGranted(policy, holder);
     }
 
-    /// @inheritdoc IRightsManagerPolicies
     /// @notice Revokes the delegation of rights to a policy contract.
     /// @param policy The address of the policy contract whose rights delegation is being revoked.
     function revokePolicy(address policy) external {
@@ -319,7 +311,6 @@ contract RightsManager is
         emit RightsRevoked(policy, holder);
     }
 
-    /// @inheritdoc IRightsManagerAgreement
     /// @notice Creates a new agreement between the account and the content holder, returning a unique agreement identifier.
     /// @dev This function handles the creation of a new agreement by negotiating terms, calculating fees,
     /// and generating a unique proof of the agreement.
@@ -352,7 +343,6 @@ contract RightsManager is
         return _createProof(agreement);
     }
 
-    /// @inheritdoc IRightsManagerAccessController
     /// @notice Finalizes the agreement by registering the agreed-upon policy, effectively closing the agreement.
     /// @dev This function verifies the policy's authorization, executes the agreement, processes financial transactions,
     ///      and registers the policy in the system, representing the formal closure of the agreement.
@@ -383,8 +373,8 @@ contract RightsManager is
         if (!success) revert NoAgreement(reason);
 
         _closeAgreement(proof); // inactivate the agreement after success..
-        _registerPolicy(agreement.account, policyAddress);
         _sumLedgerEntry(policyAddress, agreement.available, agreement.currency);
+        _registerPolicy(agreement.account, policyAddress);
         emit AccessGranted(agreement.account, proof, policyAddress);
     }
 
@@ -410,7 +400,6 @@ contract RightsManager is
         return proof;
     }
 
-    /// @inheritdoc IRightsManagerAccessController
     /// @notice Retrieves the first active policy for a specific account and content id in LIFO order.
     /// @param account The address of the account to evaluate.
     /// @param contentId The ID of the content to evaluate policies for.

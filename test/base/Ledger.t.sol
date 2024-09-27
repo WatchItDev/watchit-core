@@ -1,8 +1,7 @@
 pragma solidity 0.8.24;
 
 import "forge-std/Test.sol";
-import "contracts/base/upgradeable/LedgerUpgradeable.sol";
-
+import {LedgerUpgradeable} from "contracts/base/upgradeable/LedgerUpgradeable.sol";
 
 contract LedgerTest is Test, LedgerUpgradeable {
     function test_SetLedgerEntry() public {
@@ -26,5 +25,4 @@ contract LedgerTest is Test, LedgerUpgradeable {
         _subLedgerEntry(account, 1e18, address(0));
         assertEq(getLedgerBalance(account, address(0)), 0);
     }
-
 }

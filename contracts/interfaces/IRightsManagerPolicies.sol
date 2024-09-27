@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
-import "contracts/libraries/Types.sol";
 
 interface IRightsManagerPolicies {
     /// @notice Retrieves all policies to which rights have been delegated by a specific content holder.

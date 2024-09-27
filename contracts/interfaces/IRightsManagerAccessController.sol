@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
-import "contracts/libraries/Types.sol";
 
 interface IRightsManagerAccessController {
     /// @notice Retrieves the first active policy for a specific account, rights holder, and content in LIFO order.
