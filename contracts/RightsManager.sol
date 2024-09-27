@@ -402,7 +402,7 @@ contract RightsManager is
         return (false, address(0));
     }
 
-     /// @dev Authorizes the upgrade of the contract.
+    /// @dev Authorizes the upgrade of the contract.
     /// @notice Only the owner can authorize the upgrade.
     /// @param newImplementation The address of the new implementation contract.
     function _authorizeUpgrade(
