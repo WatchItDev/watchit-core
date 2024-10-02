@@ -15,34 +15,39 @@ bootstrap: install
 	@npx husky install
 	@npx husky add .husky/commit-msg 'npx --no-install commitlint --edit "$1"'
 
-# https://jestjs.io/docs/cli#--coverageboolean
-.PHONY: test ## run tests
-test:
-	@npx hardhat test --network $(network)
-
-# https://jestjs.io/docs/cli#--coverageboolean
-.PHONY: testfy ## run tests
-testfy:
-	@forge test --via-ir --gas-report -vv
-
-.PHONY: testcov ## run tests coverage report
-testcov:
-	@npx hardhat coverage
-
-.PHONY: compile ## compile contracts
-compile:
-	@npx hardhat compile
-
 .PHONY: clean ## clean installation and dist files
 clean:
 	@rm -rf cache
 	@rm -rf artifacts
 	@rm -rf node_modules
 	@rm -rf cache_forge
+	@forge clean
 
-.PHONY: install ## install dependencies
-install: 
-	@npm ci
+.PHONY: forge-clean ## clean forge
+forge-clean:
+	rm -rf .gitmodules && rm -rf .git/modules/* && rm -rf lib && touch .gitmodules && git add . && git commit -m "modules"
+
+.PHONY: compile ## compile contracts
+compile:
+	@forge build
+
+.PHONY: force-compile ## compile contracts
+force-compile:
+	@forge clean && forge build
+
+# https://jestjs.io/docs/cli#--coverageboolean
+.PHONY: test ## run tests
+test:
+	@forge test --via-ir --gas-report --show-progress -vvv --force
+
+.PHONY: coverage ## run tests coverage report
+coverage:
+	mkdir -p coverage
+	forge coverage --report lcov --no-match-path "test/foundry/invariants/*"
+	lcov --remove lcov.info -o coverage/lcov.info 'test/*' 'script/*' --rc lcov_branch_coverage=1
+	genhtml coverage/lcov.info -o coverage --rc lcov_branch_coverage=1
+
+
 
 .PHONY: secreport ## generate a security analysis report using aderyn
 secreport:
@@ -53,12 +58,12 @@ sectest:
 	@export PATH=$HOME/.local/bin:$PATH	
 	@slither . 
 
-.PHONY: solformat ## auto-format solidity source files
-solformat:
-	@npx solhint 'contracts/**/*.sol' --fix
+.PHONY: format ## auto-format solidity source files
+format:
+	@npx prettier --write contracts
 
-.PHONY: solhint ## lint standard  solidity
-solhint: 
+.PHONY: hint ## lint standard  solidity
+lint: 
 	@npx solhint 'contracts/**/*.sol'
 
 .PHONE: release ## generate a new release version

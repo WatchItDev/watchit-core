@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.26;
 
 /// @title IFeesManager Interface
 /// @notice This interface defines functions for managing and retrieving treasury fees associated with different currencies.
 /// @dev This interface is intended to be implemented by contracts that manage platform or treasury fees for multiple currencies.
 interface IFeesManager {
-
     /// @notice Sets a new treasury fee for a specific currency.
     /// @param newTreasuryFee The new treasury fee percentage (e.g., 5 for 5%).
     /// @param currency The address of the currency to associate fees with. Use address(0) for the native coin.

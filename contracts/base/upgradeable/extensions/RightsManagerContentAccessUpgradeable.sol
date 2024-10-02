@@ -1,20 +1,17 @@
 // SPDX-License-Identifier: MIT
 // NatSpec format convention - https://docs.soliditylang.org/en/v0.5.10/natspec-format.html
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.26;
 
-import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-import {ERC165Checker} from "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import {IRightsManagerAccessController} from "contracts/interfaces/IRightsManagerAccessController.sol";
-import {IPolicy} from "contracts/interfaces/IPolicy.sol";
+import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import { ERC165Checker } from "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
+import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import { IRightsManagerAccessController } from "contracts/interfaces/IRightsManagerAccessController.sol";
+import { IPolicy } from "contracts/interfaces/IPolicy.sol";
 
 /// @title Rights Manager Content Access Upgradeable
 /// @notice This abstract contract manages content access control using a license
 /// policy contract that must implement the IPolicy interface.
-abstract contract RightsManagerContentAccessUpgradeable is
-    Initializable,
-    IRightsManagerAccessController
-{
+abstract contract RightsManagerContentAccessUpgradeable is Initializable, IRightsManagerAccessController {
     using ERC165Checker for address;
     using EnumerableSet for EnumerableSet.AddressSet;
 
@@ -27,8 +24,7 @@ abstract contract RightsManagerContentAccessUpgradeable is
 
     /// @dev Namespaced storage slot for ACLStorage to avoid storage layout collisions in upgradeable contracts.
     /// @dev The storage slot is calculated using a combination of keccak256 hashes and bitwise operations.
-    bytes32 private constant ACCESS_CONTROL_SLOT =
-        0xcd95b85482a9213e30949ccc9c44037e29b901ca879098f5c64dd501b45d9200;
+    bytes32 private constant ACCESS_CONTROL_SLOT = 0xcd95b85482a9213e30949ccc9c44037e29b901ca879098f5c64dd501b45d9200;
 
     /**
      * @notice Internal function to access the ACL storage.
@@ -56,11 +52,7 @@ abstract contract RightsManagerContentAccessUpgradeable is
     /// @param contentId The ID of the content for which access is being checked.
     /// @param policy The address of the license policy contract used to verify access.
     /// @return Returns true if the account is granted access to the content based on the license, false otherwise.
-    function _verifyPolicy(
-        address account,
-        uint256 contentId,
-        address policy
-    ) internal view returns (bool) {
+    function _verifyPolicy(address account, uint256 contentId, address policy) internal view returns (bool) {
         // if not registered license policy..
         if (policy == address(0)) return false;
         IPolicy policy_ = IPolicy(policy);
@@ -71,9 +63,7 @@ abstract contract RightsManagerContentAccessUpgradeable is
     /// @notice Retrieves the list of policys associated with a specific account and content ID.
     /// @param account The address of the account for which policies are being retrieved.
     /// @return An array of addresses representing the policies associated with the account and content ID.
-    function getPolicies(
-        address account
-    ) public view returns (address[] memory) {
+    function getPolicies(address account) public view returns (address[] memory) {
         ACLStorage storage $ = _getACLStorage();
         // https://docs.openzeppelin.com/contracts/5.x/api/utils#EnumerableSet-values-struct-EnumerableSet-AddressSet-
         // This operation will copy the entire storage to memory, which can be quite expensive.

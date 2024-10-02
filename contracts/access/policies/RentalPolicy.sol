@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.26;
 
-import {BasePolicy} from "contracts/base/BasePolicy.sol";
-import {IPolicy} from "contracts/interfaces/IPolicy.sol";
-import {TreasuryHelper} from "contracts/libraries/TreasuryHelper.sol";
-import {T} from "contracts/libraries/Types.sol";
-
+import { BasePolicy } from "contracts/base/BasePolicy.sol";
+import { IPolicy } from "contracts/interfaces/IPolicy.sol";
+import { TreasuryHelper } from "contracts/libraries/TreasuryHelper.sol";
+import { T } from "contracts/libraries/Types.sol";
 
 /// @title RentalPolicy
 /// @notice This contract implements the IPolicy interface to manage content rental terms.
@@ -28,10 +27,7 @@ contract RentalPolicy is BasePolicy {
     /// @notice Constructor for the RentalPolicy contract.
     /// @param rmAddress Address of the Rights Manager (RM) contract.
     /// @param ownershipAddress Address of the Ownership contract.
-    constructor(
-        address rmAddress,
-        address ownershipAddress
-    ) BasePolicy(rmAddress, ownershipAddress) {}
+    constructor(address rmAddress, address ownershipAddress) BasePolicy(rmAddress, ownershipAddress) {}
 
     /// @notice Returns the name of the policy.
     /// @return The name of the policy, "RentalPolicy".
@@ -74,11 +70,7 @@ contract RentalPolicy is BasePolicy {
     /// @param account The address of the account renting the content.
     /// @param contentId The ID of the content being rented.
     /// @param expire The expiration time (in seconds) for the rental.
-    function _registerRent(
-        address account,
-        uint256 contentId,
-        uint256 expire
-    ) private {
+    function _registerRent(address account, uint256 contentId, uint256 expire) private {
         rentals[account][contentId] = block.timestamp + expire;
     }
 
@@ -89,27 +81,18 @@ contract RentalPolicy is BasePolicy {
     /// @param data Additional data required for processing the agreement, e.g., content ID.
     /// @return bool Indicates whether the agreement was successfully executed.
     /// @return string Provides a message describing the result of the execution.
-    function exec(
-        T.Agreement calldata agreement,
-        bytes calldata data
-    ) external onlyRM returns (bool, string memory) {
+    function exec(T.Agreement calldata agreement, bytes calldata data) external onlyRM returns (bool, string memory) {
         uint256 contentId = abi.decode(data, (uint256));
         Content memory content = contents[contentId];
 
         if (contentId == 0) return (false, "Invalid content ID");
-        if (getHolder(contentId) != agreement.holder)
-            return (false, "Invalid content ID holder");
-        if (agreement.total < content.price)
-            return (false, "Insufficient funds for rental");
+        if (getHolder(contentId) != agreement.holder) return (false, "Invalid content ID holder");
+        if (agreement.total < content.price) return (false, "Insufficient funds for rental");
 
         // We can take two approach here:
         // 1- distribute the funds
         // 2- register the total to rights holder
-        _sumLedgerEntry(
-            agreement.holder,
-            agreement.available,
-            agreement.currency
-        );
+        _sumLedgerEntry(agreement.holder, agreement.available, agreement.currency);
 
         // Register the rental for the account with the rental duration.
         _registerRent(agreement.account, contentId, content.rentalDuration);
@@ -120,10 +103,7 @@ contract RentalPolicy is BasePolicy {
     /// @param account The address of the account for which access terms are being retrieved.
     /// @param contentId The ID of the content associated with the access terms.
     /// @return The access terms as a `bytes` array, which can contain the rental expiration timestamp.
-    function terms(
-        address account,
-        uint256 contentId
-    ) external view override returns (bytes memory) {
+    function terms(address account, uint256 contentId) external view override returns (bytes memory) {
         return abi.encode(rentals[account][contentId]);
     }
 
@@ -131,10 +111,7 @@ contract RentalPolicy is BasePolicy {
     /// @param account The address of the account to check.
     /// @param contentId The ID of the content to check against.
     /// @return bool Returns `true` if the rental period is still valid, `false` otherwise.
-    function comply(
-        address account,
-        uint256 contentId
-    ) external view override returns (bool) {
+    function comply(address account, uint256 contentId) external view override returns (bool) {
         // Check if the current time is before the rental expiration.
         return block.timestamp <= rentals[account][contentId];
     }

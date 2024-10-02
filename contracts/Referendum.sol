@@ -1,22 +1,22 @@
 // SPDX-License-Identifier: MIT
 // NatSpec format convention - https://docs.soliditylang.org/en/v0.5.10/natspec-format.html
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.26;
 
-import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {EIP712Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/cryptography/EIP712Upgradeable.sol";
-import {NoncesUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/NoncesUpgradeable.sol";
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-import {Address} from "@openzeppelin/contracts/utils/Address.sol";
+import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import { EIP712Upgradeable } from "@openzeppelin/contracts-upgradeable/utils/cryptography/EIP712Upgradeable.sol";
+import { NoncesUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/NoncesUpgradeable.sol";
+import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 
-import {GovernableUpgradeable} from "contracts/base/upgradeable/GovernableUpgradeable.sol";
-import {QuorumUpgradeable} from "contracts/base/upgradeable/QuorumUpgradeable.sol";
-import {IReferendum} from "contracts/interfaces/IReferendum.sol";
-import {IReferendumRoleManager} from "contracts/interfaces/IReferendumRoleManager.sol";
-import {IReferendumVerifiable} from "contracts/interfaces/IReferendumVerifiable.sol";
+import { GovernableUpgradeable } from "contracts/base/upgradeable/GovernableUpgradeable.sol";
+import { QuorumUpgradeable } from "contracts/base/upgradeable/QuorumUpgradeable.sol";
+import { IReferendum } from "contracts/interfaces/IReferendum.sol";
+import { IReferendumRoleManager } from "contracts/interfaces/IReferendumRoleManager.sol";
+import { IReferendumVerifiable } from "contracts/interfaces/IReferendumVerifiable.sol";
 
-import {C} from "contracts/libraries/Constants.sol";
-import {T} from "contracts/libraries/Types.sol";
+import { C } from "contracts/libraries/Constants.sol";
+import { T } from "contracts/libraries/Types.sol";
 
 /// @title Content curation contract.
 /// @notice This contract allows for the submission, voting, and approval/rejection of content.
@@ -72,9 +72,7 @@ contract Referendum is
     /// @notice Function that should revert when msg.sender is not authorized to upgrade the contract.
     /// @param newImplementation The address of the new implementation contract.
     /// @dev See https://docs.openzeppelin.com/contracts/4.x/api/proxy#UUPSUpgradeable-_authorizeUpgrade-address-
-    function _authorizeUpgrade(
-        address newImplementation
-    ) internal override onlyAdmin {}
+    function _authorizeUpgrade(address newImplementation) internal override onlyAdmin {}
 
     /// @notice Checks if the content is active nor blocked.
     /// @param contentId The ID of the content.
@@ -87,10 +85,7 @@ contract Referendum is
     /// @param initiator The submission account address .
     /// @param contentId The ID of the content.
     /// @return True if the content is approved, false otherwise.
-    function isApproved(
-        address initiator,
-        uint256 contentId
-    ) public view returns (bool) {
+    function isApproved(address initiator, uint256 contentId) public view returns (bool) {
         bool approved = isActive(contentId);
         bool validAccount = submissions[initiator].contains(contentId);
         bool verifiedRole = hasRole(VERIFIED_ROLE, initiator);
@@ -128,21 +123,10 @@ contract Referendum is
     /// @param contentId The ID of the content to be submitted.
     /// @param initiator The address of the initiator submitting the content.
     /// @param sig The EIP712 signature for the submission.
-    function submitWithSig(
-        uint256 contentId,
-        address initiator,
-        T.EIP712Signature calldata sig
-    ) external {
+    function submitWithSig(uint256 contentId, address initiator, T.EIP712Signature calldata sig) external {
         // https://eips.ethereum.org/EIPS/eip-712
         uint256 nonce = _useNonce(initiator);
-        bytes32 structHash = keccak256(
-            abi.encode(
-                C.REFERENDUM_SUBMIT_TYPEHASH,
-                contentId,
-                initiator,
-                nonce
-            )
-        );
+        bytes32 structHash = keccak256(abi.encode(C.REFERENDUM_SUBMIT_TYPEHASH, contentId, initiator, nonce));
 
         // retrieve the signer from digest and signature to check if the signature correspond to expected signer.
         bytes32 digest = _hashTypedDataV4(structHash); // expected keccak256("\x19\x01" ‖ domainSeparator ‖ hashStruct(message))

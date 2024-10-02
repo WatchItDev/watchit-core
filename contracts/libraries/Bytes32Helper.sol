@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.26;
 
 /// @title Bytes32 Helper Library
 /// @notice Provides functions to convert bytes32 to other data types.
 /// @dev Contains functions to convert a bytes32 value to an address with proper alignment.
 library Bytes32Helper {
-     /// @notice Converts a bytes32 value to an address.
+    /// @notice Converts a bytes32 value to an address.
     /// @param _bytes The bytes32 value to convert.
     /// @return addr The converted address.
     /// @dev This function uses inline assembly to perform the conversion.

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.26;
 
 /// @title ISyndicatableExpirable
 /// @dev Interface for contracts that allow setting an expiration period for enrollments or registrations.

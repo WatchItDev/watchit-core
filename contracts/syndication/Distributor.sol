@@ -1,20 +1,19 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.26;
 
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import {ERC165Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/introspection/ERC165Upgradeable.sol";
-import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import {IBalanceVerifiable} from "contracts/interfaces/IBalanceVerifiable.sol";
-import {IBalanceWithdrawable} from "contracts/interfaces/IBalanceWithdrawable.sol";
-import {IDistributor} from "contracts/interfaces/IDistributor.sol";
-import {TreasuryHelper} from "contracts/libraries/TreasuryHelper.sol";
-
+import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import { ERC165Upgradeable } from "@openzeppelin/contracts-upgradeable/utils/introspection/ERC165Upgradeable.sol";
+import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import { IBalanceVerifiable } from "contracts/interfaces/IBalanceVerifiable.sol";
+import { IBalanceWithdrawable } from "contracts/interfaces/IBalanceWithdrawable.sol";
+import { IDistributor } from "contracts/interfaces/IDistributor.sol";
+import { TreasuryHelper } from "contracts/libraries/TreasuryHelper.sol";
 
 /// @title Content Distributor Contract
 /// @notice This contract handles all the necessary logic for managing content distributors.
 /// @dev This contract inherits from Ownable, ERC165, and implements the IDistributor interface.
 /// It also uses the TreasuryHelper library for balance and withdrawal operations.
-/// This contract is designed to be used without requiring upgrades, and it follows the ERC-7201 
+/// This contract is designed to be used without requiring upgrades, and it follows the ERC-7201
 /// Namespaced Storage Layout for better compatibility with upgradeable contracts.
 contract Distributor is
     Initializable,
@@ -47,10 +46,7 @@ contract Distributor is
     /// @param _endpoint The distribution endpoint URL.
     /// @param _owner The address of the owner who will manage the distributor.
     /// @dev Ensures that the provided endpoint is valid and initializes ERC165 and Ownable contracts.
-    function initialize(
-        string memory _endpoint,
-        address _owner
-    ) public initializer {
+    function initialize(string memory _endpoint, address _owner) public initializer {
         if (bytes(_endpoint).length == 0) revert InvalidEndpoint();
         __ERC165_init();
         __Ownable_init(_owner);
@@ -83,9 +79,7 @@ contract Distributor is
     /// @param currency The token address to check the balance of (use `address(0)` for native currency).
     /// @return The balance of the contract in the specified currency.
     /// @dev This function is restricted to the contract owner.
-    function getBalance(
-        address currency
-    ) external view onlyOwner returns (uint256) {
+    function getBalance(address currency) external view onlyOwner returns (uint256) {
         return address(this).balanceOf(currency);
     }
 
@@ -95,11 +89,7 @@ contract Distributor is
     /// @param currency The address of the token to withdraw (use `address(0)` for native currency).
     /// @dev Transfers the specified amount of tokens or native currency to the recipient.
     /// Emits a {FundWithdrawn} event.
-    function withdraw(
-        address recipient,
-        uint256 amount,
-        address currency
-    ) external onlyOwner {
+    function withdraw(address recipient, uint256 amount, address currency) external onlyOwner {
         recipient.transfer(amount, currency);
         emit FundWithdrawn(recipient, amount, currency);
     }
@@ -107,11 +97,7 @@ contract Distributor is
     /// @notice Checks if the contract supports a specific interface based on its ID.
     /// @param interfaceId The ID of the interface to check.
     /// @return True if the interface is supported, otherwise false.
-    function supportsInterface(
-        bytes4 interfaceId
-    ) public view virtual override returns (bool) {
-        return
-            interfaceId == type(IDistributor).interfaceId ||
-            super.supportsInterface(interfaceId);
+    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+        return interfaceId == type(IDistributor).interfaceId || super.supportsInterface(interfaceId);
     }
 }

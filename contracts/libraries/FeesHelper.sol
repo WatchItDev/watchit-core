@@ -1,17 +1,14 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.26;
 
-import {C} from "contracts/libraries/Constants.sol";
+import { C } from "contracts/libraries/Constants.sol";
 
 library FeesHelper {
     /// @dev Calculates the percentage of `amount` based on the given `bps` (basis points).
     /// @param amount The amount to calculate the percentage of.
     /// @param bps The basis points to use for the calculation.
     /// @return The percentage of `amount` based on the given `bps`.
-    function perOf(
-        uint256 amount,
-        uint256 bps
-    ) internal pure returns (uint256) {
+    function perOf(uint256 amount, uint256 bps) internal pure returns (uint256) {
         // avoid division by zero error
         if (amount == 0 || bps == 0) return amount;
         // 10 * (5*100) / 10_000

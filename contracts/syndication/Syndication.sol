@@ -1,30 +1,30 @@
 // SPDX-License-Identifier: MIT
 // NatSpec format convention - https://docs.soliditylang.org/en/v0.5.10/natspec-format.html
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.26;
 
-import {ERC165Checker} from "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
-import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import { ERC165Checker } from "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
+import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
-import {GovernableUpgradeable} from "contracts/base/upgradeable/GovernableUpgradeable.sol";
-import {QuorumUpgradeable} from "contracts/base/upgradeable/QuorumUpgradeable.sol";
-import {TreasurerUpgradeable} from "contracts/base/upgradeable/TreasurerUpgradeable.sol";
-import {LedgerUpgradeable} from "contracts/base/upgradeable/LedgerUpgradeable.sol";
-import {FeesManagerUpgradeable} from "contracts/base/upgradeable/FeesManagerUpgradeable.sol";
+import { GovernableUpgradeable } from "contracts/base/upgradeable/GovernableUpgradeable.sol";
+import { QuorumUpgradeable } from "contracts/base/upgradeable/QuorumUpgradeable.sol";
+import { TreasurerUpgradeable } from "contracts/base/upgradeable/TreasurerUpgradeable.sol";
+import { LedgerUpgradeable } from "contracts/base/upgradeable/LedgerUpgradeable.sol";
+import { FeesManagerUpgradeable } from "contracts/base/upgradeable/FeesManagerUpgradeable.sol";
 
-import {ISyndicatablePenalizer} from "contracts/interfaces/ISyndicatablePenalizer.sol";
-import {ISyndicatableRegistrable} from "contracts/interfaces/ISyndicatableRegistrable.sol";
-import {ISyndicatableExpirable} from "contracts/interfaces/ISyndicatableExpirable.sol";
-import {ISyndicatableRevokable} from "contracts/interfaces/ISyndicatableRevokable.sol";
-import {ISyndicatableVerifiable} from "contracts/interfaces/ISyndicatableVerifiable.sol";
-import {IBalanceVerifiable} from "contracts/interfaces/IBalanceVerifiable.sol";
-import {IDistributor} from "contracts/interfaces/IDistributor.sol";
-import {IDisburser} from "contracts/interfaces/IDisburser.sol";
+import { ISyndicatablePenalizer } from "contracts/interfaces/ISyndicatablePenalizer.sol";
+import { ISyndicatableRegistrable } from "contracts/interfaces/ISyndicatableRegistrable.sol";
+import { ISyndicatableExpirable } from "contracts/interfaces/ISyndicatableExpirable.sol";
+import { ISyndicatableRevokable } from "contracts/interfaces/ISyndicatableRevokable.sol";
+import { ISyndicatableVerifiable } from "contracts/interfaces/ISyndicatableVerifiable.sol";
+import { IBalanceVerifiable } from "contracts/interfaces/IBalanceVerifiable.sol";
+import { IDistributor } from "contracts/interfaces/IDistributor.sol";
+import { IDisburser } from "contracts/interfaces/IDisburser.sol";
 
-import {TreasuryHelper} from "contracts/libraries/TreasuryHelper.sol";
-import {FeesHelper} from "contracts/libraries/FeesHelper.sol";
-import {T} from "contracts/libraries/Types.sol";
+import { TreasuryHelper } from "contracts/libraries/TreasuryHelper.sol";
+import { FeesHelper } from "contracts/libraries/FeesHelper.sol";
+import { T } from "contracts/libraries/Types.sol";
 
 /// @title Distributors Syndication contract.
 /// @notice Use this contract to handle all distribution logic needed for creators and distributors.
@@ -50,20 +50,12 @@ contract Syndication is
     using ERC165Checker for address;
     using TreasuryHelper for address;
 
-    bytes4 private constant INTERFACE_ID_IDISTRIBUTOR =
-        type(IDistributor).interfaceId;
-
     uint256 public enrollmentPeriod; // Period for enrollment
     uint256 public enrollmentsCount; // Count of enrollments
     mapping(address => uint256) public penaltyRates; // Penalty rates for distributors
     mapping(address => uint256) public enrollmentTime; // Timestamp for enrollment periods
 
-    /// @notice Error thrown when a penalty rate is invalid
-    error InvalidPenaltyRate();
-    /// @notice Error thrown when a distributor contract is invalid
-    error InvalidDistributorContract();
-    /// @notice Error thrown when a distributor fails during quitting
-    error FailDuringQuit(string reason);
+    bytes4 private constant INTERFACE_ID_IDISTRIBUTOR = type(IDistributor).interfaceId;
 
     /// @notice Event emitted when a distributor is registered
     /// @param distributor The address of the registered distributor
@@ -81,11 +73,12 @@ contract Syndication is
     /// @param treasury The address of the treasury receiving the fees
     /// @param amount The amount disbursed
     /// @param currency The disbursed currency
-    event FeesDisbursed(
-        address indexed treasury,
-        uint256 amount,
-        address currency
-    );
+    event FeesDisbursed(address indexed treasury, uint256 amount, address currency);
+
+    /// @notice Error thrown when a distributor contract is invalid
+    error InvalidDistributorContract();
+    /// @notice Error thrown when a distributor fails during quitting
+    error FailDuringQuit(string reason);
 
     /// @dev Constructor that disables initializers to prevent the implementation contract from being initialized.
     /// @notice This constructor prevents the implementation contract from being initialized.
@@ -94,14 +87,6 @@ contract Syndication is
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
-    }
-
-    /// @notice Modifier to ensure that the given distributor contract supports the IDistributor interface.
-    /// @param distributor The distributor contract address.
-    modifier onlyDistributorContract(address distributor) {
-        if (!distributor.supportsInterface(INTERFACE_ID_IDISTRIBUTOR))
-            revert InvalidDistributorContract();
-        _;
     }
 
     /// @notice Initializes the contract with the given multimedia coin (MMC), treasury, enrollment fee, and initial penalty rate.
@@ -119,12 +104,12 @@ contract Syndication is
         enrollmentPeriod = 180 days;
     }
 
-    /// @notice Function that should revert when msg.sender is not authorized to upgrade the contract.
-    /// @param newImplementation The address of the new implementation contract.
-    /// @dev See https://docs.openzeppelin.com/contracts/4.x/api/proxy#UUPSUpgradeable-_authorizeUpgrade-address-
-    function _authorizeUpgrade(
-        address newImplementation
-    ) internal override onlyAdmin {}
+    /// @notice Modifier to ensure that the given distributor contract supports the IDistributor interface.
+    /// @param distributor The distributor contract address.
+    modifier onlyDistributorContract(address distributor) {
+        if (!distributor.supportsInterface(INTERFACE_ID_IDISTRIBUTOR)) revert InvalidDistributorContract();
+        _;
+    }
 
     /// @notice Function to set the penalty rate for quitting enrollment.
     /// @param newPenaltyRate The new penalty rate to be set. It should be a value representin base points (bps).
@@ -134,23 +119,14 @@ contract Syndication is
     function setPenaltyRate(
         uint256 newPenaltyRate,
         address currency
-    )
-        external
-        onlyGov
-        onlyBasePointsAllowed(newPenaltyRate)
-        onlySupportedCurrency(currency)
-    {
-        if (newPenaltyRate == 0) revert InvalidPenaltyRate();
+    ) external onlyGov onlyBasePointsAllowed(newPenaltyRate) {
         penaltyRates[currency] = newPenaltyRate;
     }
 
     /// @notice Sets a new treasury fee for a specific token.
     /// @param newTreasuryFee The new treasury fee to be set.
     /// @param currency The currency to associate fees with. Use address(0) for the native coin.
-    function setFees(
-        uint256 newTreasuryFee,
-        address currency
-    ) external override onlyGov {
+    function setFees(uint256 newTreasuryFee, address currency) external override onlyGov {
         _setFees(newTreasuryFee, currency);
     }
 
@@ -187,41 +163,6 @@ contract Syndication is
         emit FeesDisbursed(treasury, amount, currency);
     }
 
-    /// @inheritdoc ISyndicatableVerifiable
-    /// @notice Checks if the entity is active.
-    /// @dev This function verifies the active status of the distributor.
-    /// @param distributor The distributor's address to check.
-    /// @return bool True if the distributor is active, false otherwise.
-    function isActive(
-        address distributor
-    ) public view onlyDistributorContract(distributor) returns (bool) {
-        return
-            _status(uint160(distributor)) == Status.Active &&
-            enrollmentTime[distributor] > block.timestamp;
-    }
-
-    /// @inheritdoc ISyndicatableVerifiable
-    /// @notice Checks if the entity is waiting.
-    /// @dev This function verifies the waiting status of the distributor.
-    /// @param distributor The distributor's address to check.
-    /// @return bool True if the distributor is waiting, false otherwise.
-    function isWaiting(
-        address distributor
-    ) public view onlyDistributorContract(distributor) returns (bool) {
-        return _status(uint160(distributor)) == Status.Waiting;
-    }
-
-    /// @inheritdoc ISyndicatableVerifiable
-    /// @notice Checks if the entity is blocked.
-    /// @dev This function verifies the blocked status of the distributor.
-    /// @param distributor The distributor's address to check.
-    /// @return bool True if the distributor is blocked, false otherwise.
-    function isBlocked(
-        address distributor
-    ) public view onlyDistributorContract(distributor) returns (bool) {
-        return _status(uint160(distributor)) == Status.Blocked;
-    }
-
     /// @inheritdoc ISyndicatableRegistrable
     /// @notice Registers a distributor by sending a payment to the contract.
     /// @param distributor The address of the distributor to register.
@@ -229,11 +170,7 @@ contract Syndication is
     function register(
         address distributor,
         address currency
-    )
-        external
-        onlyDistributorContract(distributor)
-        onlySupportedCurrency(currency)
-    {
+    ) external onlyDistributorContract(distributor) onlySupportedCurrency(currency) {
         uint256 fees = getFees(currency);
         address manager = IDistributor(distributor).getManager();
         uint256 total = manager.safeDeposit(fees, currency);
@@ -255,12 +192,7 @@ contract Syndication is
     function quit(
         address distributor,
         address currency
-    )
-        external
-        nonReentrant
-        onlyDistributorContract(distributor)
-        onlySupportedCurrency(currency)
-    {
+    ) external nonReentrant onlyDistributorContract(distributor) onlySupportedCurrency(currency) {
         address manager = _msgSender(); // the sender is expected to be the manager..
         uint256 ledgerAmount = getLedgerBalance(manager, currency);
         if (ledgerAmount == 0) revert FailDuringQuit("Invalid enrollment.");
@@ -280,9 +212,7 @@ contract Syndication is
     /// @inheritdoc ISyndicatableRevokable
     /// @notice Revokes the registration of a distributor.
     /// @param distributor The address of the distributor to revoke.
-    function revoke(
-        address distributor
-    ) external onlyGov onlyDistributorContract(distributor) {
+    function revoke(address distributor) external onlyGov onlyDistributorContract(distributor) {
         _revoke(uint160(distributor));
         emit Revoked(distributor);
     }
@@ -290,9 +220,7 @@ contract Syndication is
     /// @inheritdoc ISyndicatableRegistrable
     /// @notice Approves a distributor's registration.
     /// @param distributor The address of the distributor to approve.
-    function approve(
-        address distributor
-    ) external onlyGov onlyDistributorContract(distributor) {
+    function approve(address distributor) external onlyGov onlyDistributorContract(distributor) {
         address manager = IDistributor(distributor).getManager();
         // reset ledger..
         _setLedgerEntry(manager, 0, address(0));
@@ -300,4 +228,43 @@ contract Syndication is
         enrollmentsCount++;
         emit Approved(distributor);
     }
+
+    /// @notice Retrieves the penalty rate for quitting enrollment.
+    /// @param currency The currency in which to query the penalty rate.
+    /// @dev The penalty rate is stored in basis points (bps).
+    function getPenaltyRate(address currency) public view returns (uint256) {
+        return penaltyRates[currency];
+    }
+
+    /// @inheritdoc ISyndicatableVerifiable
+    /// @notice Checks if the entity is active.
+    /// @dev This function verifies the active status of the distributor.
+    /// @param distributor The distributor's address to check.
+    /// @return bool True if the distributor is active, false otherwise.
+    function isActive(address distributor) public view onlyDistributorContract(distributor) returns (bool) {
+        return _status(uint160(distributor)) == Status.Active && enrollmentTime[distributor] > block.timestamp;
+    }
+
+    /// @inheritdoc ISyndicatableVerifiable
+    /// @notice Checks if the entity is waiting.
+    /// @dev This function verifies the waiting status of the distributor.
+    /// @param distributor The distributor's address to check.
+    /// @return bool True if the distributor is waiting, false otherwise.
+    function isWaiting(address distributor) public view onlyDistributorContract(distributor) returns (bool) {
+        return _status(uint160(distributor)) == Status.Waiting;
+    }
+
+    /// @inheritdoc ISyndicatableVerifiable
+    /// @notice Checks if the entity is blocked.
+    /// @dev This function verifies the blocked status of the distributor.
+    /// @param distributor The distributor's address to check.
+    /// @return bool True if the distributor is blocked, false otherwise.
+    function isBlocked(address distributor) public view onlyDistributorContract(distributor) returns (bool) {
+        return _status(uint160(distributor)) == Status.Blocked;
+    }
+
+    /// @notice Function that should revert when msg.sender is not authorized to upgrade the contract.
+    /// @param newImplementation The address of the new implementation contract.
+    /// @dev See https://docs.openzeppelin.com/contracts/4.x/api/proxy#UUPSUpgradeable-_authorizeUpgrade-address-
+    function _authorizeUpgrade(address newImplementation) internal override onlyAdmin {}
 }

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.26;
 
 /// @title IPolicyAuditorVerifiable
 /// @notice Interface that defines the methods required to verify if a policy has been audited.

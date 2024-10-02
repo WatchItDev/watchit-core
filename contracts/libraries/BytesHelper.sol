@@ -1,17 +1,14 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.26;
 
 /// @title Dynamic Bytes Library
 /// @notice Provides functions to convert bytes to other data types.
 /// @dev Contains functions to convert a bytes array to an address with proper alignment.
 library BytesHelper {
-
     /// @notice Converts a dynamic bytes array to an address.
     /// @param _bytes The bytes array to convert.
     /// @return addr The converted address.
-    function toAddress(
-        bytes memory _bytes
-    ) internal pure returns (address addr) {
+    function toAddress(bytes memory _bytes) internal pure returns (address addr) {
         assembly {
             // Load the 32 bytes word from memory, skipping the first 32 bytes (length prefix)
             let data := mload(add(_bytes, 0x20))

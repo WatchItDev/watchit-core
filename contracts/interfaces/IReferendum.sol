@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.26;
 
 /// @title Referendum Interface
 /// @notice This interface defines the essential functions for a referendum contract.

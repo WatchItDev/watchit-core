@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.26;
 
-import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
-import {GovernableUpgradeable} from "contracts/base/upgradeable/GovernableUpgradeable.sol";
-import {IOwnership} from "contracts/interfaces/IOwnership.sol";
-import {IContentVault} from "contracts/interfaces/IContentVault.sol";
-
+import { GovernableUpgradeable } from "contracts/base/upgradeable/GovernableUpgradeable.sol";
+import { IOwnership } from "contracts/interfaces/IOwnership.sol";
+import { IContentVault } from "contracts/interfaces/IContentVault.sol";
 
 /// @title ContentVault
 /// @notice This contract stores encrypted content and ensures only the rightful content holder
@@ -15,12 +14,7 @@ import {IContentVault} from "contracts/interfaces/IContentVault.sol";
 /// decentralized authority.
 /// @dev The contract uses the OpenZeppelin UUPS (Universal Upgradeable Proxy Standard) upgrade mechanism
 /// and inherits Governable for governance control.
-contract ContentVault is
-    Initializable,
-    UUPSUpgradeable,
-    GovernableUpgradeable,
-    IContentVault
-{
+contract ContentVault is Initializable, UUPSUpgradeable, GovernableUpgradeable, IContentVault {
     /// @notice The Ownership contract that tracks content holders.
     IOwnership public ownership;
     /// @dev Mapping to store encrypted content, identified by content ID.
@@ -51,8 +45,7 @@ contract ContentVault is
     /// @param contentId The identifier of the content.
     /// @dev Reverts if the sender is not the owner of the content based on the Ownership contract.
     modifier onlyHolder(uint256 contentId) {
-        if (ownership.ownerOf(contentId) != _msgSender())
-            revert InvalidContentHolder();
+        if (ownership.ownerOf(contentId) != _msgSender()) revert InvalidContentHolder();
         _;
     }
 
@@ -62,9 +55,7 @@ contract ContentVault is
     /// @dev Overrides the `_authorizeUpgrade` function from UUPSUpgradeable to enforce admin-only
     /// access for upgrades.
     /// @dev See https://docs.openzeppelin.com/contracts/4.x/api/proxy#UUPSUpgradeable-_authorizeUpgrade-address-
-    function _authorizeUpgrade(
-        address newImplementation
-    ) internal override onlyAdmin {}
+    function _authorizeUpgrade(address newImplementation) internal override onlyAdmin {}
 
     /// @notice Retrieves the encrypted content for a given content ID.
     /// @param contentId The identifier of the content.
@@ -81,10 +72,7 @@ contract ContentVault is
     /// @dev Only the rightful content holder can set or modify the content.
     /// This allows for dynamic secure storage, handling encrypted data like public key encrypted content or
     /// hash-encrypted data.
-    function setContent(
-        uint256 contentId,
-        bytes memory encryptedContent
-    ) public onlyHolder(contentId) {
+    function setContent(uint256 contentId, bytes memory encryptedContent) public onlyHolder(contentId) {
         secured[contentId] = encryptedContent;
     }
 }

@@ -33,63 +33,7 @@ async function deploySyndicationWithRegisteredDistributor() {
 
 describe('Syndication', function () {
 
-  describe("Initialization", async () => {
-    it('Should have been initialized with the right penalty rate and corresponding currency.', async function () {
-      const [syndication, , currency] = await switcher(deployInitializedSyndication)
-      const currencyAddress = await currency.getAddress()
-      expect(await syndication.penaltyRates(currencyAddress)).to.be.equal(expectedPenaltyBPS()) // 10% nominal = 1000 bps
-    })
-
-    // it('Should have been initialized with the right treasury address.', async function () {
-    //   const [syndication, repo] = await switcher(deployInitializedSyndication)
-    //   const expectedTreasuryAddress = await repo.getContract(3) // 3 = ENUM TREASURY
-    //   expect(await syndication.getTreasuryAddress()).to.be.equal(expectedTreasuryAddress)
-    // })
-
-    it('Should have been initialized with the right initial fees.', async function () {
-      // hre.ethers.ZeroAddress means native coin..
-      const [syndication, , currency] = await switcher(deployInitializedSyndication)
-      const currencyAddress = await currency.getAddress()
-      const initialFees = await syndication.getFees(currencyAddress)
-      expect(initialFees).to.be.equal(expectedFees())
-    })
-  })
-
-
-  describe('Penalty Rate', function () {
-
-    it('Should set the penalty rate successfully', async () => {
-      const [syndication, , currency] = await deploySyndicationWithFakeGovernor()
-      const currencyAddress = await currency.getAddress()
-      await syndication.setPenaltyRate(1500, currencyAddress) // MMC 15% nominal = 1500 bps
-      expect(await syndication.penaltyRates(currencyAddress)).to.be.equal(1500) // MMC 15% nominal = 1500 bps
-    })
-
-    it('Should fail setting penalty rate if is not a base points', async () => {
-      const [syndication, , currency] = await deploySyndicationWithFakeGovernor()
-      const currencyAddress = await currency.getAddress()
-      // min = 1 = 0.01; max = 10_000 = 100%
-      await expect(syndication.setPenaltyRate(10_001, currencyAddress)).to.revertedWithCustomError(syndication, 'InvalidBasisPointRange')
-    })
-
-    it('Should fail setting penalty rate if not called by governor', async () => {
-      const [syndication, , currency] = await switcher(deployInitializedSyndication)
-      const currencyAddress = await currency.getAddress()
-      await expect(syndication.setPenaltyRate(1500, currencyAddress)).to.revertedWithCustomError(
-        syndication, 'AccessControlUnauthorizedAccount'
-      )
-    })
-  })
-
-  describe("Treasury Impl", () => {
-    it('Should set the currency treasury fee successfully.', async function () {
-      const [syndication, , currency] = await deploySyndicationWithFakeGovernor()
-      const currencyAddress = await currency.getAddress()
-      await (await syndication.setFees(expectedFees(), currencyAddress)).wait()
-      expect(await syndication.getFees(currencyAddress)).to.be.equal(expectedFees()); //100 MMC
-    })
-
-  })
+   })
 
   describe("Treasurer Impl", () => {
     it('Should set the treasury address successfully.', async function () {

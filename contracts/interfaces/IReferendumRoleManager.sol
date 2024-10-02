@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.26;
 
 /// @title IReferendumRoleManager
 /// @notice Interface to manage roles for a referendum system, allowing accounts to be granted or revoked the "verified" role.

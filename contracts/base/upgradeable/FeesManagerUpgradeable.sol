@@ -1,16 +1,14 @@
 // SPDX-License-Identifier: MIT
 // NatSpec format convention - https://docs.soliditylang.org/en/v0.8.24/natspec-format.html
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.26;
 
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import {IFeesManager} from "contracts/interfaces/IFeesManager.sol";
-import {C} from "contracts/libraries/Constants.sol";
-
+import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import { IFeesManager } from "contracts/interfaces/IFeesManager.sol";
+import { C } from "contracts/libraries/Constants.sol";
 
 /// @dev Abstract contract for managing fee funds.
 /// It inherits from Initializable and IFeesManager interfaces.
 abstract contract FeesManagerUpgradeable is Initializable, IFeesManager {
-
     /// @custom:storage-location erc7201:feesupgradeable
     struct FeesStorage {
         mapping(address => uint256) _currencyFees;
@@ -21,14 +19,13 @@ abstract contract FeesManagerUpgradeable is Initializable, IFeesManager {
     /// @param currency The address of the unsupported currency.
     error InvalidUnsupportedCurrency(address currency);
     /// @notice Error to be thrown when basis point fees are invalid.
-    error InvalidBasisPointRange();
+    error InvalidBasisPointRange(uint256 bps);
     /// @notice Error to be thrown when nominal fees are invalid.
-    error InvalidNominalRange();
+    error InvalidNominalRange(uint256 nominal);
 
     // ERC-7201: Namespaced Storage Layout is another convention that can be used to avoid storage layout errors
     // keccak256(abi.encode(uint256(keccak256("watchit.fees.currencyfees")) - 1)) & ~bytes32(uint256(0xff))
-    bytes32 private constant FEES_SLOT =
-         0x5575547e2bbff3f801051e8dc7ed5ba1cab8b335003bad8f456347ac015ff600;
+    bytes32 private constant FEES_SLOT = 0x5575547e2bbff3f801051e8dc7ed5ba1cab8b335003bad8f456347ac015ff600;
 
     /**
      * @notice Internal function to get the fees storage.
@@ -52,8 +49,7 @@ abstract contract FeesManagerUpgradeable is Initializable, IFeesManager {
     /// @param fees The fee amount to check.
     modifier onlyBasePointsAllowed(uint256 fees) {
         // fees basis > 10_000 = 100%
-        if (fees > C.BPS_MAX)
-            revert InvalidBasisPointRange();
+        if (fees > C.BPS_MAX) revert InvalidBasisPointRange(fees);
         _;
     }
 
@@ -61,8 +57,7 @@ abstract contract FeesManagerUpgradeable is Initializable, IFeesManager {
     /// @param fees The fee amount to check.
     modifier onlyNominalAllowed(uint256 fees) {
         // fees > 100%
-        if (fees > C.SCALE_FACTOR)
-            revert InvalidNominalRange();
+        if (fees > C.SCALE_FACTOR) revert InvalidNominalRange(fees);
         _;
     }
 
@@ -74,9 +69,7 @@ abstract contract FeesManagerUpgradeable is Initializable, IFeesManager {
     /// @dev This method could return a basis points (bps) fee or a flat fee depending on the context of use.
     /// @param currency The address of the currency for which to retrieve the fees fee.
     /// @return uint256 The fees fee for the specified currency.
-    function getFees(
-        address currency
-    ) public view override onlySupportedCurrency(currency) returns (uint256) {
+    function getFees(address currency) public view override onlySupportedCurrency(currency) returns (uint256) {
         FeesStorage storage $ = _getFeesStorage();
         return $._currencyFees[currency];
     }
@@ -91,5 +84,19 @@ abstract contract FeesManagerUpgradeable is Initializable, IFeesManager {
         FeesStorage storage $ = _getFeesStorage();
         $._currencyFees[currency] = fee;
         $._currencySupported[currency] = true;
+    }
+
+    /// @notice Initializes the fees with the given initial fee and currency.
+    /// @param initialFee The initial fee for the fees.
+    /// @param currency The address of the currency.
+    function __Fees_init(uint256 initialFee, address currency) internal onlyInitializing {
+        __Fees_init_unchained(initialFee, currency);
+    }
+
+    /// @notice Unchained initializer for the fees with the given initial fee and currency.
+    /// @param initialFee The initial fee for the fees.
+    /// @param currency The address of the currency.
+    function __Fees_init_unchained(uint256 initialFee, address currency) internal onlyInitializing {
+        _setFees(initialFee, currency);
     }
 }

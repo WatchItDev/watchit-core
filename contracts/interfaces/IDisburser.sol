@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.26;
 
 /// @title IDisburser Interface
 /// @notice This interface defines the functionality for disbursing funds from the contract to specified addresses.

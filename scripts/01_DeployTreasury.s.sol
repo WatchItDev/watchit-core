@@ -1,20 +1,14 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.26;
 
-import "forge-std/Script.sol";
-import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
+import { DeployBase } from "scripts/00_DeployBase.s.sol";
+import { Treasury } from "contracts/economics/Treasury.sol";
+import { Upgrades } from "openzeppelin-foundry-upgrades/Upgrades.sol";
 
-contract DeployTreasury is Script {
-    function run() external returns (address) {
-        vm.startBroadcast();
-
+contract DeployTreasury is DeployBase {
+    function run() external BroadcastedByAdmin returns (address) {
         // Deploy the upgradeable contract
-        address _proxyAddress = Upgrades.deployUUPSProxy(
-            "Treasury.sol",
-            abi.encodeCall(Syndication.initialize, (msg.sender))
-        );
-
-        vm.stopBroadcast();
+        address _proxyAddress = Upgrades.deployUUPSProxy("Treasury.sol", abi.encodeCall(Treasury.initialize, ()));
         return _proxyAddress;
     }
 }

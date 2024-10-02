@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 // NatSpec format convention - https://docs.soliditylang.org/en/v0.5.10/natspec-format.html
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.26;
 
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 /**
  * @title QuorumUpgradeable
@@ -35,8 +35,7 @@ abstract contract QuorumUpgradeable is Initializable {
 
     // ERC-7201: Namespaced Storage Layout to avoid storage layout errors
     // keccak256(abi.encode(uint256(keccak256("watchit.quorum.status")) - 1)) & ~bytes32(uint256(0xff))
-    bytes32 private constant REGISTRY_SLOT =
-        0x78a5d34d6f19765a8d11b74cebcafd0494288384b72923088bc4746147d1ae00;
+    bytes32 private constant REGISTRY_SLOT = 0x78a5d34d6f19765a8d11b74cebcafd0494288384b72923088bc4746147d1ae00;
 
     /// @notice Error to be thrown when an entity is inactive.
     error InvalidInactiveState();
@@ -56,11 +55,7 @@ abstract contract QuorumUpgradeable is Initializable {
      * @notice Internal function to get the registry storage.
      * @return $ The registry storage.
      */
-    function _getRegistryStorage()
-        private
-        pure
-        returns (RegistryStorage storage $)
-    {
+    function _getRegistryStorage() private pure returns (RegistryStorage storage $) {
         assembly {
             $.slot := REGISTRY_SLOT
         }

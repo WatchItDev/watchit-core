@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: MIT
 // NatSpec format convention - https://docs.soliditylang.org/en/v0.5.10/natspec-format.html
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.26;
 
 library C {
-
     // We can not operate with float so we use base points instead..
     // If we need more precision we can adjust this bps..
     // https://en.wikipedia.org/wiki/Basis_point
@@ -14,5 +13,4 @@ library C {
 
     bytes32 internal constant REFERENDUM_SUBMIT_TYPEHASH =
         keccak256("Submission(uint256 contentId, address initiator, uint256 nonce)");
-
 }

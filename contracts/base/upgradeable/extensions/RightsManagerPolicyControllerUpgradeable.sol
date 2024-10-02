@@ -1,19 +1,16 @@
 // SPDX-License-Identifier: MIT
 // NatSpec format convention - https://docs.soliditylang.org/en/v0.5.10/natspec-format.html
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.26;
 
-import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import {IRightsManagerPolicies} from "contracts/interfaces/IRightsManagerPolicies.sol";
+import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import { IRightsManagerPolicies } from "contracts/interfaces/IRightsManagerPolicies.sol";
 
 /// @title Rights Manager Policy Controller Upgradeable
 /// @notice This abstract contract manages the delegation and revocation of rights
 /// from content holders to various policies.
 /// @dev The contract is upgradeable and uses namespaced storage to manage the delegation of rights.
-abstract contract RightsManagerPolicyControllerUpgradeable is
-    Initializable,
-    IRightsManagerPolicies
-{
+abstract contract RightsManagerPolicyControllerUpgradeable is Initializable, IRightsManagerPolicies {
     using EnumerableSet for EnumerableSet.AddressSet;
 
     /// @custom:storage-location erc7201:rightsmanagerdelegationupgradeable
@@ -32,11 +29,7 @@ abstract contract RightsManagerPolicyControllerUpgradeable is
     /// @notice Internal function to access the rights storage.
     /// @dev Uses inline assembly to assign the correct storage slot to the RightsStorage struct.
     /// @return $ The storage struct containing the rights delegation data.
-    function _getRightsStorage()
-        private
-        pure
-        returns (RightsStorage storage $)
-    {
+    function _getRightsStorage() private pure returns (RightsStorage storage $) {
         assembly {
             $.slot := DELEGATION_RIGHTS_SLOT
         }
@@ -45,10 +38,7 @@ abstract contract RightsManagerPolicyControllerUpgradeable is
     /// @dev Verify if the specified policy contract has been delegated the rights by the content holder.
     /// @param policy The address of the policy contract to check for delegation.
     /// @param holder The content rights holder to check for delegation.
-    function isPolicyAuthorized(
-        address policy,
-        address holder
-    ) public view returns (bool) {
+    function isPolicyAuthorized(address policy, address holder) public view returns (bool) {
         RightsStorage storage $ = _getRightsStorage();
         return $._delegation[holder].contains(policy);
     }
@@ -56,9 +46,7 @@ abstract contract RightsManagerPolicyControllerUpgradeable is
     /// @notice Retrieves all policies to which rights have been delegated by a specific content holder.
     /// @param holder The content rights holder whose delegated policies are being queried.
     /// @return An array of policy contract addresses that have been delegated rights by the specified content holder.
-    function getContentPolicies(
-        address holder
-    ) public view returns (address[] memory) {
+    function getContentPolicies(address holder) public view returns (address[] memory) {
         RightsStorage storage $ = _getRightsStorage();
         // https://docs.openzeppelin.com/contracts/5.x/api/utils#EnumerableSet-values-struct-EnumerableSet-AddressSet-
         // This operation will copy the entire storage to memory, which can be quite expensive.

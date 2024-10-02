@@ -1,23 +1,19 @@
 // SPDX-License-Identifier: MIT
 // NatSpec format convention - https://docs.soliditylang.org/en/v0.5.10/natspec-format.html
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.26;
 
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import {ERC165Checker} from "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
-import {IRightsManagerAgreement} from "contracts/interfaces/IRightsManagerAgreement.sol";
-import {IPolicy} from "contracts/interfaces/IPolicy.sol";
-import {T} from "contracts/libraries/Types.sol";
-
+import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import { ERC165Checker } from "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
+import { IRightsManagerAgreement } from "contracts/interfaces/IRightsManagerAgreement.sol";
+import { IPolicy } from "contracts/interfaces/IPolicy.sol";
+import { T } from "contracts/libraries/Types.sol";
 
 /// @title RightsManagerBrokerUpgradeable
 /// @notice This abstract contract handles the agreement-proofs logic to interact with policies.
 /// @dev This contract manages the lifecycle of agreements between content holders and policy contracts,
 /// including the creation, validation, and retrieval of agreement proofs. The design ensures that the logic is modular,
 /// facilitating secure and flexible interactions between different components of the system.
-abstract contract RightsManagerBrokerUpgradeable is
-    Initializable,
-    IRightsManagerAgreement
-{
+abstract contract RightsManagerBrokerUpgradeable is Initializable, IRightsManagerAgreement {
     using ERC165Checker for address;
 
     /// @custom:storage-location erc7201:rightsbroker.upgradeable
@@ -34,19 +30,14 @@ abstract contract RightsManagerBrokerUpgradeable is
 
     /// @dev Namespaced storage slot for BrokerStorage to avoid storage layout collisions in upgradeable contracts.
     /// @dev The storage slot is calculated using a combination of keccak256 hashes and bitwise operations.
-    bytes32 private constant BROKER_SLOT =
-        0x643a77ccd706c45494ec65fcdc4967bac329558cb2707590bde0365eb9b56400;
+    bytes32 private constant BROKER_SLOT = 0x643a77ccd706c45494ec65fcdc4967bac329558cb2707590bde0365eb9b56400;
 
     /**
      * @notice Internal function to access the Broker storage.
      * @dev Uses inline assembly to assign the correct storage slot to the BrokerStorage struct.
      * @return $ The storage struct containing the brokered agreements.
      */
-    function _getBrokerStorage()
-        private
-        pure
-        returns (BrokerStorage storage $)
-    {
+    function _getBrokerStorage() private pure returns (BrokerStorage storage $) {
         assembly {
             $.slot := BROKER_SLOT
         }
@@ -70,13 +61,7 @@ abstract contract RightsManagerBrokerUpgradeable is
         BrokerStorage storage $ = _getBrokerStorage();
         // yes, we can encode full struct as abi.encode with extra overhead..
         bytes32 proof = keccak256(
-            abi.encodePacked(
-                agreement.time,
-                agreement.total,
-                agreement.holder,
-                agreement.account,
-                agreement.currency
-            )
+            abi.encodePacked(agreement.time, agreement.total, agreement.holder, agreement.account, agreement.currency)
         );
 
         // activate agreement before

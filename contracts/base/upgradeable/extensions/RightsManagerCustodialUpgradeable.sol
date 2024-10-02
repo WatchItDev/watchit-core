@@ -1,19 +1,16 @@
 // SPDX-License-Identifier: MIT
 // NatSpec format convention - https://docs.soliditylang.org/en/v0.5.10/natspec-format.html
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.26;
 
-import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import {IRightsManagerCustodial} from "contracts/interfaces/IRightsManagerCustodial.sol";
+import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import { IRightsManagerCustodial } from "contracts/interfaces/IRightsManagerCustodial.sol";
 
 /// @title Rights Manager Distribution Upgradeable
-/// @notice This abstract contract manages the assignment and retrieval of distribution rights 
+/// @notice This abstract contract manages the assignment and retrieval of distribution rights
 /// for content held by a holder, ensuring that custodial rights are properly granted and managed.
 /// @dev The contract is upgradeable and uses namespaced storage to avoid layout collisions.
-abstract contract RightsManagerCustodialUpgradeable is
-    Initializable,
-    IRightsManagerCustodial
-{
+abstract contract RightsManagerCustodialUpgradeable is Initializable, IRightsManagerCustodial {
     using EnumerableSet for EnumerableSet.AddressSet;
 
     /// @custom:storage-location erc7201:rightsmanagercustodialupgradeable
@@ -35,11 +32,7 @@ abstract contract RightsManagerCustodialUpgradeable is
      * @dev Uses inline assembly to assign the correct storage slot to the CustodyStorage struct.
      * @return $ The storage struct containing the custodial information for distribution rights.
      */
-    function _getCustodyStorage()
-        private
-        pure
-        returns (CustodyStorage storage $)
-    {
+    function _getCustodyStorage() private pure returns (CustodyStorage storage $) {
         assembly {
             $.slot := DISTRIBUTION_CUSTODY_SLOT
         }
@@ -62,9 +55,7 @@ abstract contract RightsManagerCustodialUpgradeable is
     /// @notice Retrieves the total number of content items in custody for a given distributor.
     /// @param distributor The address of the distributor whose custodial content count is being requested.
     /// @return The total number of content items that the specified distributor currently has in custody.
-    function getCustodyCount(
-        address distributor
-    ) public view returns (uint256) {
+    function getCustodyCount(address distributor) public view returns (uint256) {
         CustodyStorage storage $ = _getCustodyStorage();
         return $._registry[distributor].length();
     }
@@ -73,15 +64,13 @@ abstract contract RightsManagerCustodialUpgradeable is
     /// @dev This function returns an array of content IDs that the given distributor has in custody.
     /// @param distributor The address of the distributor whose custody records are to be retrieved.
     /// @return An array of unsigned integers representing the content IDs associated with the given distributor.
-    function getCustodyRegistry(
-        address distributor
-    ) public view returns (address[] memory) {
+    function getCustodyRegistry(address distributor) public view returns (address[] memory) {
         CustodyStorage storage $ = _getCustodyStorage();
         // https://docs.openzeppelin.com/contracts/5.x/api/utils#EnumerableSet-values-struct-EnumerableSet-AddressSet-
         // This operation will copy the entire storage to memory, which can be quite expensive.
         // This function is designed to mostly be used by view accessors that are queried without any gas fees.
-        // Developers should keep in mind that this function has an unbounded cost, 
-        /// and using it as part of a state-changing function may render the function uncallable 
+        // Developers should keep in mind that this function has an unbounded cost,
+        /// and using it as part of a state-changing function may render the function uncallable
         /// if the set grows to a point where copying to memory consumes too much gas to fit in a block.
         return $._registry[distributor].values();
     }

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 // NatSpec format convention - https://docs.soliditylang.org/en/v0.5.10/natspec-format.html
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.26;
 
-import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
-import {BeaconProxy} from "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
-import {UpgradeableBeacon} from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
+import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
+import { BeaconProxy } from "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
+import { UpgradeableBeacon } from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 
 // Each distributor has their own contract. The problem with this approach is that each contract
 // has its own implementation. If in the future we need to improve the distributor contract,
@@ -34,9 +34,7 @@ contract DistributorFactory is UpgradeableBeacon, Pausable {
     error DistributorAlreadyRegistered();
 
     // initialize implementation and initial owner
-    constructor(
-        address implementation
-    ) UpgradeableBeacon(implementation, _msgSender()) Pausable() {}
+    constructor(address implementation) UpgradeableBeacon(implementation, _msgSender()) Pausable() {}
 
     /// @notice Function to pause the contract, preventing the creation of new distributors.
     /// @dev Can only be called by the owner of the contract.
@@ -55,15 +53,10 @@ contract DistributorFactory is UpgradeableBeacon, Pausable {
     /// @param _endpoint The endpoint associated with the new distributor.
     function register(string calldata _endpoint) external whenNotPaused {
         // not allowed duplicated endpoints
-        if (registry[_endpoint] != address(0))
-            revert DistributorAlreadyRegistered();
+        if (registry[_endpoint] != address(0)) revert DistributorAlreadyRegistered();
 
         // initialize storage layout using Distributor contract impl..
-        bytes memory data = abi.encodeWithSignature(
-            "initialize(string,address)",
-            _endpoint,
-            _msgSender()
-        );
+        bytes memory data = abi.encodeWithSignature("initialize(string,address)", _endpoint, _msgSender());
 
         address newContract = address(new BeaconProxy(address(this), data));
         registry[_endpoint] = _msgSender();

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.26;
 
-import {Ledger} from "contracts/base/Ledger.sol";
-import {IPolicy} from "contracts/interfaces/IPolicy.sol";
-import {IOwnership} from "contracts/interfaces/IOwnership.sol";
-import {IBalanceWithdrawable} from "contracts/interfaces/IBalanceWithdrawable.sol";
+import { Ledger } from "contracts/base/Ledger.sol";
+import { IPolicy } from "contracts/interfaces/IPolicy.sol";
+import { IOwnership } from "contracts/interfaces/IOwnership.sol";
+import { IBalanceWithdrawable } from "contracts/interfaces/IBalanceWithdrawable.sol";
 
 /// @title BasePolicy
 /// @notice This abstract contract serves as a base for policies that manage access to content.
@@ -75,14 +75,9 @@ abstract contract BasePolicy is Ledger, IPolicy, IBalanceWithdrawable {
     /// @param recipient The address that will receive the withdrawn tokens.
     /// @param amount The amount of tokens to withdraw.
     /// @param currency The currency to associate fees with. Use address(0) for the native coin.
-    function withdraw(
-        address recipient,
-        uint256 amount,
-        address currency
-    ) external {
+    function withdraw(address recipient, uint256 amount, address currency) external {
         // Calls the Rights Manager to withdraw the specified amount in the given currency.
-        if (getLedgerBalance(recipient, currency) < amount)
-            revert InvalidNoBalanceToWithdraw();
+        if (getLedgerBalance(recipient, currency) < amount) revert InvalidNoBalanceToWithdraw();
         // In this case the rights manager allows withdraw funds from
         // policy balance and send it to recipient directly.
         // This happens only if the policy has balance and the recipient

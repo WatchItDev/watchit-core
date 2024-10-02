@@ -1,17 +1,16 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.26;
 
-import {ERC165Checker} from "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
-import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import { ERC165Checker } from "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
+import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
-import {GovernableUpgradeable} from "contracts/base/upgradeable/GovernableUpgradeable.sol";
-import {QuorumUpgradeable} from "contracts/base/upgradeable/QuorumUpgradeable.sol";
+import { GovernableUpgradeable } from "contracts/base/upgradeable/GovernableUpgradeable.sol";
+import { QuorumUpgradeable } from "contracts/base/upgradeable/QuorumUpgradeable.sol";
 
-import {IPolicy} from "contracts/interfaces/IPolicy.sol";
-import {IPolicyAuditor} from "contracts/interfaces/IPolicyAuditor.sol";
-import {IPolicyAuditorVerifiable} from "contracts/interfaces/IPolicyAuditorVerifiable.sol";
-
+import { IPolicy } from "contracts/interfaces/IPolicy.sol";
+import { IPolicyAuditor } from "contracts/interfaces/IPolicyAuditor.sol";
+import { IPolicyAuditorVerifiable } from "contracts/interfaces/IPolicyAuditorVerifiable.sol";
 
 /// @title PolicyAudit
 /// @notice This contract audits content policies and ensures that only authorized entities can approve or revoke policy audits.
@@ -65,9 +64,7 @@ contract PolicyAudit is
     /// @dev Authorizes the upgrade of the contract.
     /// @notice Only the owner can authorize the upgrade.
     /// @param newImplementation The address of the new implementation contract.
-    function _authorizeUpgrade(
-        address newImplementation
-    ) internal override onlyAdmin {}
+    function _authorizeUpgrade(address newImplementation) internal override onlyAdmin {}
 
     /// @dev Modifier to check that a policy contract implements the IPolicy interface.
     /// @param policy The address of the license policy contract.
@@ -100,9 +97,7 @@ contract PolicyAudit is
     /// @notice Approves the audit of a given policy by a specified auditor.
     /// @param policy The address of the policy to be audited.
     /// @dev This function emits the PolicyApproved event upon successful audit approval.
-    function approve(
-        address policy
-    ) external onlyPolicyContract(policy) onlyMod {
+    function approve(address policy) external onlyPolicyContract(policy) onlyMod {
         _approve(uint160(policy));
         emit PolicyApproved(policy, _msgSender());
     }
@@ -111,9 +106,7 @@ contract PolicyAudit is
     /// @notice Revokes the audit of a given policy by a specified auditor.
     /// @param policy The address of the policy whose audit is to be revoked.
     /// @dev This function emits the PolicyRevoked event upon successful audit revocation.
-    function reject(
-        address policy
-    ) external onlyPolicyContract(policy) onlyMod {
+    function reject(address policy) external onlyPolicyContract(policy) onlyMod {
         _revoke(uint160(policy));
         emit PolicyRevoked(policy, _msgSender());
     }

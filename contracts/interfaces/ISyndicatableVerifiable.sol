@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.26;
 
 /// @title Syndicatable Verifiable Interface
 /// @notice This interface defines the method for checking if an entity is active.

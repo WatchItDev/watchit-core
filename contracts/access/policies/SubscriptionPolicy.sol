@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.26;
 
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {BasePolicy} from "contracts/base/BasePolicy.sol";
-import {T} from "contracts/libraries/Types.sol";
-
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { BasePolicy } from "contracts/base/BasePolicy.sol";
+import { T } from "contracts/libraries/Types.sol";
 
 /// @title SubscriptionPolicy
 /// @notice Implements a subscription-based content access policy, allowing users to subscribe to content catalogs for a set duration.
@@ -27,10 +26,7 @@ contract SubscriptionPolicy is BasePolicy {
     /// @notice Constructor for the SubscriptionPolicy contract.
     /// @param rmAddress Address of the Rights Manager (RM) contract.
     /// @param ownershipAddress Address of the Ownership contract.
-    constructor(
-        address rmAddress,
-        address ownershipAddress
-    ) BasePolicy(rmAddress, ownershipAddress) {}
+    constructor(address rmAddress, address ownershipAddress) BasePolicy(rmAddress, ownershipAddress) {}
 
     /// @notice Returns the name of the policy.
     /// @return The name of the policy, "SubscriptionPolicy".
@@ -55,10 +51,7 @@ contract SubscriptionPolicy is BasePolicy {
     /// @notice Registers a subscription package for the content holder.
     /// @param subscriptionDuration The duration of the subscription in seconds.
     /// @param price The price of the subscription package.
-    function registerPackage(
-        uint256 subscriptionDuration,
-        uint256 price
-    ) external {
+    function registerPackage(uint256 subscriptionDuration, uint256 price) external {
         require(subscriptionDuration > 0);
         require(price > 0);
         // only native token is approached in this example
@@ -68,41 +61,27 @@ contract SubscriptionPolicy is BasePolicy {
 
     // this function should be called only by RM and its used to establish
     // any logic or validation needed to set the authorization parameters
-    function exec(
-        T.Agreement calldata agreement,
-        bytes calldata
-    ) external onlyRM returns (bool, string memory) {
+    function exec(T.Agreement calldata agreement, bytes calldata) external onlyRM returns (bool, string memory) {
         Package memory pkg = packages[agreement.holder];
         // we need to be sure the user paid for the total of the price..
-        if (agreement.total < pkg.price)
-            return (false, "Insufficient funds for subscription");
+        if (agreement.total < pkg.price) return (false, "Insufficient funds for subscription");
         uint256 subTime = block.timestamp + pkg.subscriptionDuration;
         // subscribe to content owner's catalog (content package)
         subscriptions[agreement.account][agreement.holder] = subTime;
         // We can take two approach here:
         // 1- distribute the funds
         // 2- register the total to rights holder
-        _sumLedgerEntry(
-            agreement.holder,
-            agreement.available,
-            agreement.currency
-        );
-        
+        _sumLedgerEntry(agreement.holder, agreement.available, agreement.currency);
+
         return (true, "ok");
     }
 
-    function terms(
-        address account,
-        uint256 contentId
-    ) external view override returns (bytes memory) {
+    function terms(address, uint256 contentId) external view override returns (bytes memory) {
         address holder = getHolder(contentId);
         return abi.encode(packages[holder]);
     }
 
-    function comply(
-        address account,
-        uint256 contentId
-    ) external view override returns (bool) {
+    function comply(address account, uint256 contentId) external view override returns (bool) {
         address holder = getHolder(contentId);
         return block.timestamp <= subscriptions[account][holder];
     }

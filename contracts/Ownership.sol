@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: MIT
 // NatSpec format convention - https://docs.soliditylang.org/en/v0.5.10/natspec-format.html
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.26;
 
-import {IERC165} from "@openzeppelin/contracts/interfaces/IERC165.sol";
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {ERC721Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
-import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
-import {ERC721EnumerableUpgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721EnumerableUpgradeable.sol";
+import { IERC165 } from "@openzeppelin/contracts/interfaces/IERC165.sol";
+import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import { ERC721Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
+import { AccessControlUpgradeable } from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import { ERC721EnumerableUpgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721EnumerableUpgradeable.sol";
 
-import {GovernableUpgradeable} from "contracts/base/upgradeable/GovernableUpgradeable.sol";
-import {IReferendumVerifiable} from "contracts/interfaces/IReferendumVerifiable.sol";
-import {IOwnership} from "contracts/interfaces/IOwnership.sol";
+import { GovernableUpgradeable } from "contracts/base/upgradeable/GovernableUpgradeable.sol";
+import { IReferendumVerifiable } from "contracts/interfaces/IReferendumVerifiable.sol";
+import { IOwnership } from "contracts/interfaces/IOwnership.sol";
 
 // TODO imp ERC404
 
@@ -61,9 +61,7 @@ contract Ownership is
     /// @notice Function that should revert when msg.sender is not authorized to upgrade the contract.
     /// @param newImplementation The address of the new implementation contract.
     /// @dev See https://docs.openzeppelin.com/contracts/4.x/api/proxy#UUPSUpgradeable-_authorizeUpgrade-address-
-    function _authorizeUpgrade(
-        address newImplementation
-    ) internal override onlyAdmin {}
+    function _authorizeUpgrade(address newImplementation) internal override onlyAdmin {}
 
     /// @notice Modifier to ensure content is approved before distribution.
     /// @param to The address attempting to distribute the content.
@@ -73,8 +71,7 @@ contract Ownership is
     /// It also ensures that the recipient is the one who initially submitted the content for approval.
     modifier onlyApprovedContent(address to, uint256 contentId) {
         // Revert if the content is not approved or if the recipient is not the original submitter
-        if (!referendum.isApproved(to, contentId))
-            revert InvalidNotApprovedContent();
+        if (!referendum.isApproved(to, contentId)) revert InvalidNotApprovedContent();
         _;
     }
 
@@ -82,10 +79,7 @@ contract Ownership is
     /// @dev Our naive assumption is that only those who know the content id can mint the corresponding token.
     /// @param to The address to mint the NFT to.
     /// @param contentId The content id of the NFT. This should be a unique identifier for the NFT.
-    function registerContent(
-        address to,
-        uint256 contentId
-    ) external onlyApprovedContent(to, contentId) {
+    function registerContent(address to, uint256 contentId) external onlyApprovedContent(to, contentId) {
         _mint(to, contentId);
         emit RegisteredContent(contentId);
     }
@@ -99,11 +93,7 @@ contract Ownership is
         address to,
         uint256 tokenId,
         address auth
-    )
-        internal
-        override(ERC721Upgradeable, ERC721EnumerableUpgradeable)
-        returns (address)
-    {
+    ) internal override(ERC721Upgradeable, ERC721EnumerableUpgradeable) returns (address) {
         return super._update(to, tokenId, auth);
     }
 
@@ -126,12 +116,7 @@ contract Ownership is
         public
         view
         virtual
-        override(
-            IERC165,
-            ERC721Upgradeable,
-            AccessControlUpgradeable,
-            ERC721EnumerableUpgradeable
-        )
+        override(IERC165, ERC721Upgradeable, AccessControlUpgradeable, ERC721EnumerableUpgradeable)
         returns (bool)
     {
         return super.supportsInterface(interfaceId);

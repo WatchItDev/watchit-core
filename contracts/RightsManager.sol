@@ -1,37 +1,37 @@
 // SPDX-License-Identifier: MIT
 // NatSpec format convention - https://docs.soliditylang.org/en/v0.5.10/natspec-format.html
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.26;
 
-import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
-import {LedgerUpgradeable} from "contracts/base/upgradeable/LedgerUpgradeable.sol";
-import {FeesManagerUpgradeable} from "contracts/base/upgradeable/FeesManagerUpgradeable.sol";
-import {TreasurerUpgradeable} from "contracts/base/upgradeable/TreasurerUpgradeable.sol";
-import {CurrencyManagerUpgradeable} from "contracts/base/upgradeable/CurrencyManagerUpgradeable.sol";
-import {GovernableUpgradeable} from "contracts/base/upgradeable/GovernableUpgradeable.sol";
+import { LedgerUpgradeable } from "contracts/base/upgradeable/LedgerUpgradeable.sol";
+import { FeesManagerUpgradeable } from "contracts/base/upgradeable/FeesManagerUpgradeable.sol";
+import { TreasurerUpgradeable } from "contracts/base/upgradeable/TreasurerUpgradeable.sol";
+import { CurrencyManagerUpgradeable } from "contracts/base/upgradeable/CurrencyManagerUpgradeable.sol";
+import { GovernableUpgradeable } from "contracts/base/upgradeable/GovernableUpgradeable.sol";
 
-import {RightsManagerBrokerUpgradeable} from "contracts/base/upgradeable/extensions/RightsManagerBrokerUpgradeable.sol";
-import {RightsManagerContentAccessUpgradeable} from "contracts/base/upgradeable/extensions/RightsManagerContentAccessUpgradeable.sol";
-import {RightsManagerCustodialUpgradeable} from "contracts/base/upgradeable/extensions/RightsManagerCustodialUpgradeable.sol";
-import {RightsManagerPolicyControllerUpgradeable} from "contracts/base/upgradeable/extensions/RightsManagerPolicyControllerUpgradeable.sol";
+import { RightsManagerBrokerUpgradeable } from "contracts/base/upgradeable/extensions/RightsManagerBrokerUpgradeable.sol";
+import { RightsManagerContentAccessUpgradeable } from "contracts/base/upgradeable/extensions/RightsManagerContentAccessUpgradeable.sol";
+import { RightsManagerCustodialUpgradeable } from "contracts/base/upgradeable/extensions/RightsManagerCustodialUpgradeable.sol";
+import { RightsManagerPolicyControllerUpgradeable } from "contracts/base/upgradeable/extensions/RightsManagerPolicyControllerUpgradeable.sol";
 
-import {ISyndicatableVerifiable} from "contracts/interfaces/ISyndicatableVerifiable.sol";
-import {IReferendumVerifiable} from "contracts/interfaces/IReferendumVerifiable.sol";
-import {IPolicyAuditorVerifiable} from "contracts/interfaces/IPolicyAuditorVerifiable.sol";
-import {IRightsManagerVerifiable} from "contracts/interfaces/IRightsManagerVerifiable.sol";
-import {IBalanceVerifiable} from "contracts/interfaces/IBalanceVerifiable.sol";
-import {IBalanceWithdrawable} from "contracts/interfaces/IBalanceWithdrawable.sol";
-import {IDisburser} from "contracts/interfaces/IDisburser.sol";
-import {IPolicy} from "contracts/interfaces/IPolicy.sol";
-import {IDistributor} from "contracts/interfaces/IDistributor.sol";
+import { ISyndicatableVerifiable } from "contracts/interfaces/ISyndicatableVerifiable.sol";
+import { IReferendumVerifiable } from "contracts/interfaces/IReferendumVerifiable.sol";
+import { IPolicyAuditorVerifiable } from "contracts/interfaces/IPolicyAuditorVerifiable.sol";
+import { IRightsManagerVerifiable } from "contracts/interfaces/IRightsManagerVerifiable.sol";
+import { IBalanceVerifiable } from "contracts/interfaces/IBalanceVerifiable.sol";
+import { IBalanceWithdrawable } from "contracts/interfaces/IBalanceWithdrawable.sol";
+import { IDisburser } from "contracts/interfaces/IDisburser.sol";
+import { IPolicy } from "contracts/interfaces/IPolicy.sol";
+import { IDistributor } from "contracts/interfaces/IDistributor.sol";
 
-import {TreasuryHelper} from "contracts/libraries/TreasuryHelper.sol";
-import {FeesHelper} from "contracts/libraries/FeesHelper.sol";
-import {C} from "contracts/libraries/Constants.sol";
-import {T} from "contracts/libraries/Types.sol";
+import { TreasuryHelper } from "contracts/libraries/TreasuryHelper.sol";
+import { FeesHelper } from "contracts/libraries/FeesHelper.sol";
+import { C } from "contracts/libraries/Constants.sol";
+import { T } from "contracts/libraries/Types.sol";
 
 /// @title Rights Manager
 /// @notice This contract manages digital rights, allowing content holders to set prices, rent content, etc.
@@ -69,31 +69,19 @@ contract RightsManager is
     /// @param prevCustody The previous distributor custodial address.
     /// @param newCustody The new distributor custodial address.
     /// @param rightsHolder The content rights holder.
-    event CustodialGranted(
-        address indexed prevCustody,
-        address indexed newCustody,
-        address indexed rightsHolder
-    );
+    event CustodialGranted(address indexed prevCustody, address indexed newCustody, address indexed rightsHolder);
 
     /// @notice Emitted when fees are disbursed to the treasury.
     /// @param treasury The address receiving the disbursed fees.
     /// @param amount The amount of fees being disbursed.
     /// @param currency The currency used for the disbursement.
-    event FeesDisbursed(
-        address indexed treasury,
-        uint256 amount,
-        address currency
-    );
+    event FeesDisbursed(address indexed treasury, uint256 amount, address currency);
 
     /// @notice Emitted when access rights are granted to an account based on a policy.
     /// @param account The address of the account granted access.
     /// @param proof A unique identifier for the agreement or transaction.
     /// @param policy The policy contract address governing the access.
-    event AccessGranted(
-        address indexed account,
-        bytes32 indexed proof,
-        address indexed policy
-    );
+    event AccessGranted(address indexed account, bytes32 indexed proof, address indexed policy);
 
     /// @notice Emitted when rights are granted to a policy for content.
     /// @param policy The policy contract address granted rights.
@@ -148,20 +136,17 @@ contract RightsManager is
         audit = IPolicyAuditorVerifiable(audit_);
     }
 
-
     /// @notice Modifier to check if the distributor is active and not blocked.
     /// @param distributor The distributor address to check.
     modifier onlyActiveDistributor(address distributor) {
-        if (distributor == address(0) || !_checkActiveDistributor(distributor))
-            revert InvalidInactiveDistributor();
+        if (distributor == address(0) || !_checkActiveDistributor(distributor)) revert InvalidInactiveDistributor();
         _;
     }
 
     /// @dev Modifier to ensure that only audited policies can perform certain actions.
     /// @param policy The address of the policy contract to check for audit status.
     modifier onlyAuditedPolicy(address policy) {
-        if (policy == address(0) || !audit.isAudited(policy))
-            revert InvalidNotAuditedPolicy(policy);
+        if (policy == address(0) || !audit.isAudited(policy)) revert InvalidNotAuditedPolicy(policy);
         _;
     }
 
@@ -177,11 +162,7 @@ contract RightsManager is
     /// @param recipient The address that will receive the withdrawn tokens.
     /// @param amount The amount of tokens to withdraw.
     /// @param currency The currency to associate fees with. Use address(0) for the native coin.
-    function withdraw(
-        address recipient,
-        uint256 amount,
-        address currency
-    ) external onlyValidCurrency(currency) {
+    function withdraw(address recipient, uint256 amount, address currency) external onlyValidCurrency(currency) {
         if (getLedgerBalance(_msgSender(), currency) < amount)
             revert NoFundsToWithdraw("Insuficient funds to withdraw.");
         _subLedgerEntry(_msgSender(), amount, currency);
@@ -194,12 +175,7 @@ contract RightsManager is
     function setFees(
         uint256 newTreasuryFee,
         address currency
-    )
-        external
-        onlyGov
-        onlyValidCurrency(currency)
-        onlyBasePointsAllowed(newTreasuryFee)
-    {
+    ) external onlyGov onlyValidCurrency(currency) onlyBasePointsAllowed(newTreasuryFee) {
         _setFees(newTreasuryFee, currency);
         _addCurrency(currency);
     }
@@ -215,10 +191,7 @@ contract RightsManager is
     /// @param amount The amount of currencies to disburse.
     /// @param currency The address of the ERC20 token to disburse tokens.
     /// @dev This function can only be called by governance or an authorized entity.
-    function disburse(
-        uint256 amount,
-        address currency
-    ) external onlyGov onlyValidCurrency(currency) {
+    function disburse(uint256 amount, address currency) external onlyGov onlyValidCurrency(currency) {
         address treasury = getTreasuryAddress();
         treasury.transfer(amount, currency);
         emit FeesDisbursed(treasury, amount, currency);
@@ -228,9 +201,7 @@ contract RightsManager is
     /// @dev This function assigns custodial rights for the content held by a specific
     /// account to a designated distributor.
     /// @param distributor The address of the distributor who will receive custodial rights.
-    function grantCustody(
-        address distributor
-    ) external onlyActiveDistributor(distributor) {
+    function grantCustody(address distributor) external onlyActiveDistributor(distributor) {
         // if it's first custody assignment prev = address(0)
         address contentHolder = _msgSender();
         address prevCustody = getCustody(contentHolder);
@@ -240,9 +211,7 @@ contract RightsManager is
 
     /// @notice Delegates rights to a policy contract for content held by the holder.
     /// @param policy The address of the policy contract to which rights are being delegated.
-    function authorizePolicy(
-        address policy
-    ) external onlyAuditedPolicy(policy) {
+    function authorizePolicy(address policy) external onlyAuditedPolicy(policy) {
         address holder = _msgSender();
         _authorizePolicy(policy, holder);
         emit RightsGranted(policy, holder);
@@ -256,14 +225,11 @@ contract RightsManager is
         emit RightsRevoked(policy, holder);
     }
 
-        /// @notice Calculates the fees for the treasury based on the provided total amount.
+    /// @notice Calculates the fees for the treasury based on the provided total amount.
     /// @param total The total amount involved in the transaction.
     /// @param currency The address of the ERC20 token (or native currency) being used in the transaction.
     /// @return treasury The calculated fee for the treasury.
-    function calcFees(
-        uint256 total,
-        address currency
-    ) public view onlySupportedCurrency(currency) returns (uint256) {
+    function calcFees(uint256 total, address currency) public view onlySupportedCurrency(currency) returns (uint256) {
         // !IMPORTANT if trasury does not support the currency, will revert..
         // the max bps integrity is warrantied by treasure fees
         return total.perOf(getFees(currency)); // bps
@@ -275,16 +241,11 @@ contract RightsManager is
     /// @param contentId The ID of the content to check for distribution eligibility.
     /// @param contentHolder The address of the content holder whose custodial rights are being checked.
     /// @return True if the content can be distributed, false otherwise.
-    function isEligibleForDistribution(
-        uint256 contentId,
-        address contentHolder
-    ) public returns (bool) {
+    function isEligibleForDistribution(uint256 contentId, address contentHolder) public returns (bool) {
         // Perform checks to ensure the content/distributor has not been blocked.
         // Check if the content's custodial is active in the Syndication contract
         // and if the content is active in the Referendum contract.
-        return
-            _checkActiveDistributor(getCustody(contentHolder)) &&
-            _checkActiveContent(contentId);
+        return _checkActiveDistributor(getCustody(contentHolder)) && _checkActiveContent(contentId);
     }
 
     /// @notice Creates a new agreement between the account and the content holder, returning a unique agreement identifier.
@@ -329,13 +290,7 @@ contract RightsManager is
         bytes32 proof,
         address policyAddress,
         bytes calldata data
-    )
-        public
-        payable
-        nonReentrant
-        onlyValidProof(proof)
-        onlyAuditedPolicy(policyAddress)
-    {
+    ) public payable nonReentrant onlyValidProof(proof) onlyAuditedPolicy(policyAddress) {
         T.Agreement memory agreement = getAgreement(proof);
         // check if policy is authorized by holder to operate over content
         if (!isPolicyAuthorized(policyAddress, agreement.holder))
@@ -382,10 +337,7 @@ contract RightsManager is
     /// @return A tuple containing:
     /// - A boolean indicating whether an active policy was found (`true`) or not (`false`).
     /// - The address of the active policy if found, or `address(0)` if no active policy is found.
-    function getActivePolicy(
-        address account,
-        uint256 contentId
-    ) public view returns (bool, address) {
+    function getActivePolicy(address account, uint256 contentId) public view returns (bool, address) {
         address[] memory policies = getPolicies(account);
         uint256 i = policies.length - 1;
 
@@ -405,26 +357,19 @@ contract RightsManager is
     /// @dev Authorizes the upgrade of the contract.
     /// @notice Only the owner can authorize the upgrade.
     /// @param newImplementation The address of the new implementation contract.
-    function _authorizeUpgrade(
-        address newImplementation
-    ) internal override onlyAdmin {}
+    function _authorizeUpgrade(address newImplementation) internal override onlyAdmin {}
 
     /// @notice Checks if the given distributor is active and not blocked.
     /// @param distributor The address of the distributor to check.
     /// @return True if the distributor is active, false otherwise.
-    function _checkActiveDistributor(
-        address distributor
-    ) private returns (bool) {
+    function _checkActiveDistributor(address distributor) private returns (bool) {
         return syndication.isActive(distributor); // is active status in syndication
     }
 
     /// @notice Checks if the given content is active and not blocked.
     /// @param contentId The ID of the content to check.
     /// @return True if the content is active, false otherwise.
-    function _checkActiveContent(
-        uint256 contentId
-    ) private view returns (bool) {
+    function _checkActiveContent(uint256 contentId) private view returns (bool) {
         return referendum.isActive(contentId); // is active in referendum
     }
-
 }
