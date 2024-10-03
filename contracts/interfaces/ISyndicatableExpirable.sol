@@ -11,5 +11,4 @@ interface ISyndicatableExpirable {
     /// @notice Retrieves the current expiration period for enrollments or registrations.
     /// @return The expiration period, in seconds.
     function getExpirationPeriod() external view returns (uint256);
-
 }

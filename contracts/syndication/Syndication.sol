@@ -216,7 +216,7 @@ contract Syndication is
     function revoke(address distributor) external onlyGov onlyDistributorContract(distributor) {
         _revoke(uint160(distributor));
         enrollmentsCount--;
-        // TODO auto set new distributor soritium demand based.. 
+        // TODO auto set new distributor soritium demand based..
         emit Revoked(distributor);
     }
 

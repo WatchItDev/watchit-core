@@ -20,7 +20,7 @@ abstract contract GovernableUpgradeable is Initializable, AccessControlUpgradeab
     // ERC-7201: Namespaced Storage Layout is another convention that can be used to avoid storage layout errors
     // keccak256(abi.encode(uint256(keccak256("watchit.governable.governor")) - 1)) & ~bytes32(uint256(0xff))
     bytes32 private constant GOVERNOR_SLOT = 0xbe22a97ce56bf984cece6021e328584abbd5b3cd394ccbe3b6884d525c48c400;
-    
+
     /// @dev Modifier that checks if the caller has the GOB_ROLE.
     modifier onlyGov() {
         _checkRole(GOV_ROLE);

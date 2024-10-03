@@ -47,8 +47,6 @@ coverage:
 	lcov --remove lcov.info -o coverage/lcov.info 'test/*' 'script/*' --rc lcov_branch_coverage=1
 	genhtml coverage/lcov.info -o coverage --rc lcov_branch_coverage=1
 
-
-
 .PHONY: secreport ## generate a security analysis report using aderyn
 secreport:
 	@aderyn
