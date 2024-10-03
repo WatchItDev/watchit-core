@@ -16,6 +16,7 @@ import { FeesManagerUpgradeable } from "contracts/base/upgradeable/FeesManagerUp
 import { ISyndicatablePenalizer } from "contracts/interfaces/ISyndicatablePenalizer.sol";
 import { ISyndicatableRegistrable } from "contracts/interfaces/ISyndicatableRegistrable.sol";
 import { ISyndicatableExpirable } from "contracts/interfaces/ISyndicatableExpirable.sol";
+import { ISyndicatableEnroller } from "contracts/interfaces/ISyndicatableEnroller.sol";
 import { ISyndicatableRevokable } from "contracts/interfaces/ISyndicatableRevokable.sol";
 import { ISyndicatableVerifiable } from "contracts/interfaces/ISyndicatableVerifiable.sol";
 import { IBalanceVerifiable } from "contracts/interfaces/IBalanceVerifiable.sol";
@@ -38,6 +39,7 @@ contract Syndication is
     GovernableUpgradeable,
     FeesManagerUpgradeable,
     ReentrancyGuardUpgradeable,
+    ISyndicatableEnroller,
     ISyndicatablePenalizer,
     ISyndicatableRegistrable,
     ISyndicatableExpirable,
@@ -76,9 +78,7 @@ contract Syndication is
     event FeesDisbursed(address indexed treasury, uint256 amount, address currency);
 
     /// @notice Error thrown when a distributor contract is invalid
-    error InvalidDistributorContract();
-    /// @notice Error thrown when a distributor fails during quitting
-    error FailDuringQuit(string reason);
+    error InvalidDistributorContract(address invalid);
 
     /// @dev Constructor that disables initializers to prevent the implementation contract from being initialized.
     /// @notice This constructor prevents the implementation contract from being initialized.
@@ -107,7 +107,7 @@ contract Syndication is
     /// @notice Modifier to ensure that the given distributor contract supports the IDistributor interface.
     /// @param distributor The distributor contract address.
     modifier onlyDistributorContract(address distributor) {
-        if (!distributor.supportsInterface(INTERFACE_ID_IDISTRIBUTOR)) revert InvalidDistributorContract();
+        if (!distributor.supportsInterface(INTERFACE_ID_IDISTRIBUTOR)) revert InvalidDistributorContract(distributor);
         _;
     }
 
@@ -138,9 +138,9 @@ contract Syndication is
     }
 
     /// @inheritdoc ISyndicatableExpirable
-    /// @dev Sets a new expiration period for an enrollment or registration.
-    /// @param newPeriod The new expiration period in seconds.
-    function setPeriod(uint256 newPeriod) external onlyGov {
+    /// @notice Sets a new expiration period for an enrollment or registration.
+    /// @param newPeriod The new expiration period, in seconds.
+    function setExpirationPeriod(uint256 newPeriod) external onlyGov {
         enrollmentPeriod = newPeriod;
     }
 
@@ -172,6 +172,7 @@ contract Syndication is
         address currency
     ) external onlyDistributorContract(distributor) onlySupportedCurrency(currency) {
         uint256 fees = getFees(currency);
+        // only manager can pay for enrollment..
         address manager = IDistributor(distributor).getManager();
         uint256 total = manager.safeDeposit(fees, currency);
         // set the distributor active enrollment period..
@@ -195,7 +196,7 @@ contract Syndication is
     ) external nonReentrant onlyDistributorContract(distributor) onlySupportedCurrency(currency) {
         address manager = _msgSender(); // the sender is expected to be the manager..
         uint256 ledgerAmount = getLedgerBalance(manager, currency);
-        if (ledgerAmount == 0) revert FailDuringQuit("Invalid enrollment.");
+
         // eg: (100 * bps) / BPS_MAX
         uint256 currencyPenalty = penaltyRates[currency];
         uint256 penal = ledgerAmount.perOf(currencyPenalty);
@@ -214,6 +215,8 @@ contract Syndication is
     /// @param distributor The address of the distributor to revoke.
     function revoke(address distributor) external onlyGov onlyDistributorContract(distributor) {
         _revoke(uint160(distributor));
+        enrollmentsCount--;
+        // TODO auto set new distributor soritium demand based.. 
         emit Revoked(distributor);
     }
 
@@ -234,6 +237,27 @@ contract Syndication is
     /// @dev The penalty rate is stored in basis points (bps).
     function getPenaltyRate(address currency) public view returns (uint256) {
         return penaltyRates[currency];
+    }
+
+    /// @notice Retrieves the current expiration period for enrollments or registrations.
+    /// @return The expiration period, in seconds.
+    function getExpirationPeriod() public view returns (uint256) {
+        return enrollmentPeriod;
+    }
+
+    /// @inheritdoc ISyndicatableEnroller
+    /// @notice Retrieves the enrollment time for a distributor, taking into account the current block time and the expiration period.
+    /// @param distributor The address of the distributor.
+    /// @return The enrollment time in seconds.
+    function getEnrollmentTime(address distributor) public view returns (uint256) {
+        return enrollmentTime[distributor];
+    }
+
+    /// @inheritdoc ISyndicatableEnroller
+    /// @notice Retrieves the total number of enrollments.
+    /// @return The count of enrollments.
+    function getEnrollmentCount() external view returns (uint256) {
+        return enrollmentsCount;
     }
 
     /// @inheritdoc ISyndicatableVerifiable

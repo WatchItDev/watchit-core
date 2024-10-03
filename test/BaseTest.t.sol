@@ -4,9 +4,16 @@ import "forge-std/Test.sol";
 import { DeployToken } from "scripts/02_DeployToken.s.sol";
 import { DeployTreasury } from "scripts/01_DeployTreasury.s.sol";
 import { DeploySyndication } from "scripts/04_DeploySyndication.s.sol";
+import { DeployDistributor } from "scripts/05_DeployDistributor.s.sol";
 
 contract BaseTest is Test {
     address admin = vm.envAddress("ADMIN");
+
+    function deployDistributor(string memory endpoint) public returns (address) {
+        DeployDistributor distDeployer = new DeployDistributor();
+        distDeployer.setEndpoint(endpoint);
+        return distDeployer.run();
+    }
 
     function deploySyndication(address treasury) public returns (address) {
         // set default admin as deployer..

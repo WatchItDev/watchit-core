@@ -23,13 +23,8 @@ import { UpgradeableBeacon } from "@openzeppelin/contracts/proxy/beacon/Upgradea
 /// @notice Use this contract to create new distributors.
 /// @dev This contract uses OpenZeppelin's Ownable and Pausable contracts for access control and pausing functionality.
 contract DistributorFactory is UpgradeableBeacon, Pausable {
-    /// @notice Array to store addresses of created distributor contracts.
-    address[] public contracts;
     /// @notice Mapping to keep track of registered distributor endpoints.
-    mapping(string => address) public registry;
-    /// @notice Event emitted when a new distributor is created.
-    /// @param distributor The address of the newly created distributor contract.
-    event DistributorCreated(address distributor);
+    mapping(bytes32 => address) public registry;
     /// @notice Error to be thrown when attempting to register an already registered distributor.
     error DistributorAlreadyRegistered();
 
@@ -50,17 +45,16 @@ contract DistributorFactory is UpgradeableBeacon, Pausable {
 
     /// @notice Function to create a new distributor contract.
     /// @dev The contract must not be paused to call this function.
-    /// @param _endpoint The endpoint associated with the new distributor.
-    function register(string calldata _endpoint) external whenNotPaused {
-        // not allowed duplicated endpoints
-        if (registry[_endpoint] != address(0)) revert DistributorAlreadyRegistered();
-
+    /// @param endpoint The endpoint associated with the new distributor.
+    function create(string calldata endpoint) external whenNotPaused returns (address) {
+        // avoid duplicated endpoints
+        bytes32 hashed = keccak256(abi.encode(endpoint));
+        if (registry[hashed] != address(0)) revert DistributorAlreadyRegistered();
         // initialize storage layout using Distributor contract impl..
-        bytes memory data = abi.encodeWithSignature("initialize(string,address)", _endpoint, _msgSender());
-
+        bytes memory data = abi.encodeWithSignature("initialize(string,address)", endpoint, _msgSender());
         address newContract = address(new BeaconProxy(address(this), data));
-        registry[_endpoint] = _msgSender();
-        contracts.push(newContract);
-        emit DistributorCreated(newContract);
+        // register manager...
+        registry[hashed] = _msgSender();
+        return newContract;
     }
 }
