@@ -32,13 +32,13 @@ contract RentalPolicy is BasePolicy {
 
     /// @notice Returns the name of the policy.
     /// @return The name of the policy, "RentalPolicy".
-    function name() external pure override returns (string memory) {
+    function name() external pure returns (string memory) {
         return "RentalPolicy";
     }
 
     /// @notice Returns the business/strategy model implemented by the policy.
     /// @return A detailed description of the policy's rental model.
-    function description() external pure override returns (bytes memory) {
+    function description() external pure returns (bytes memory) {
         return
             abi.encodePacked(
                 "The RentalPolicy implements a content rental strategy where users pay a fixed fee to access digital content "
@@ -65,14 +65,6 @@ contract RentalPolicy is BasePolicy {
         require(rentalDuration > 0, "Rental: Invalid rental duration.");
         require(price > 0, "Rental: Invalid rental price.");
         contents[contentId] = Content(rentalDuration, price, currency);
-    }
-
-    /// @dev Internal function to register the rental of content for a specific account.
-    /// @param account The address of the account renting the content.
-    /// @param contentId The ID of the content being rented.
-    /// @param expire The expiration time (in seconds) for the rental.
-    function _registerRent(address account, uint256 contentId, uint256 expire) private {
-        rentals[account][contentId] = block.timestamp + expire;
     }
 
     /// @notice Executes the agreement between the content holder and the account based on the policy's rules.
@@ -106,5 +98,13 @@ contract RentalPolicy is BasePolicy {
     function comply(address account, uint256 contentId) external view override returns (bool) {
         // Check if the current time is before the rental expiration.
         return block.timestamp <= rentals[account][contentId];
+    }
+
+    /// @dev Internal function to register the rental of content for a specific account.
+    /// @param account The address of the account renting the content.
+    /// @param contentId The ID of the content being rented.
+    /// @param expire The expiration time (in seconds) for the rental.
+    function _registerRent(address account, uint256 contentId, uint256 expire) private {
+        rentals[account][contentId] = block.timestamp + expire;
     }
 }

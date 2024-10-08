@@ -124,6 +124,7 @@ contract Syndication is
         address currency
     ) external onlyGov onlyBasePointsAllowed(newPenaltyRate) {
         penaltyRates[currency] = newPenaltyRate;
+        // TODO emit event
     }
 
     /// @notice Sets a new treasury fee for a specific token.
@@ -132,6 +133,7 @@ contract Syndication is
     function setFees(uint256 newTreasuryFee, address currency) external onlyGov onlyValidCurrency(currency) {
         _setFees(newTreasuryFee, currency);
         _addCurrency(currency);
+        // TODO emit event
     }
 
     /// @notice Sets the address of the treasury.
@@ -139,6 +141,7 @@ contract Syndication is
     /// @dev Only callable by the governance role.
     function setTreasuryAddress(address newTreasuryAddress) external onlyGov {
         _setTreasuryAddress(newTreasuryAddress);
+        // TODO emit event
     }
 
     /// @inheritdoc ISyndicatableExpirable
@@ -146,6 +149,7 @@ contract Syndication is
     /// @param newPeriod The new expiration period, in seconds.
     function setExpirationPeriod(uint256 newPeriod) external onlyGov {
         enrollmentPeriod = newPeriod;
+        // TODO emit event
     }
 
     /// @inheritdoc IBalanceVerifiable

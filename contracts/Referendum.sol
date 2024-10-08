@@ -74,6 +74,7 @@ contract Referendum is
     /// @dev Only governance is allowed to grant the role.
     function grantVerifiedRole(address account) external onlyGov {
         _grantRole(VERIFIED_ROLE, account);
+        // TODO emit event
     }
 
     /// @notice Revoke the verified role to a specific account.
@@ -81,6 +82,7 @@ contract Referendum is
     /// @dev Only governance is allowed to revoke the role.
     function revokeVerifiedRole(address account) external onlyGov {
         _revokeRole(VERIFIED_ROLE, account);
+        // TODO emit event
     }
 
     /// @notice Submits a content proposition for referendum.

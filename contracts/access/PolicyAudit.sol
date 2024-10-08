@@ -45,7 +45,15 @@ contract PolicyAudit is
     /// @param policy The address of the policy whose audit has been revoked.
     /// @param auditor The address of the auditor that revoked the audit.
     event PolicyRevoked(address indexed policy, address auditor);
-
+    /// @dev Modifier to check that a policy contract implements the IPolicy interface.
+    /// @param policy The address of the license policy contract.
+    /// Reverts if the policy does not implement the required interface.
+    modifier onlyPolicyContract(address policy) {
+        if (!policy.supportsInterface(INTERFACE_POLICY)) {
+            revert InvalidPolicyContract(policy);
+        }
+        _;
+    }
     /// @dev Constructor that disables initializers to prevent the implementation contract from being initialized.
     /// @notice This constructor ensures the implementation contract cannot be initialized, as recommended for UUPS implementations.
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -65,16 +73,6 @@ contract PolicyAudit is
     /// @notice Only the owner can authorize the upgrade.
     /// @param newImplementation The address of the new implementation contract.
     function _authorizeUpgrade(address newImplementation) internal override onlyAdmin {}
-
-    /// @dev Modifier to check that a policy contract implements the IPolicy interface.
-    /// @param policy The address of the license policy contract.
-    /// Reverts if the policy does not implement the required interface.
-    modifier onlyPolicyContract(address policy) {
-        if (!policy.supportsInterface(INTERFACE_POLICY)) {
-            revert InvalidPolicyContract(policy);
-        }
-        _;
-    }
 
     /// @inheritdoc IPolicyAuditorVerifiable
     /// @notice Checks if a specific policy contract has been audited.

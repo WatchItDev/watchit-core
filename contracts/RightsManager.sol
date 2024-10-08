@@ -172,6 +172,7 @@ contract RightsManager is
             revert NoFundsToWithdraw("Insuficient funds to withdraw.");
         _subLedgerEntry(_msgSender(), amount, currency);
         recipient.transfer(amount, currency);
+        // TODO emit event
     }
 
     /// @notice Sets a new treasury fee for a specific currency.
@@ -183,6 +184,7 @@ contract RightsManager is
     ) external onlyGov onlyValidCurrency(currency) onlyBasePointsAllowed(newTreasuryFee) {
         _setFees(newTreasuryFee, currency);
         _addCurrency(currency);
+        // TODO emit events
     }
 
     /// @notice Sets the address of the treasury.
@@ -190,6 +192,7 @@ contract RightsManager is
     /// @dev Only callable by the governance role.
     function setTreasuryAddress(address newTreasuryAddress) external onlyGov {
         _setTreasuryAddress(newTreasuryAddress);
+        // TODO emit event
     }
 
     /// @notice Disburses funds from the contract to a specified address.
@@ -291,6 +294,7 @@ contract RightsManager is
         );
 
         // keccak256(abi.encodePacked(....))
+        // TODO emit event
         return _createProof(agreement);
     }
 

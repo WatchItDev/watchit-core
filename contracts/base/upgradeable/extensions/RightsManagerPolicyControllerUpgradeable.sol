@@ -26,15 +26,6 @@ abstract contract RightsManagerPolicyControllerUpgradeable is Initializable, IRi
     bytes32 private constant DELEGATION_RIGHTS_SLOT =
         0x8de86c03e9c907c4cfd46ee06d6593a7fc5fdfb6903523c8213ef37d380b3b00;
 
-    /// @notice Internal function to access the rights storage.
-    /// @dev Uses inline assembly to assign the correct storage slot to the RightsStorage struct.
-    /// @return $ The storage struct containing the rights delegation data.
-    function _getRightsStorage() private pure returns (RightsStorage storage $) {
-        assembly {
-            $.slot := DELEGATION_RIGHTS_SLOT
-        }
-    }
-
     /// @dev Verify if the specified policy contract has been delegated the rights by the content holder.
     /// @param policy The address of the policy contract to check for delegation.
     /// @param holder The content rights holder to check for delegation.
@@ -75,5 +66,14 @@ abstract contract RightsManagerPolicyControllerUpgradeable is Initializable, IRi
     function _revokePolicy(address policy, address holder) internal {
         RightsStorage storage $ = _getRightsStorage();
         $._delegation[holder].remove(policy);
+    }
+
+    /// @notice Internal function to access the rights storage.
+    /// @dev Uses inline assembly to assign the correct storage slot to the RightsStorage struct.
+    /// @return $ The storage struct containing the rights delegation data.
+    function _getRightsStorage() private pure returns (RightsStorage storage $) {
+        assembly {
+            $.slot := DELEGATION_RIGHTS_SLOT
+        }
     }
 }
