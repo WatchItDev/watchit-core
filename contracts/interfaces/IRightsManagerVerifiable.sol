@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.26;
+pragma solidity 0.8.26;
 
 interface IRightsManagerVerifiable {
     /// @notice Checks if the content is eligible for distribution by the content holder's custodial.

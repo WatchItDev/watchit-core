@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.26;
+pragma solidity 0.8.26;
 
 /// @title IPolicyAuditor
 /// @notice Interface for auditing and revoking audits for policy controllers.

@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.26;
+pragma solidity 0.8.26;
 
-interface IRightsManagerCustodial {
+/// @title IRightsManagerCustody
+/// @notice Interface for managing custodial rights of content under the Rights Manager.
+/// @dev This interface handles the retrieval and management of custodial records for content holders and distributors.
+interface IRightsManagerCustody {
     /// @notice Retrieves the custodial address for a given content holder.
     /// @param holder The address of the content rights holder whose custodial address is being retrieved.
     /// @return The address of the active custodian responsible for the content associated with the specified holder.

@@ -1,13 +1,13 @@
-pragma solidity ^0.8.26;
+pragma solidity 0.8.26;
 
 import "forge-std/Test.sol";
-import { DeployToken } from "scripts/02_DeployToken.s.sol";
-import { DeployTreasury } from "scripts/01_DeployTreasury.s.sol";
-import { DeploySyndication } from "scripts/04_DeploySyndication.s.sol";
-import { DeployDistributor } from "scripts/05_DeployDistributor.s.sol";
+import { DeployToken } from "script/02_DeployToken.s.sol";
+import { DeployTreasury } from "script/01_DeployTreasury.s.sol";
+import { DeploySyndication } from "script/04_DeploySyndication.s.sol";
+import { DeployDistributor } from "script/05_DeployDistributor.s.sol";
 
 contract BaseTest is Test {
-    address admin = vm.envAddress("ADMIN");
+    address admin = vm.envAddress("PUBLIC_KEY");
 
     function deployDistributor(string memory endpoint) public returns (address) {
         DeployDistributor distDeployer = new DeployDistributor();

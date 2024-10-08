@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // NatSpec format convention - https://docs.soliditylang.org/en/v0.5.10/natspec-format.html
-pragma solidity ^0.8.26;
+pragma solidity 0.8.26;
 
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
@@ -44,6 +44,47 @@ abstract contract QuorumUpgradeable is Initializable {
     /// @notice Error to be thrown when an entity is not waiting for approval.
     error NotWaitingApproval();
 
+    /// @notice Internal function to get the status of an entity.
+    /// @param entry The ID of the entity.
+    /// @return Status The status of the entity.
+    function _status(uint256 entry) internal view returns (Status) {
+        RegistryStorage storage $ = _getRegistryStorage();
+        return $._status[entry];
+    }
+
+    /// @notice Internal function to revoke an entity's approval.
+    /// @dev The revoke operation is expected after the entry was approved first.
+    /// @param entry The ID of the entity.
+    function _revoke(uint256 entry) internal {
+        RegistryStorage storage $ = _getRegistryStorage();
+        if (_status(entry) != Status.Active) revert InvalidInactiveState();
+        $._status[entry] = Status.Blocked;
+    }
+
+    /// @notice Internal function to approve an entity's access.
+    /// @param entry The ID of the entity.
+    function _approve(uint256 entry) internal {
+        RegistryStorage storage $ = _getRegistryStorage();
+        if (_status(entry) != Status.Waiting) revert NotWaitingApproval();
+        $._status[entry] = Status.Active;
+    }
+
+    /// @notice Internal function for an entity to resign.
+    /// @param entry The ID of the entity.
+    function _quit(uint256 entry) internal {
+        RegistryStorage storage $ = _getRegistryStorage();
+        if (_status(entry) != Status.Waiting) revert NotWaitingApproval();
+        $._status[entry] = Status.Pending;
+    }
+
+    /// @notice Internal function to start an entity's registration.
+    /// @param entry The ID of the entity.
+    function _register(uint256 entry) internal {
+        RegistryStorage storage $ = _getRegistryStorage();
+        if (_status(entry) != Status.Pending) revert AlreadyPendingApproval();
+        $._status[entry] = Status.Waiting;
+    }
+
     /// @dev As standard to avoid doubts about if a upgradeable contract
     /// need to be initalized, all the contracts specify the init even
     /// if the initialization is harmless..
@@ -51,64 +92,11 @@ abstract contract QuorumUpgradeable is Initializable {
 
     function __Quorum_init_unchained() internal onlyInitializing {}
 
-    /**
-     * @notice Internal function to get the registry storage.
-     * @return $ The registry storage.
-     */
+    /// @notice Internal function to get the registry storage.
+    /// @return $ The registry storage.
     function _getRegistryStorage() private pure returns (RegistryStorage storage $) {
         assembly {
             $.slot := REGISTRY_SLOT
         }
-    }
-
-    /**
-     * @notice Internal function to get the status of an entity.
-     * @param entry The ID of the entity.
-     * @return Status The status of the entity.
-     */
-    function _status(uint256 entry) internal view virtual returns (Status) {
-        RegistryStorage storage $ = _getRegistryStorage();
-        return $._status[entry];
-    }
-
-    /**
-     * @notice Internal function to revoke an entity's approval.
-     * @dev The revoke operation is expected after the entry was approved first.
-     * @param entry The ID of the entity.
-     */
-    function _revoke(uint256 entry) internal virtual {
-        RegistryStorage storage $ = _getRegistryStorage();
-        if (_status(entry) != Status.Active) revert InvalidInactiveState();
-        $._status[entry] = Status.Blocked;
-    }
-
-    /**
-     * @notice Internal function to approve an entity's access.
-     * @param entry The ID of the entity.
-     */
-    function _approve(uint256 entry) internal virtual {
-        RegistryStorage storage $ = _getRegistryStorage();
-        if (_status(entry) != Status.Waiting) revert NotWaitingApproval();
-        $._status[entry] = Status.Active;
-    }
-
-    /**
-     * @notice Internal function for an entity to resign.
-     * @param entry The ID of the entity.
-     */
-    function _quit(uint256 entry) internal virtual {
-        RegistryStorage storage $ = _getRegistryStorage();
-        if (_status(entry) != Status.Waiting) revert NotWaitingApproval();
-        $._status[entry] = Status.Pending;
-    }
-
-    /**
-     * @notice Internal function to start an entity's registration.
-     * @param entry The ID of the entity.
-     */
-    function _register(uint256 entry) internal virtual {
-        RegistryStorage storage $ = _getRegistryStorage();
-        if (_status(entry) != Status.Pending) revert AlreadyPendingApproval();
-        $._status[entry] = Status.Waiting;
     }
 }

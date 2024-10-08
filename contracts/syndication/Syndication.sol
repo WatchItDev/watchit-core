@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // NatSpec format convention - https://docs.soliditylang.org/en/v0.5.10/natspec-format.html
-pragma solidity ^0.8.26;
+pragma solidity 0.8.26;
 
 import { ERC165Checker } from "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
@@ -12,6 +12,7 @@ import { QuorumUpgradeable } from "contracts/base/upgradeable/QuorumUpgradeable.
 import { TreasurerUpgradeable } from "contracts/base/upgradeable/TreasurerUpgradeable.sol";
 import { LedgerUpgradeable } from "contracts/base/upgradeable/LedgerUpgradeable.sol";
 import { FeesManagerUpgradeable } from "contracts/base/upgradeable/FeesManagerUpgradeable.sol";
+import { CurrencyManagerUpgradeable } from "contracts/base/upgradeable/CurrencyManagerUpgradeable.sol";
 
 import { ISyndicatablePenalizer } from "contracts/interfaces/ISyndicatablePenalizer.sol";
 import { ISyndicatableRegistrable } from "contracts/interfaces/ISyndicatableRegistrable.sol";
@@ -39,6 +40,7 @@ contract Syndication is
     GovernableUpgradeable,
     FeesManagerUpgradeable,
     ReentrancyGuardUpgradeable,
+    CurrencyManagerUpgradeable,
     ISyndicatableEnroller,
     ISyndicatablePenalizer,
     ISyndicatableRegistrable,
@@ -80,6 +82,13 @@ contract Syndication is
     /// @notice Error thrown when a distributor contract is invalid
     error InvalidDistributorContract(address invalid);
 
+    /// @notice Modifier to ensure that the given distributor contract supports the IDistributor interface.
+    /// @param distributor The distributor contract address.
+    modifier onlyDistributorContract(address distributor) {
+        if (!distributor.supportsInterface(INTERFACE_ID_IDISTRIBUTOR)) revert InvalidDistributorContract(distributor);
+        _;
+    }
+
     /// @dev Constructor that disables initializers to prevent the implementation contract from being initialized.
     /// @notice This constructor prevents the implementation contract from being initialized.
     /// @dev See https://forum.openzeppelin.com/t/uupsupgradeable-vulnerability-post-mortem/15680
@@ -98,17 +107,11 @@ contract Syndication is
         __Ledger_init();
         __ReentrancyGuard_init();
         __UUPSUpgradeable_init();
+        __CurrencyManager_init();
         __Governable_init(_msgSender());
         __Treasurer_init(treasury);
         // 6 months initially..
         enrollmentPeriod = 180 days;
-    }
-
-    /// @notice Modifier to ensure that the given distributor contract supports the IDistributor interface.
-    /// @param distributor The distributor contract address.
-    modifier onlyDistributorContract(address distributor) {
-        if (!distributor.supportsInterface(INTERFACE_ID_IDISTRIBUTOR)) revert InvalidDistributorContract(distributor);
-        _;
     }
 
     /// @notice Function to set the penalty rate for quitting enrollment.
@@ -124,10 +127,11 @@ contract Syndication is
     }
 
     /// @notice Sets a new treasury fee for a specific token.
-    /// @param newTreasuryFee The new treasury fee to be set.
+    /// @param newTreasuryFee The new treasury flat fixed fee to be set.
     /// @param currency The currency to associate fees with. Use address(0) for the native coin.
-    function setFees(uint256 newTreasuryFee, address currency) external override onlyGov {
+    function setFees(uint256 newTreasuryFee, address currency) external onlyGov onlyValidCurrency(currency) {
         _setFees(newTreasuryFee, currency);
+        _addCurrency(currency);
     }
 
     /// @notice Sets the address of the treasury.
@@ -157,7 +161,7 @@ contract Syndication is
     /// @param amount The amount of coins to disburse.
     /// @param currency The address of the ERC20 token or address(0) for native.
     /// @dev This function can only be called by governance or an authorized entity.
-    function disburse(uint256 amount, address currency) external onlyGov {
+    function disburse(uint256 amount, address currency) external onlyGov onlyValidCurrency(currency) {
         address treasury = getTreasuryAddress();
         treasury.transfer(amount, currency); // sent..
         emit FeesDisbursed(treasury, amount, currency);
@@ -170,10 +174,9 @@ contract Syndication is
     function register(
         address distributor,
         address currency
-    ) external onlyDistributorContract(distributor) onlySupportedCurrency(currency) {
+    ) external payable onlyDistributorContract(distributor) onlySupportedCurrency(currency) {
         uint256 fees = getFees(currency);
-        // only manager can pay for enrollment..
-        address manager = IDistributor(distributor).getManager();
+        address manager = _msgSender(); // expected manager paying fees..
         uint256 total = manager.safeDeposit(fees, currency);
         // set the distributor active enrollment period..
         // after this time the distributor is considered inactive...
@@ -202,7 +205,6 @@ contract Syndication is
         uint256 penal = ledgerAmount.perOf(currencyPenalty);
         uint256 res = ledgerAmount - penal;
 
-        // reset ledger..
         _quit(uint160(distributor));
         _setLedgerEntry(manager, 0, currency);
         enrollmentTime[distributor] = 0;

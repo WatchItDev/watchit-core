@@ -1,4 +1,4 @@
-pragma solidity ^0.8.26;
+pragma solidity 0.8.26;
 
 import "forge-std/Test.sol";
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
@@ -46,7 +46,7 @@ contract SyndicationTest is BaseTest {
         IFeesManager(syndication).setFees(fees, token);
     }
 
-    function _registerDistributorWithApproval(address distributor, uint256 approval) internal {
+    function _registerDistributorWithApproval(uint256 approval) internal {
         // manager = contract deployer
         // only manager can pay enrollment..
         vm.prank(admin);
@@ -55,17 +55,17 @@ contract SyndicationTest is BaseTest {
         enroller.register(distributor, token);
     }
 
-    function _registerDistributorWithGovernorAndApproval(address distributor) internal {
-        uint256 expectedFees = 100 * 1e18;
+    function _registerDistributorWithGovernorAndApproval() internal {
+        uint256 expectedFees = 100 * 1e18; 
         _setFeesAsGovernor(expectedFees);
-        _registerDistributorWithApproval(distributor, expectedFees);
+        _registerDistributorWithApproval(expectedFees);
     }
 
-    function _registerAndApproveDistributor(address distributor) internal {
+    function _registerAndApproveDistributor() internal {
         // intially the balance = 0
         _setFeesAsGovernor(0);
         // register the distributor with fees = 100 MMC
-        _registerDistributorWithApproval(distributor, 0);
+        _registerDistributorWithApproval(0);
         vm.prank(governor); // as governor.
         // distribuitor approved only by governor..
         ISyndicatableRegistrable(syndication).approve(distributor);
@@ -73,7 +73,7 @@ contract SyndicationTest is BaseTest {
 
     /// ----------------------------------------------------------------
 
-    function test_Init_TreasuryAddress() public {
+    function test_Init_TreasuryAddress() public view {
         // test initialized treasury address
         address treasuryAddress = ITreasurer(syndication).getTreasuryAddress();
         assertNotEq(treasuryAddress, address(0));
@@ -155,7 +155,7 @@ contract SyndicationTest is BaseTest {
         // 1-set enrollment fees.
         _setFeesAsGovernor(expectedFees);
         // 2-deploy and register contract
-        _registerDistributorWithApproval(distributor, expectedFees);
+        _registerDistributorWithApproval(expectedFees);
 
         // 3-after disburse funds to treasury a valid event should be emitted
         vm.prank(governor);
@@ -190,7 +190,7 @@ contract SyndicationTest is BaseTest {
     function test_Register_SetValidEnrollmentTime() public {
         uint256 expectedFees = 100 * 1e18; // 100 MMC
         _setFeesAsGovernor(expectedFees);
-        _registerDistributorWithApproval(distributor, expectedFees);
+        _registerDistributorWithApproval(expectedFees);
         // in the next step the distributor is registered and the
         // manager paid for enrollment. Lets ensure that fees are registered in ledger..
         // admin plays as manager here..
@@ -208,7 +208,7 @@ contract SyndicationTest is BaseTest {
         // now syndications takes the role of enroller
         ISyndicatableEnroller enroller = ISyndicatableEnroller(syndication);
         // register the distributor expecting the right enrollment time..
-        _registerDistributorWithApproval(distributor, 0);
+        _registerDistributorWithApproval(0);
         assertEq(enroller.getEnrollmentTime(distributor), currentTime + expectedExpiration);
     }
 
@@ -217,7 +217,7 @@ contract SyndicationTest is BaseTest {
         // now syndications takes the role of enroller
         ISyndicatableVerifiable verifier = ISyndicatableVerifiable(syndication);
         // register the distributor expecting the right status.
-        _registerDistributorWithApproval(distributor, 0);
+        _registerDistributorWithApproval(0);
         assertEq(verifier.isWaiting(distributor), true);
     }
 
@@ -230,7 +230,7 @@ contract SyndicationTest is BaseTest {
 
     function test_Quit_ResignedEventEmitted() public {
         // 1- register the distributor is needed before quit..
-        _registerDistributorWithGovernorAndApproval(distributor);
+        _registerDistributorWithGovernorAndApproval();
 
         // after register a distributor a Registered event is expected
         vm.expectEmit(true, true, false, false, address(syndication));
@@ -247,7 +247,7 @@ contract SyndicationTest is BaseTest {
         uint256 managerPrevBalance = IERC20(token).balanceOf(admin);
         _setFeesAsGovernor(expectedFees);
         // register the distributor with fees = 100 MMC
-        _registerDistributorWithApproval(distributor, expectedFees);
+        _registerDistributorWithApproval(expectedFees);
 
         // set expected penalization rate..
         vm.prank(governor);
@@ -279,7 +279,7 @@ contract SyndicationTest is BaseTest {
     function test_Quit_RevertIf_InvalidDistributor() public {
         _setFeesAsGovernor(0);
         // register the distributor with fees = 100 MMC
-        _registerDistributorWithApproval(distributor, 0);
+        _registerDistributorWithApproval(0);
 
         // try to quit with invalid distributor..
         vm.expectRevert(abi.encodeWithSignature("InvalidDistributorContract(address)", address(0)));
@@ -291,7 +291,7 @@ contract SyndicationTest is BaseTest {
         // intially the balance = 0
         _setFeesAsGovernor(0);
         // register the distributor with fees = 100 MMC
-        _registerDistributorWithApproval(distributor, 0);
+        _registerDistributorWithApproval(0);
 
         vm.prank(governor); // as governor.
         // after register a distributor a Registered event is expected
@@ -303,24 +303,24 @@ contract SyndicationTest is BaseTest {
 
     function test_Approve_SetZeroEnrollmentFees() public {
         // intially the balance = 0
-        _registerAndApproveDistributor(distributor);
+        _registerAndApproveDistributor();
         assertEq(ILedger(syndication).getLedgerBalance(admin, token), 0);
     }
 
     function test_Approve_SetActiveState() public {
-        _registerAndApproveDistributor(distributor);
+        _registerAndApproveDistributor();
         assertEq(ISyndicatableVerifiable(syndication).isActive(distributor), true);
     }
 
     function test_Approve_IncrementEnrollmentCount() public {
-        _registerAndApproveDistributor(distributor);
+        _registerAndApproveDistributor();
         // valid approvals, increments the total of enrollments
         assertEq(ISyndicatableEnroller(syndication).getEnrollmentCount(), 1);
     }
 
     function test_Revoke_RevokedEventEmitted() public {
         // intially the balance = 0
-        _registerAndApproveDistributor(distributor); // still governor prank
+        _registerAndApproveDistributor(); // still governor prank
         vm.prank(governor);
         // after register a distributor a Registered event is expected
         vm.expectEmit(true, true, false, false, address(syndication));
@@ -330,7 +330,7 @@ contract SyndicationTest is BaseTest {
     }
 
     function test_Revoke_DecrementEnrollmentCount() public {
-        _registerAndApproveDistributor(distributor); // still governor prank
+        _registerAndApproveDistributor(); // still governor prank
         // valid approvals, increments the total of enrollments
         vm.prank(governor);
         ISyndicatableRevokable(syndication).revoke(distributor);
@@ -339,7 +339,7 @@ contract SyndicationTest is BaseTest {
 
     function test_Revoke_SetBlockedState() public {
         // intially the balance = 0
-        _registerAndApproveDistributor(distributor); // still governor prank
+        _registerAndApproveDistributor(); // still governor prank
         // distribuitor get revoked by governance..
         vm.prank(governor);
         ISyndicatableRevokable(syndication).revoke(distributor);

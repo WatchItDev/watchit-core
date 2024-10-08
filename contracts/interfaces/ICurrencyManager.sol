@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.26;
+pragma solidity 0.8.26;
 
 // The ICurrencyManager interface defines methods for checking and retrieving supported currencies.
 interface ICurrencyManager {

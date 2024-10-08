@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.26;
+pragma solidity 0.8.26;
 
 /// @title Bytes32 Helper Library
 /// @notice Provides functions to convert bytes32 to other data types.

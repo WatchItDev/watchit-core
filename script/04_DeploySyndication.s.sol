@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.26;
+pragma solidity 0.8.26;
 
 import { Syndication } from "contracts/syndication/Syndication.sol";
 import { Upgrades } from "openzeppelin-foundry-upgrades/Upgrades.sol";
-import { DeployTreasury } from "scripts/01_DeployTreasury.s.sol";
-import { DeployBase } from "scripts/00_DeployBase.s.sol";
+import { DeployTreasury } from "script/01_DeployTreasury.s.sol";
+import { DeployBase } from "script/00_DeployBase.s.sol";
 
 contract DeploySyndication is DeployBase {
     address treasury;

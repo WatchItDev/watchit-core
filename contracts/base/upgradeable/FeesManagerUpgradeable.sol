@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // NatSpec format convention - https://docs.soliditylang.org/en/v0.8.24/natspec-format.html
-pragma solidity ^0.8.26;
+pragma solidity 0.8.26;
 
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import { IFeesManager } from "contracts/interfaces/IFeesManager.sol";
@@ -15,6 +15,10 @@ abstract contract FeesManagerUpgradeable is Initializable, IFeesManager {
         mapping(address => bool) _currencySupported;
     }
 
+    // ERC-7201: Namespaced Storage Layout is another convention that can be used to avoid storage layout errors
+    // keccak256(abi.encode(uint256(keccak256("watchit.fees.currencyfees")) - 1)) & ~bytes32(uint256(0xff))
+    bytes32 private constant FEES_SLOT = 0x5575547e2bbff3f801051e8dc7ed5ba1cab8b335003bad8f456347ac015ff600;
+
     /// @notice Error to be thrown when an unsupported currency is used.
     /// @param currency The address of the unsupported currency.
     error InvalidUnsupportedCurrency(address currency);
@@ -22,20 +26,6 @@ abstract contract FeesManagerUpgradeable is Initializable, IFeesManager {
     error InvalidBasisPointRange(uint256 bps);
     /// @notice Error to be thrown when nominal fees are invalid.
     error InvalidNominalRange(uint256 nominal);
-
-    // ERC-7201: Namespaced Storage Layout is another convention that can be used to avoid storage layout errors
-    // keccak256(abi.encode(uint256(keccak256("watchit.fees.currencyfees")) - 1)) & ~bytes32(uint256(0xff))
-    bytes32 private constant FEES_SLOT = 0x5575547e2bbff3f801051e8dc7ed5ba1cab8b335003bad8f456347ac015ff600;
-
-    /**
-     * @notice Internal function to get the fees storage.
-     * @return $ The fees storage.
-     */
-    function _getFeesStorage() private pure returns (FeesStorage storage $) {
-        assembly {
-            $.slot := FEES_SLOT
-        }
-    }
 
     /// @notice Modifier to ensure only supported currency are used.
     /// @param currency The address of the currency to check.
@@ -61,15 +51,12 @@ abstract contract FeesManagerUpgradeable is Initializable, IFeesManager {
         _;
     }
 
-    /// @notice Function to receive native coin.
-    receive() external payable {}
-
     /// @inheritdoc IFeesManager
     /// @notice Gets the fees fee for the specified currency.
     /// @dev This method could return a basis points (bps) fee or a flat fee depending on the context of use.
     /// @param currency The address of the currency for which to retrieve the fees fee.
     /// @return uint256 The fees fee for the specified currency.
-    function getFees(address currency) public view override onlySupportedCurrency(currency) returns (uint256) {
+    function getFees(address currency) public view onlySupportedCurrency(currency) returns (uint256) {
         FeesStorage storage $ = _getFeesStorage();
         return $._currencyFees[currency];
     }
@@ -98,5 +85,13 @@ abstract contract FeesManagerUpgradeable is Initializable, IFeesManager {
     /// @param currency The address of the currency.
     function __Fees_init_unchained(uint256 initialFee, address currency) internal onlyInitializing {
         _setFees(initialFee, currency);
+    }
+
+    /// @notice Internal function to get the fees storage.
+    /// @return $ The fees storage.
+    function _getFeesStorage() private pure returns (FeesStorage storage $) {
+        assembly {
+            $.slot := FEES_SLOT
+        }
     }
 }

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // Compatible with OpenZeppelin Contracts ^5.0.0
-pragma solidity ^0.8.26;
+pragma solidity 0.8.26;
 
 import { Time } from "@openzeppelin/contracts/utils/types/Time.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";

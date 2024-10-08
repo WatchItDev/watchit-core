@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // NatSpec format convention - https://docs.soliditylang.org/en/v0.8.24/natspec-format.html
-pragma solidity ^0.8.26;
+pragma solidity 0.8.26;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
@@ -21,15 +21,15 @@ abstract contract CurrencyManagerUpgradeable is Initializable, ICurrencyManager 
         EnumerableSet.AddressSet _supportedCurrencies;
     }
 
-    bytes4 private constant INTERFACE_ID_ERC20 = type(IERC20).interfaceId;
-    /// @notice Error thrown when trying to operate with an unsupported currency.
-    /// @param currency The address of the unsupported currency.
-    error InvalidCurrency(address currency);
-
     // ERC-7201: Namespaced Storage Layout is another convention that can be used to avoid storage layout errors
     // keccak256(abi.encode(uint256(keccak256("watchit.currencymanager.supportedcurrencies")) - 1))
     // & ~bytes32(uint256(0xff))
     bytes32 private constant CURRENCY_MANAGER_SLOT = 0x56b3138e9d26d4b1bbb7eb44261bf9a02d56af8c0799b6892290ca1ba7b2e700;
+    bytes4 private constant INTERFACE_ID_ERC20 = type(IERC20).interfaceId;
+
+    /// @notice Error thrown when trying to operate with an unsupported currency.
+    /// @param currency The address of the unsupported currency.
+    error InvalidCurrency(address currency);
 
     /// @notice Modifier to ensure only valid ERC20 or native coins are used.
     /// @param currency The address of the currency to check.
@@ -39,14 +39,25 @@ abstract contract CurrencyManagerUpgradeable is Initializable, ICurrencyManager 
         _;
     }
 
-    /**
-     * @notice Internal function to get the currency manager storage.
-     * @return $ The currency manager storage.
-     */
-    function _getCurrencyManagerStorage() private pure returns (CurrencyManagerStorage storage $) {
-        assembly {
-            $.slot := CURRENCY_MANAGER_SLOT
-        }
+    /// @notice Returns the list of supported currencies.
+    /// @return An array of addresses of the supported currencies.
+    function supportedCurrencies() public view returns (address[] memory) {
+        CurrencyManagerStorage storage $ = _getCurrencyManagerStorage();
+        // https://docs.openzeppelin.com/contracts/5.x/api/utils#EnumerableSet-values-struct-EnumerableSet-AddressSet-
+        // This operation will copy the entire storage to memory, which can be quite expensive.
+        // This is designed to mostly be used by view accessors that are queried without any gas fees.
+        // Developers should keep in mind that this function has an unbounded cost,
+        /// and using it as part of a state-changing function may render the function uncallable
+        /// if the set grows to a point where copying to memory consumes too much gas to fit in a block.
+        return $._supportedCurrencies.values();
+    }
+
+    /// @notice Checks if a currency is supported.
+    /// @param currency The address of the currency to check.
+    /// @return True if supported, otherwise False.
+    function isCurrencySupported(address currency) public view returns (bool) {
+        CurrencyManagerStorage storage $ = _getCurrencyManagerStorage();
+        return $._supportedCurrencies.contains(currency);
     }
 
     /// @dev As standard to avoid doubts about if a upgradeable contract
@@ -73,24 +84,11 @@ abstract contract CurrencyManagerUpgradeable is Initializable, ICurrencyManager 
         $._supportedCurrencies.remove(currency);
     }
 
-    /// @notice Returns the list of supported currencies.
-    /// @return An array of addresses of the supported currencies.
-    function supportedCurrencies() public view returns (address[] memory) {
-        CurrencyManagerStorage storage $ = _getCurrencyManagerStorage();
-        // https://docs.openzeppelin.com/contracts/5.x/api/utils#EnumerableSet-values-struct-EnumerableSet-AddressSet-
-        // This operation will copy the entire storage to memory, which can be quite expensive.
-        // This is designed to mostly be used by view accessors that are queried without any gas fees.
-        // Developers should keep in mind that this function has an unbounded cost,
-        /// and using it as part of a state-changing function may render the function uncallable
-        /// if the set grows to a point where copying to memory consumes too much gas to fit in a block.
-        return $._supportedCurrencies.values();
-    }
-
-    /// @notice Checks if a currency is supported.
-    /// @param currency The address of the currency to check.
-    /// @return True if supported, otherwise False.
-    function isCurrencySupported(address currency) public view returns (bool) {
-        CurrencyManagerStorage storage $ = _getCurrencyManagerStorage();
-        return $._supportedCurrencies.contains(currency);
+    /// @notice Internal function to get the currency manager storage.
+    /// @return $ The currency manager storage.
+    function _getCurrencyManagerStorage() private pure returns (CurrencyManagerStorage storage $) {
+        assembly {
+            $.slot := CURRENCY_MANAGER_SLOT
+        }
     }
 }

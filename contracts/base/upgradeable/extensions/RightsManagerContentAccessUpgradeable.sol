@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // NatSpec format convention - https://docs.soliditylang.org/en/v0.5.10/natspec-format.html
-pragma solidity ^0.8.26;
+pragma solidity 0.8.26;
 
 import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import { ERC165Checker } from "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
@@ -26,15 +26,19 @@ abstract contract RightsManagerContentAccessUpgradeable is Initializable, IRight
     /// @dev The storage slot is calculated using a combination of keccak256 hashes and bitwise operations.
     bytes32 private constant ACCESS_CONTROL_SLOT = 0xcd95b85482a9213e30949ccc9c44037e29b901ca879098f5c64dd501b45d9200;
 
-    /**
-     * @notice Internal function to access the ACL storage.
-     * @dev Uses inline assembly to assign the correct storage slot to the ACLStorage struct.
-     * @return $ The storage struct containing the access control list.
-     */
-    function _getACLStorage() private pure returns (ACLStorage storage $) {
-        assembly {
-            $.slot := ACCESS_CONTROL_SLOT
-        }
+    /// @inheritdoc IRightsManagerAccessController
+    /// @notice Retrieves the list of policys associated with a specific account and content ID.
+    /// @param account The address of the account for which policies are being retrieved.
+    /// @return An array of addresses representing the policies associated with the account and content ID.
+    function getPolicies(address account) public view returns (address[] memory) {
+        ACLStorage storage $ = _getACLStorage();
+        // https://docs.openzeppelin.com/contracts/5.x/api/utils#EnumerableSet-values-struct-EnumerableSet-AddressSet-
+        // This operation will copy the entire storage to memory, which can be quite expensive.
+        // This is designed to mostly be used by view accessors that are queried without any gas fees.
+        // Developers should keep in mind that this function has an unbounded cost,
+        /// and using it as part of a state-changing function may render the function uncallable
+        /// if the set grows to a point where copying to memory consumes too much gas to fit in a block.
+        return $._acl[account].values();
     }
 
     /// @notice Registers a new policy for a specific account and policy, maintaining a chain of precedence.
@@ -59,19 +63,13 @@ abstract contract RightsManagerContentAccessUpgradeable is Initializable, IRight
         return policy_.comply(account, contentId);
     }
 
-    /// @inheritdoc IRightsManagerAccessController
-    /// @notice Retrieves the list of policys associated with a specific account and content ID.
-    /// @param account The address of the account for which policies are being retrieved.
-    /// @return An array of addresses representing the policies associated with the account and content ID.
-    function getPolicies(address account) public view returns (address[] memory) {
-        ACLStorage storage $ = _getACLStorage();
-        // https://docs.openzeppelin.com/contracts/5.x/api/utils#EnumerableSet-values-struct-EnumerableSet-AddressSet-
-        // This operation will copy the entire storage to memory, which can be quite expensive.
-        // This is designed to mostly be used by view accessors that are queried without any gas fees.
-        // Developers should keep in mind that this function has an unbounded cost,
-        /// and using it as part of a state-changing function may render the function uncallable
-        /// if the set grows to a point where copying to memory consumes too much gas to fit in a block.
-        return $._acl[account].values();
+    /// @notice Internal function to access the ACL storage.
+    /// @dev Uses inline assembly to assign the correct storage slot to the ACLStorage struct.
+    /// @return $ The storage struct containing the access control list.
+    function _getACLStorage() private pure returns (ACLStorage storage $) {
+        assembly {
+            $.slot := ACCESS_CONTROL_SLOT
+        }
     }
 
     // TODO potential improvement getChainedPolicies

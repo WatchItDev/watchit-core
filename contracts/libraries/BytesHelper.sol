@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.26;
+pragma solidity 0.8.26;
 
 /// @title Dynamic Bytes Library
 /// @notice Provides functions to convert bytes to other data types.

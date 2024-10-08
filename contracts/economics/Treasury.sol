@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // NatSpec format convention - https://docs.soliditylang.org/en/v0.5.10/natspec-format.html
-pragma solidity ^0.8.26;
+pragma solidity 0.8.26;
 
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
@@ -34,11 +34,6 @@ contract Treasury is Initializable, UUPSUpgradeable, GovernableUpgradeable, IBal
     // TODO distribution of earnings, here we can handle vesting?
     // TODO aca se llevara a cabo las quemas durante la extraccion de tokens.. cuando alguien hace withdraw se quema un % de los token
 
-    /// @notice Function that should revert when msg.sender is not authorized to upgrade the contract.
-    /// @param newImplementation The address of the new implementation contract.
-    /// @dev See https://docs.openzeppelin.com/contracts/4.x/api/proxy#UUPSUpgradeable-_authorizeUpgrade-address-
-    function _authorizeUpgrade(address newImplementation) internal override onlyAdmin {}
-
     /// @notice Initializes the contract. Should be called only once.
     function initialize() public initializer {
         __UUPSUpgradeable_init();
@@ -47,4 +42,9 @@ contract Treasury is Initializable, UUPSUpgradeable, GovernableUpgradeable, IBal
 
     function withdraw(address recipient, uint256 amount, address currency) public onlyGov {}
     function getBalance(address currency) external view returns (uint256) {}
+
+    /// @notice Function that should revert when msg.sender is not authorized to upgrade the contract.
+    /// @param newImplementation The address of the new implementation contract.
+    /// @dev See https://docs.openzeppelin.com/contracts/4.x/api/proxy#UUPSUpgradeable-_authorizeUpgrade-address-
+    function _authorizeUpgrade(address newImplementation) internal override onlyAdmin {}
 }

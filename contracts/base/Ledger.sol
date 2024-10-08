@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // NatSpec format convention - https://docs.soliditylang.org/en/v0.8.24/natspec-format.html
-pragma solidity ^0.8.26;
+pragma solidity 0.8.26;
 
 import { ILedger } from "contracts/interfaces/ILedger.sol";
 
@@ -10,6 +10,15 @@ import { ILedger } from "contracts/interfaces/ILedger.sol";
 abstract contract Ledger is ILedger {
     // Mapping to store balances per account and currency.
     mapping(address => mapping(address => uint256)) ledger;
+
+    /// @inheritdoc ILedger
+    /// @notice Retrieves the registered currency balance for the specified account.
+    /// @param account The address of the account to retrieve the balance for.
+    /// @param currency The address of the currency to retrieve the balance for.
+    /// @return The amount of the specified currency held by the account.
+    function getLedgerBalance(address account, address currency) public view returns (uint256) {
+        return ledger[account][currency]; // Return the ledger balance for the account and currency.
+    }
 
     /// @notice Internal function to store the currency fees for an account.
     /// @param account The address of the account for which the amount is being set.
@@ -36,14 +45,5 @@ abstract contract Ledger is ILedger {
     /// @dev This function decreases the existing balance of the account for the specified currency.
     function _subLedgerEntry(address account, uint256 amount, address currency) internal {
         ledger[account][currency] -= amount;
-    }
-
-    /// @inheritdoc ILedger
-    /// @notice Retrieves the registered currency balance for the specified account.
-    /// @param account The address of the account to retrieve the balance for.
-    /// @param currency The address of the currency to retrieve the balance for.
-    /// @return The amount of the specified currency held by the account.
-    function getLedgerBalance(address account, address currency) public view returns (uint256) {
-        return ledger[account][currency]; // Return the ledger balance for the account and currency.
     }
 }

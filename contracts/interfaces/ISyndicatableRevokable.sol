@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.26;
+pragma solidity 0.8.26;
 
 /// @title ISyndicatableRevokable
 /// @dev Interface for managing entities' registration status, including quitting and revoking.

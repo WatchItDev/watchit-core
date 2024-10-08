@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.26;
+pragma solidity 0.8.26;
 
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import { ERC165Upgradeable } from "@openzeppelin/contracts-upgradeable/utils/introspection/ERC165Upgradeable.sol";
@@ -37,7 +37,7 @@ contract Distributor is
     /// @param recipient The address that received the withdrawn tokens or native currency.
     /// @param amount The amount of tokens or native currency withdrawn.
     /// @param currency The token address (or `address(0)` for native currency) that was withdrawn.
-    event FundWithdrawn(address indexed recipient, uint256 amount, address indexed currency);
+    event FundsWithdrawn(address indexed recipient, uint256 amount, address indexed currency);
 
     /// @notice Error thrown when an invalid (empty) endpoint is provided.
     error InvalidEndpoint();
@@ -51,6 +51,13 @@ contract Distributor is
         __ERC165_init();
         __Ownable_init(_owner);
         endpoint = _endpoint;
+    }
+
+    /// @notice Checks if the contract supports a specific interface based on its ID.
+    /// @param interfaceId The ID of the interface to check.
+    /// @return True if the interface is supported, otherwise false.
+    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+        return interfaceId == type(IDistributor).interfaceId || super.supportsInterface(interfaceId);
     }
 
     /// @notice Retrieves the manager (owner) of the distributor contract.
@@ -91,13 +98,6 @@ contract Distributor is
     /// Emits a {FundWithdrawn} event.
     function withdraw(address recipient, uint256 amount, address currency) external onlyOwner {
         recipient.transfer(amount, currency);
-        emit FundWithdrawn(recipient, amount, currency);
-    }
-
-    /// @notice Checks if the contract supports a specific interface based on its ID.
-    /// @param interfaceId The ID of the interface to check.
-    /// @return True if the interface is supported, otherwise false.
-    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
-        return interfaceId == type(IDistributor).interfaceId || super.supportsInterface(interfaceId);
+        emit FundsWithdrawn(recipient, amount, currency);
     }
 }

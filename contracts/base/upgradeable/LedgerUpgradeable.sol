@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // NatSpec format convention - https://docs.soliditylang.org/en/v0.8.24/natspec-format.html
-pragma solidity ^0.8.26;
+pragma solidity 0.8.26;
 
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import { ILedger } from "contracts/interfaces/ILedger.sol";
@@ -19,15 +19,14 @@ abstract contract LedgerUpgradeable is Initializable, ILedger {
     /// The `LEDGER_SLOT` constant is used to point to the location of the storage.
     bytes32 private constant LEDGER_SLOT = 0xcb711bda070b7bbcc2b711ef3993cc17677144f4419b29e303bef375c5f40f00;
 
-    /**
-     * @notice Internal function to get the ledger storage.
-     * @return $ A reference to the LedgerStorage struct located at the `LEDGER_SLOT`.
-     * @dev Uses assembly to retrieve the storage at the pre-calculated storage slot.
-     */
-    function _getLedgerStorage() private pure returns (LedgerStorage storage $) {
-        assembly {
-            $.slot := LEDGER_SLOT
-        }
+    /// @inheritdoc ILedger
+    /// @notice Retrieves the ledger balance of an account for a specific currency.
+    /// @param account The address of the account whose balance is being queried.
+    /// @param currency The address of the currency to retrieve the balance for.
+    /// @return The current balance of the specified account in the specified currency.
+    function getLedgerBalance(address account, address currency) public view returns (uint256) {
+        LedgerStorage storage $ = _getLedgerStorage();
+        return $._ledger[account][currency];
     }
 
     /// @dev Initializes the contract and ensures it is upgradeable.
@@ -67,13 +66,12 @@ abstract contract LedgerUpgradeable is Initializable, ILedger {
         $._ledger[account][currency] -= amount;
     }
 
-    /// @inheritdoc ILedger
-    /// @notice Retrieves the ledger balance of an account for a specific currency.
-    /// @param account The address of the account whose balance is being queried.
-    /// @param currency The address of the currency to retrieve the balance for.
-    /// @return The current balance of the specified account in the specified currency.
-    function getLedgerBalance(address account, address currency) public view returns (uint256) {
-        LedgerStorage storage $ = _getLedgerStorage();
-        return $._ledger[account][currency];
+    /// @notice Internal function to get the ledger storage.
+    /// @return $ A reference to the LedgerStorage struct located at the `LEDGER_SLOT`.
+    /// @dev Uses assembly to retrieve the storage at the pre-calculated storage slot.
+    function _getLedgerStorage() private pure returns (LedgerStorage storage $) {
+        assembly {
+            $.slot := LEDGER_SLOT
+        }
     }
 }

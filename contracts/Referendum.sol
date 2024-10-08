@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // NatSpec format convention - https://docs.soliditylang.org/en/v0.5.10/natspec-format.html
-pragma solidity ^0.8.26;
+pragma solidity 0.8.26;
 
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { EIP712Upgradeable } from "@openzeppelin/contracts-upgradeable/utils/cryptography/EIP712Upgradeable.sol";
@@ -69,10 +69,42 @@ contract Referendum is
         __Governable_init(_msgSender());
     }
 
-    /// @notice Function that should revert when msg.sender is not authorized to upgrade the contract.
-    /// @param newImplementation The address of the new implementation contract.
-    /// @dev See https://docs.openzeppelin.com/contracts/4.x/api/proxy#UUPSUpgradeable-_authorizeUpgrade-address-
-    function _authorizeUpgrade(address newImplementation) internal override onlyAdmin {}
+    /// @notice Grants the verified role to a specific account.
+    /// @param account The address of the account to verify.
+    /// @dev Only governance is allowed to grant the role.
+    function grantVerifiedRole(address account) external onlyGov {
+        _grantRole(VERIFIED_ROLE, account);
+    }
+
+    /// @notice Revoke the verified role to a specific account.
+    /// @param account The address of the account to revoke.
+    /// @dev Only governance is allowed to revoke the role.
+    function revokeVerifiedRole(address account) external onlyGov {
+        _revokeRole(VERIFIED_ROLE, account);
+    }
+
+    /// @notice Submits a content proposition for referendum.
+    /// @param contentId The ID of the content to be submitted.
+    /// @dev The content ID is reviewed by governance.
+    function submit(uint256 contentId) external {
+        _submit(contentId, _msgSender());
+    }
+
+    /// @notice Submits a content proposition for referendum with a signature.
+    /// @param contentId The ID of the content to be submitted.
+    /// @param sig The EIP712 signature for the submission.
+    function submitWithSig(uint256 contentId, T.EIP712Signature calldata sig) external {
+        // https://eips.ethereum.org/EIPS/eip-712
+        bytes32 structHash = keccak256(
+            abi.encode(C.REFERENDUM_SUBMIT_TYPEHASH, contentId, sig.signer, _useNonce(sig.signer))
+        );
+
+        // retrieve the signer from digest and register the resultant signer as initiator.
+        bytes32 digest = _hashTypedDataV4(structHash); // expected keccak256("\x19\x01" ‖ domainSeparator ‖ hashStruct(message))
+        address initiator = ecrecover(digest, sig.v, sig.r, sig.s);
+        if (initiator == address(0) || sig.signer != initiator) revert InvalidSubmissionSignature();
+        _submit(contentId, initiator);
+    }
 
     /// @notice Checks if the content is active nor blocked.
     /// @param contentId The ID of the content.
@@ -93,48 +125,6 @@ contract Referendum is
         return (approved && validAccount) || verifiedRole;
     }
 
-    /// @notice Grants the verified role to a specific account.
-    /// @param account The address of the account to verify.
-    /// @dev Only governance is allowed to grant the role.
-    function grantVerifiedRole(address account) external onlyGov {
-        _grantRole(VERIFIED_ROLE, account);
-    }
-
-    /// @notice Revoke the verified role to a specific account.
-    /// @param account The address of the account to revoke.
-    /// @dev Only governance is allowed to revoke the role.
-    function revokeVerifiedRole(address account) external onlyGov {
-        _revokeRole(VERIFIED_ROLE, account);
-    }
-
-    /// @notice Submits a content proposition for referendum.
-    /// @param contentId The ID of the content to be submitted.
-    /// @param initiator The address of the initiator submitting the content.
-    /// @dev The content ID is reviewed by governance.
-    function submit(uint256 contentId, address initiator) public {
-        if (initiator == address(0)) revert InvalidSubmissionInitiator();
-
-        _register(contentId);
-        submissions[initiator].add(contentId);
-        emit ContentSubmitted(initiator, contentId);
-    }
-
-    /// @notice Submits a content proposition for referendum with a signature.
-    /// @param contentId The ID of the content to be submitted.
-    /// @param initiator The address of the initiator submitting the content.
-    /// @param sig The EIP712 signature for the submission.
-    function submitWithSig(uint256 contentId, address initiator, T.EIP712Signature calldata sig) external {
-        // https://eips.ethereum.org/EIPS/eip-712
-        uint256 nonce = _useNonce(initiator);
-        bytes32 structHash = keccak256(abi.encode(C.REFERENDUM_SUBMIT_TYPEHASH, contentId, initiator, nonce));
-
-        // retrieve the signer from digest and signature to check if the signature correspond to expected signer.
-        bytes32 digest = _hashTypedDataV4(structHash); // expected keccak256("\x19\x01" ‖ domainSeparator ‖ hashStruct(message))
-        address signer = ecrecover(digest, sig.v, sig.r, sig.s);
-        if (signer != initiator) revert InvalidSubmissionSignature();
-        submit(contentId, initiator);
-    }
-
     /// @notice Reject a content proposition.
     /// @param contentId The ID of the content to be revoked.
     function reject(uint256 contentId) public onlyGov {
@@ -147,5 +137,20 @@ contract Referendum is
     function approve(uint256 contentId) public onlyGov {
         _approve(contentId);
         emit ContentApproved(contentId);
+    }
+
+    /// @notice Function that should revert when msg.sender is not authorized to upgrade the contract.
+    /// @param newImplementation The address of the new implementation contract.
+    /// @dev See https://docs.openzeppelin.com/contracts/4.x/api/proxy#UUPSUpgradeable-_authorizeUpgrade-address-
+    function _authorizeUpgrade(address newImplementation) internal override onlyAdmin {}
+
+    /// @notice Submits content for registration and tracks the submission for the initiator.
+    /// @dev This function registers the content, records the submission under the initiator's address, and emits an event.
+    /// @param contentId The unique identifier of the content being submitted.
+    /// @param initiator The address of the entity initiating the content submission.
+    function _submit(uint256 contentId, address initiator) private {
+        _register(contentId);
+        submissions[initiator].add(contentId);
+        emit ContentSubmitted(initiator, contentId);
     }
 }

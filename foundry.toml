@@ -18,9 +18,13 @@ optimizer_runs = 20_000
 auto_detect_solc = true
 evm_version = "cancun"
 extra_output = ["storageLayout"]
+fs_permissions = [{ access = "read", path = "./"}]
 
 [profile.ci]
 verbosity = 4
 
 [rpc_endpoints]
-amoy = "${AMOY_ENDPOINT}${ALCHEMY_API_KEY}"
+amoy = "${AMOY_RPC_URL}"
+
+[etherscan]
+amoy = { key = "${AMOY_API_KEY}", url = "https://api-amoy.polygonscan.com/api" }

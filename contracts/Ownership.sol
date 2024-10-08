@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // NatSpec format convention - https://docs.soliditylang.org/en/v0.5.10/natspec-format.html
-pragma solidity ^0.8.26;
+pragma solidity 0.8.26;
 
 import { IERC165 } from "@openzeppelin/contracts/interfaces/IERC165.sol";
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
@@ -28,6 +28,17 @@ contract Ownership is
     IReferendumVerifiable public referendum;
     event RegisteredContent(uint256 contentId);
     error InvalidNotApprovedContent();
+    /// @notice Modifier to ensure content is approved before distribution.
+    /// @param to The address attempting to distribute the content.
+    /// @param contentId The ID of the content to be distributed.
+    /// @dev The content must be approved by referendum or the recipient must have a verified role.
+    /// This modifier checks if the content is approved by referendum or if the recipient has a verified role.
+    /// It also ensures that the recipient is the one who initially submitted the content for approval.
+    modifier onlyApprovedContent(address to, uint256 contentId) {
+        // Revert if the content is not approved or if the recipient is not the original submitter
+        if (!referendum.isApproved(to, contentId)) revert InvalidNotApprovedContent();
+        _;
+    }
 
     // 3- Las condiciones adicionales como acceso por país, etc! Deben ser dados en el IP register url,
     // si no tiene estas condiciones, simplemente no se validan..
@@ -58,21 +69,19 @@ contract Ownership is
         referendum = IReferendumVerifiable(referendum_);
     }
 
-    /// @notice Function that should revert when msg.sender is not authorized to upgrade the contract.
-    /// @param newImplementation The address of the new implementation contract.
-    /// @dev See https://docs.openzeppelin.com/contracts/4.x/api/proxy#UUPSUpgradeable-_authorizeUpgrade-address-
-    function _authorizeUpgrade(address newImplementation) internal override onlyAdmin {}
-
-    /// @notice Modifier to ensure content is approved before distribution.
-    /// @param to The address attempting to distribute the content.
-    /// @param contentId The ID of the content to be distributed.
-    /// @dev The content must be approved by referendum or the recipient must have a verified role.
-    /// This modifier checks if the content is approved by referendum or if the recipient has a verified role.
-    /// It also ensures that the recipient is the one who initially submitted the content for approval.
-    modifier onlyApprovedContent(address to, uint256 contentId) {
-        // Revert if the content is not approved or if the recipient is not the original submitter
-        if (!referendum.isApproved(to, contentId)) revert InvalidNotApprovedContent();
-        _;
+    /// @notice Checks if the contract supports a specific interface.
+    /// @param interfaceId The interface ID to check.
+    /// @return True if the contract supports the interface, false otherwise.
+    function supportsInterface(
+        bytes4 interfaceId
+    )
+        public
+        view
+        virtual
+        override(IERC165, ERC721Upgradeable, AccessControlUpgradeable, ERC721EnumerableUpgradeable)
+        returns (bool)
+    {
+        return super.supportsInterface(interfaceId);
     }
 
     /// @notice Mints a new NFT to the specified address.
@@ -107,18 +116,8 @@ contract Ownership is
         super._increaseBalance(account, value);
     }
 
-    /// @notice Checks if the contract supports a specific interface.
-    /// @param interfaceId The interface ID to check.
-    /// @return True if the contract supports the interface, false otherwise.
-    function supportsInterface(
-        bytes4 interfaceId
-    )
-        public
-        view
-        virtual
-        override(IERC165, ERC721Upgradeable, AccessControlUpgradeable, ERC721EnumerableUpgradeable)
-        returns (bool)
-    {
-        return super.supportsInterface(interfaceId);
-    }
+    /// @notice Function that should revert when msg.sender is not authorized to upgrade the contract.
+    /// @param newImplementation The address of the new implementation contract.
+    /// @dev See https://docs.openzeppelin.com/contracts/4.x/api/proxy#UUPSUpgradeable-_authorizeUpgrade-address-
+    function _authorizeUpgrade(address newImplementation) internal override onlyAdmin {}
 }

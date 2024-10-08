@@ -1,11 +1,8 @@
-# Include env file
-ifneq (,$(wildcard ./.env))
-    include .env
-    export
-endif
+include .env
+export
 
 .DEFAULT_GOAL := all
-network=hardhat
+network=amoy
 
 # https://github.com/crytic/slither?tab=readme-ov-file#detectors
 # https://book.getfoundry.sh/getting-started/installation
@@ -60,7 +57,7 @@ sectest:
 format:
 	@npx prettier --write contracts
 
-.PHONY: hint ## lint standard  solidity
+.PHONY: lint ## lint standard  solidity
 lint: 
 	@npx solhint 'contracts/**/*.sol'
 
@@ -84,9 +81,15 @@ loginenv:
 keysenv: 
 	@npx dotenv-vault@latest keys
 
-.PHONY: amoydeploy ## deploy contract to amoy network
-amoydeploy: 
-	@npx harhat deploy --network $(network)
+.PHONY: deploy ## deploy contract
+deploy: 
+	@forge script --chain $(network) script/$(script) --rpc-url $(network) --broadcast 
+
+# forge verify-contract 0x21173483074a46c302c4252e04c76fA90e6DdA6C MMC --chain amoy
+.PHONY: verify ## verify contract
+verify: 
+	@forge verify-contract $(address) $(contract) --api-key $(network) --chain $(network)
+
 
 rebuild: clean
 all: test lint

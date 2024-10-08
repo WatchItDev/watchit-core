@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: MIT
 // NatSpec format convention - https://docs.soliditylang.org/en/v0.5.10/natspec-format.html
-pragma solidity ^0.8.26;
+pragma solidity 0.8.26;
 
 import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import { IRightsManagerCustodial } from "contracts/interfaces/IRightsManagerCustodial.sol";
+import { IRightsManagerCustody } from "contracts/interfaces/IRightsManagerCustody.sol";
 
 /// @title Rights Manager Distribution Upgradeable
 /// @notice This abstract contract manages the assignment and retrieval of distribution rights
 /// for content held by a holder, ensuring that custodial rights are properly granted and managed.
 /// @dev The contract is upgradeable and uses namespaced storage to avoid layout collisions.
-abstract contract RightsManagerCustodialUpgradeable is Initializable, IRightsManagerCustodial {
+abstract contract RightsManagerCustodialUpgradeable is Initializable, IRightsManagerCustody {
     using EnumerableSet for EnumerableSet.AddressSet;
 
     /// @custom:storage-location erc7201:rightsmanagercustodialupgradeable
@@ -26,31 +26,6 @@ abstract contract RightsManagerCustodialUpgradeable is Initializable, IRightsMan
     ///      The storage slot is calculated using a combination of keccak256 hashes and bitwise operations.
     bytes32 private constant DISTRIBUTION_CUSTODY_SLOT =
         0x19de352aacf5eb23e556c4ae8a1f47118f3051b029159b7e1b8f4f1672aaf600;
-
-    /**
-     * @notice Internal function to access the custodial storage.
-     * @dev Uses inline assembly to assign the correct storage slot to the CustodyStorage struct.
-     * @return $ The storage struct containing the custodial information for distribution rights.
-     */
-    function _getCustodyStorage() private pure returns (CustodyStorage storage $) {
-        assembly {
-            $.slot := DISTRIBUTION_CUSTODY_SLOT
-        }
-    }
-
-    /// @notice Grants custodial rights over the content held by a holder to a distributor.
-    /// @param distributor The address of the distributor who will receive custodial rights.
-    /// @param holder The address of the content rights holder granting custody.
-    function _grantCustody(address distributor, address holder) internal {
-        CustodyStorage storage $ = _getCustodyStorage();
-        address prevCustodial = getCustody(holder);
-        if (prevCustodial != address(0)) {
-            $._registry[prevCustodial].remove(holder);
-        }
-
-        $._custodying[holder] = distributor;
-        $._registry[distributor].add(holder);
-    }
 
     /// @notice Retrieves the total number of content items in custody for a given distributor.
     /// @param distributor The address of the distributor whose custodial content count is being requested.
@@ -81,5 +56,27 @@ abstract contract RightsManagerCustodialUpgradeable is Initializable, IRightsMan
     function getCustody(address holder) public view returns (address) {
         CustodyStorage storage $ = _getCustodyStorage();
         return $._custodying[holder];
+    }
+    /// @notice Grants custodial rights over the content held by a holder to a distributor.
+    /// @param distributor The address of the distributor who will receive custodial rights.
+    /// @param holder The address of the content rights holder granting custody.
+    function _grantCustody(address distributor, address holder) internal {
+        CustodyStorage storage $ = _getCustodyStorage();
+        address prevCustodial = getCustody(holder);
+        if (prevCustodial != address(0)) {
+            $._registry[prevCustodial].remove(holder);
+        }
+
+        $._custodying[holder] = distributor;
+        $._registry[distributor].add(holder);
+    }
+
+    /// @notice Internal function to access the custodial storage.
+    /// @dev Uses inline assembly to assign the correct storage slot to the CustodyStorage struct.
+    /// @return $ The storage struct containing the custodial information for distribution rights.
+    function _getCustodyStorage() private pure returns (CustodyStorage storage $) {
+        assembly {
+            $.slot := DISTRIBUTION_CUSTODY_SLOT
+        }
     }
 }

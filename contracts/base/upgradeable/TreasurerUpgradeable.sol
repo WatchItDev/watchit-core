@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // NatSpec format convention - https://docs.soliditylang.org/en/v0.8.24/natspec-format.html
-pragma solidity ^0.8.26;
+pragma solidity 0.8.26;
 
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import { ITreasurer } from "contracts/interfaces/ITreasurer.sol";
@@ -14,19 +14,18 @@ abstract contract TreasurerUpgradeable is Initializable, ITreasurer {
         address _treasury;
     }
 
-    error InvalidTreasuryAddress(address);
     // ERC-7201: Namespaced Storage Layout is another convention that can be used to avoid storage layout errors
     // keccak256(abi.encode(uint256(keccak256("watchit.treasurer.trasure"")) - 1)) & ~bytes32(uint256(0xff))
     bytes32 private constant TREASURER_SLOT = 0xad118695963461d59b4e186bb251fe176897e2c57f3362e8dade6f9a4f8e7400;
 
-    /**
-     * @notice Internal function to get the treasurer storage.
-     * @return $ The treasurer storage.
-     */
-    function _getTreasurerStorage() private pure returns (TreasurerStorage storage $) {
-        assembly {
-            $.slot := TREASURER_SLOT
-        }
+    error InvalidTreasuryAddress(address);
+
+    /// @inheritdoc ITreasurer
+    /// @notice Gets the current address of the treasury.
+    /// @return The address of the treasury.
+    function getTreasuryAddress() public view returns (address) {
+        TreasurerStorage storage $ = _getTreasurerStorage();
+        return $._treasury;
     }
 
     /// @notice Initializes the treasurer with the given address.
@@ -49,11 +48,11 @@ abstract contract TreasurerUpgradeable is Initializable, ITreasurer {
         $._treasury = newTreasuryAddress;
     }
 
-    /// @inheritdoc ITreasurer
-    /// @notice Gets the current address of the treasury.
-    /// @return The address of the treasury.
-    function getTreasuryAddress() public view returns (address) {
-        TreasurerStorage storage $ = _getTreasurerStorage();
-        return $._treasury;
+    /// @notice Internal function to get the treasurer storage.
+    /// @return $ The treasurer storage.
+    function _getTreasurerStorage() private pure returns (TreasurerStorage storage $) {
+        assembly {
+            $.slot := TREASURER_SLOT
+        }
     }
 }

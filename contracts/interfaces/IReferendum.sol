@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.26;
+pragma solidity 0.8.26;
 
 /// @title Referendum Interface
 /// @notice This interface defines the essential functions for a referendum contract.
@@ -7,8 +7,7 @@ pragma solidity ^0.8.26;
 interface IReferendum {
     /// @notice Submits a new proposition for referendum.
     /// @param contentId The ID of the content to be submitted.
-    /// @param initiator The address of the initiator submitting the content.
-    function submit(uint256 contentId, address initiator) external;
+    function submit(uint256 contentId) external;
 
     /// @notice Approves a proposition in the referendum.
     /// @param contentId The ID of the content to be approved.

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.26;
+pragma solidity 0.8.26;
 
 /// @title ILedger Interface
 /// @notice This interface defines the functionality for retrieving ledger entries for accounts.

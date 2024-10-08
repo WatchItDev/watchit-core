@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.26;
+pragma solidity 0.8.26;
 
 /// @title IBalanceVerifiable Interface
 /// @notice This interface defines a method to retrieve the balance of a contract for a specified currency.

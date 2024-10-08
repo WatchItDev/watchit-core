@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.26;
+pragma solidity 0.8.26;
 
-import { DeployBase } from "scripts/00_DeployBase.s.sol";
+import { DeployBase } from "script/00_DeployBase.s.sol";
 import { Treasury } from "contracts/economics/Treasury.sol";
 import { Upgrades } from "openzeppelin-foundry-upgrades/Upgrades.sol";
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // NatSpec format convention - https://docs.soliditylang.org/en/v0.5.10/natspec-format.html
-pragma solidity ^0.8.26;
+pragma solidity 0.8.26;
 
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import { AccessControlUpgradeable } from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
@@ -42,7 +42,7 @@ abstract contract GovernableUpgradeable is Initializable, AccessControlUpgradeab
     /// @notice Sets the governance address.
     /// @dev Only callable by the DEFAULT_ADMIN_ROLE.
     /// @param newGovernance The address to set as the new governor.
-    function setGovernance(address newGovernance) external virtual onlyAdmin {
+    function setGovernance(address newGovernance) external onlyAdmin {
         GovernorStorage storage $ = _getGovernorStorage();
         _grantRole(GOV_ROLE, newGovernance);
         $._governor = newGovernance;
@@ -51,30 +51,22 @@ abstract contract GovernableUpgradeable is Initializable, AccessControlUpgradeab
     /// @notice Sets the emergency admin address.
     /// @dev Only callable by the GOB_ROLE.
     /// @param newEmergencyAdmin The address to set as the new emergency admin.
-    function setEmergencyAdmin(address newEmergencyAdmin) external virtual onlyGov {
+    function setEmergencyAdmin(address newEmergencyAdmin) external onlyGov {
         _grantRole(DEFAULT_ADMIN_ROLE, newEmergencyAdmin);
     }
 
     /// @notice Revokes the emergency admin role from the specified address.
     /// @dev Only callable by the GOB_ROLE.
     /// @param revokedAddress The address to revoke the emergency admin role from.
-    function revokeEmergencyAdmin(address revokedAddress) external virtual onlyGov {
+    function revokeEmergencyAdmin(address revokedAddress) external onlyGov {
         _revokeRole(DEFAULT_ADMIN_ROLE, revokedAddress);
     }
 
     /// @notice Returns the current governor address.
     /// @return The address of the current governor.
-    function getGovernance() external view virtual override returns (address) {
+    function getGovernance() external view returns (address) {
         GovernorStorage storage $ = _getGovernorStorage();
         return $._governor;
-    }
-
-    ///@notice Internal function to get the governor storage.
-    ///@return $ The governor storage.
-    function _getGovernorStorage() private pure returns (GovernorStorage storage $) {
-        assembly {
-            $.slot := GOVERNOR_SLOT
-        }
     }
 
     function __Governable_init(address initialAdmin) internal onlyInitializing {
@@ -84,5 +76,13 @@ abstract contract GovernableUpgradeable is Initializable, AccessControlUpgradeab
     function __Governable_init_unchained(address initialAdmin) internal onlyInitializing {
         __AccessControl_init();
         _grantRole(DEFAULT_ADMIN_ROLE, initialAdmin);
+    }
+
+    ///@notice Internal function to get the governor storage.
+    ///@return $ The governor storage.
+    function _getGovernorStorage() private pure returns (GovernorStorage storage $) {
+        assembly {
+            $.slot := GOVERNOR_SLOT
+        }
     }
 }

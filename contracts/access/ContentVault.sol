@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.26;
+pragma solidity 0.8.26;
 
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
@@ -22,6 +22,14 @@ contract ContentVault is Initializable, UUPSUpgradeable, GovernableUpgradeable, 
     /// @notice Error thrown when a non-owner tries to modify or access the content.
     error InvalidContentHolder();
 
+    /// @notice Modifier that restricts access to the content holder only.
+    /// @param contentId The identifier of the content.
+    /// @dev Reverts if the sender is not the owner of the content based on the Ownership contract.
+    modifier onlyHolder(uint256 contentId) {
+        if (ownership.ownerOf(contentId) != _msgSender()) revert InvalidContentHolder();
+        _;
+    }
+
     /// @dev Constructor that disables initializers to prevent the implementation contract from being initialized.
     /// @notice This constructor prevents the implementation contract from being initialized.
     /// @dev See https://forum.openzeppelin.com/t/uupsupgradeable-vulnerability-post-mortem/15680
@@ -41,22 +49,6 @@ contract ContentVault is Initializable, UUPSUpgradeable, GovernableUpgradeable, 
         ownership = IOwnership(ownership_);
     }
 
-    /// @notice Modifier that restricts access to the content holder only.
-    /// @param contentId The identifier of the content.
-    /// @dev Reverts if the sender is not the owner of the content based on the Ownership contract.
-    modifier onlyHolder(uint256 contentId) {
-        if (ownership.ownerOf(contentId) != _msgSender()) revert InvalidContentHolder();
-        _;
-    }
-
-    /// @notice Function that authorizes the contract upgrade. It ensures that only the admin
-    /// can authorize a contract upgrade to a new implementation.
-    /// @param newImplementation The address of the new contract implementation.
-    /// @dev Overrides the `_authorizeUpgrade` function from UUPSUpgradeable to enforce admin-only
-    /// access for upgrades.
-    /// @dev See https://docs.openzeppelin.com/contracts/4.x/api/proxy#UUPSUpgradeable-_authorizeUpgrade-address-
-    function _authorizeUpgrade(address newImplementation) internal override onlyAdmin {}
-
     /// @notice Retrieves the encrypted content for a given content ID.
     /// @param contentId The identifier of the content.
     /// @return The encrypted content as bytes.
@@ -75,4 +67,12 @@ contract ContentVault is Initializable, UUPSUpgradeable, GovernableUpgradeable, 
     function setContent(uint256 contentId, bytes memory encryptedContent) public onlyHolder(contentId) {
         secured[contentId] = encryptedContent;
     }
+
+    /// @notice Function that authorizes the contract upgrade. It ensures that only the admin
+    /// can authorize a contract upgrade to a new implementation.
+    /// @param newImplementation The address of the new contract implementation.
+    /// @dev Overrides the `_authorizeUpgrade` function from UUPSUpgradeable to enforce admin-only
+    /// access for upgrades.
+    /// @dev See https://docs.openzeppelin.com/contracts/4.x/api/proxy#UUPSUpgradeable-_authorizeUpgrade-address-
+    function _authorizeUpgrade(address newImplementation) internal override onlyAdmin {}
 }

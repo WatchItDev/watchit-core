@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.26;
+pragma solidity 0.8.26;
 
-import { DeployBase } from "scripts/00_DeployBase.s.sol";
+import { DeployBase } from "script/00_DeployBase.s.sol";
 import { Distributor } from "contracts/syndication/Distributor.sol";
 import { DistributorFactory } from "contracts/syndication/DistributorFactory.sol";
 

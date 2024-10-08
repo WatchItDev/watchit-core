@@ -1,24 +1,25 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.26;
+pragma solidity 0.8.26;
 
 import { Ledger } from "contracts/base/Ledger.sol";
 import { IPolicy } from "contracts/interfaces/IPolicy.sol";
 import { IOwnership } from "contracts/interfaces/IOwnership.sol";
+import { ICurrencyManager } from "contracts/interfaces/ICurrencyManager.sol";
 import { IBalanceWithdrawable } from "contracts/interfaces/IBalanceWithdrawable.sol";
+import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /// @title BasePolicy
 /// @notice This abstract contract serves as a base for policies that manage access to content.
 /// It defines the use of ownership and rights manager contracts, with validations and access
 /// restrictions based on content holders.
-abstract contract BasePolicy is Ledger, IPolicy, IBalanceWithdrawable {
+abstract contract BasePolicy is Ledger, ReentrancyGuard, IPolicy, IBalanceWithdrawable {
     // Immutable public variables to store the addresses of the Rights Manager and Ownership.
-    address public immutable rightsManager;
-    address public immutable ownership;
+    address public immutable RIGHTS_MANAGER;
+    address public immutable OWNERSHIP;
 
     // Event emitted when a balance is extracted in a specific currency.
-    event FundsExtracted(uint256 amount, address currency);
-
+    event FundsWithdrawn(address indexed recipient, uint256 amount, address indexed currency);
     /// @dev Error thrown when attempting to access content without proper authorization.
     error InvalidContentHolder();
     error InvalidNoBalanceToWithdraw();
@@ -29,63 +30,51 @@ abstract contract BasePolicy is Ledger, IPolicy, IBalanceWithdrawable {
     /// @dev Error thrown when attempting to access unregistered content.
     error InvalidUnknownContent();
 
+    /// @dev Modifier to restrict function calls to the Rights Manager address.
+    modifier onlyRM() {
+        if (msg.sender != address(RIGHTS_MANAGER)) {
+            revert InvalidCallOnlyRightsManagerAllowed();
+        }
+        _;
+    }
+
     /// @notice Constructor to initialize the Rights Manager and Ownership contract addresses.
     /// @param rightsManagerAddress Address of the Rights Manager contract.
     /// @param ownershipAddress Address of the Ownership contract.
     constructor(address rightsManagerAddress, address ownershipAddress) {
-        rightsManager = rightsManagerAddress; // Assign the Rights Manager address.
-        ownership = ownershipAddress; // Assign the Ownership address.
+        RIGHTS_MANAGER = rightsManagerAddress; // Assign the Rights Manager address.
+        OWNERSHIP = ownershipAddress; // Assign the Ownership address.
     }
 
     /// @notice Function to receive native coins (e.g., ETH).
     receive() external payable {}
 
-    /// @notice Modifier to check if the content is registered.
-    /// @param contentId The content ID to check.
-    modifier onlyRegisteredContent(uint256 contentId) {
-        // Revert with an error if the content holder is not registered.
-        if (getHolder(contentId) == address(0)) revert InvalidUnknownContent();
-        _;
-    }
-
-    /// @notice Modifier to restrict access to the owner of the content.
-    /// @param contentId The content ID to check.
-    modifier onlyOwner(uint256 contentId) {
-        // Check if the message sender is the owner of the content.
-        if (getHolder(contentId) != msg.sender) revert InvalidContentHolder();
-        _;
-    }
-
-    /// @dev Modifier to restrict function calls to the Rights Manager address.
-    modifier onlyRM() {
-        if (msg.sender != address(rightsManager)) {
-            revert InvalidCallOnlyRightsManagerAllowed();
-        }
-        _;
+    /// @notice Withdraws tokens from the contract to a specified recipient's address.
+    /// @param recipient The address that will receive the withdrawn tokens.
+    /// @param amount The amount of tokens to withdraw.
+    /// @param currency The currency to associate fees with. Use address(0) for the native coin.
+    function withdraw(address recipient, uint256 amount, address currency) external nonReentrant {
+        // Calls the Rights Manager to withdraw the specified amount in the given currency.
+        if (getLedgerBalance(msg.sender, currency) < amount) revert InvalidNoBalanceToWithdraw();
+        // In this case the rights manager allows withdraw funds from policy balance and send it to recipient directly.
+        // This happens only if the policy has balance and the sender has registered balance in ledger..
+        _subLedgerEntry(msg.sender, amount, currency);
+        IBalanceWithdrawable fundsManager = IBalanceWithdrawable(RIGHTS_MANAGER);
+        fundsManager.withdraw(recipient, amount, currency);
+        emit FundsWithdrawn(recipient, amount, currency);
     }
 
     /// @notice Returns the content holder registered in the ownership contract.
     /// @param contentId The content ID to retrieve the holder.
     /// @return The address of the content holder.
     function getHolder(uint256 contentId) public view returns (address) {
-        return IOwnership(ownership).ownerOf(contentId); // Returns the registered owner.
+        return IOwnership(OWNERSHIP).ownerOf(contentId); // Returns the registered owner.
     }
 
-    /// @notice Withdraws tokens from the contract to a specified recipient's address.
-    /// @param recipient The address that will receive the withdrawn tokens.
-    /// @param amount The amount of tokens to withdraw.
-    /// @param currency The currency to associate fees with. Use address(0) for the native coin.
-    function withdraw(address recipient, uint256 amount, address currency) external {
-        // Calls the Rights Manager to withdraw the specified amount in the given currency.
-        if (getLedgerBalance(recipient, currency) < amount) revert InvalidNoBalanceToWithdraw();
-        // In this case the rights manager allows withdraw funds from
-        // policy balance and send it to recipient directly.
-        // This happens only if the policy has balance and the recipient
-        // has registered balance in ledger..
-        _subLedgerEntry(recipient, amount, currency);
-        IBalanceWithdrawable fundsManager = IBalanceWithdrawable(rightsManager);
-        fundsManager.withdraw(recipient, amount, currency);
-        emit FundsExtracted(amount, currency);
+    /// @notice Validates if the rights manager support the currency.
+    /// @param currency The currency to check.
+    function isValidCurrency(address currency) internal view returns (bool) {
+        return ICurrencyManager(RIGHTS_MANAGER).isCurrencySupported(currency);
     }
 
     // /// @notice Allocates the specified amount across a distribution array and returns the unallocated remaining amount.

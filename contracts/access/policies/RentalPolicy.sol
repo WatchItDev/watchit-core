@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.26;
+pragma solidity 0.8.26;
 
 import { BasePolicy } from "contracts/base/BasePolicy.sol";
 import { IPolicy } from "contracts/interfaces/IPolicy.sol";
@@ -16,6 +16,7 @@ contract RentalPolicy is BasePolicy {
     struct Content {
         uint256 rentalDuration; // Duration in seconds for which content is rented.
         uint256 price; // Price to rent the content.
+        address currency;
     }
 
     // Mapping to store content data by content ID.
@@ -53,17 +54,17 @@ contract RentalPolicy is BasePolicy {
             );
     }
 
-    /// @notice Registers content with rental terms including duration and price.
-    /// @dev Only callable for registered content IDs.
-    /// @param contentId The ID of the content to register.
-    /// @param rentalDuration Duration (in seconds) for which the content will be rented.
-    /// @param price The price to rent the content.
-    function registerContent(
-        uint256 contentId,
-        uint256 rentalDuration,
-        uint256 price
-    ) external onlyRegisteredContent(contentId) {
-        contents[contentId] = Content(rentalDuration, price);
+    function setup(T.Setup calldata setup) external onlyRM {
+        (uint256 rentalDuration, uint256 contentId, uint256 price, address currency) = abi.decode(
+            setup.payload,
+            (uint256, uint256, uint256, address)
+        );
+
+        require(getHolder(contentId) != address(0), "Rental: Invalid content id.");
+        require(isValidCurrency(currency), "Rental: Invalid currency.");
+        require(rentalDuration > 0, "Rental: Invalid rental duration.");
+        require(price > 0, "Rental: Invalid rental price.");
+        contents[contentId] = Content(rentalDuration, price, currency);
     }
 
     /// @dev Internal function to register the rental of content for a specific account.
@@ -78,33 +79,24 @@ contract RentalPolicy is BasePolicy {
     /// @dev This function is expected to be called only by the Rights Manager (RM) contract.
     /// It handles any logic related to access and validation of the rental terms.
     /// @param agreement The agreement object containing the agreed terms between the content holder and the account.
-    /// @param data Additional data required for processing the agreement, e.g., content ID.
-    /// @return bool Indicates whether the agreement was successfully executed.
-    /// @return string Provides a message describing the result of the execution.
-    function exec(T.Agreement calldata agreement, bytes calldata data) external onlyRM returns (bool, string memory) {
-        uint256 contentId = abi.decode(data, (uint256));
+    function exec(T.Agreement calldata agreement) external onlyRM {
+        uint256 contentId = abi.decode(agreement.payload, (uint256));
         Content memory content = contents[contentId];
 
-        if (contentId == 0) return (false, "Invalid content ID");
-        if (getHolder(contentId) != agreement.holder) return (false, "Invalid content ID holder");
-        if (agreement.total < content.price) return (false, "Insufficient funds for rental");
-
+        require(getHolder(contentId) == agreement.holder, "Rental: Invalid content ID holder");
+        require(agreement.total > content.price, "Rental: Insufficient funds for rental");
         // We can take two approach here:
         // 1- distribute the funds
         // 2- register the total to rights holder
         _sumLedgerEntry(agreement.holder, agreement.available, agreement.currency);
-
         // Register the rental for the account with the rental duration.
         _registerRent(agreement.account, contentId, content.rentalDuration);
-        return (true, "Rental successfully executed");
     }
 
-    /// @notice Retrieves the access terms for a specific account and content ID.
-    /// @param account The address of the account for which access terms are being retrieved.
-    /// @param contentId The ID of the content associated with the access terms.
-    /// @return The access terms as a `bytes` array, which can contain the rental expiration timestamp.
-    function terms(address account, uint256 contentId) external view override returns (bytes memory) {
-        return abi.encode(rentals[account][contentId]);
+    function assess(bytes calldata data) external view returns (T.Terms memory) {
+        uint256 contentId = abi.decode(data, (uint256));
+        Content memory content = contents[contentId];
+        return T.Terms(content.currency, content.price, "");
     }
 
     /// @notice Verifies whether the on-chain access terms for an account and content ID are satisfied.

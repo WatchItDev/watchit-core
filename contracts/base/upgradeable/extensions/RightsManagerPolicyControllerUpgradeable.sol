@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: MIT
 // NatSpec format convention - https://docs.soliditylang.org/en/v0.5.10/natspec-format.html
-pragma solidity ^0.8.26;
+pragma solidity 0.8.26;
 
 import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import { IRightsManagerPolicies } from "contracts/interfaces/IRightsManagerPolicies.sol";
+import { IRightsManagerPolicyHandler } from "contracts/interfaces/IRightsManagerPolicyHandler.sol";
 
 /// @title Rights Manager Policy Controller Upgradeable
 /// @notice This abstract contract manages the delegation and revocation of rights
 /// from content holders to various policies.
 /// @dev The contract is upgradeable and uses namespaced storage to manage the delegation of rights.
-abstract contract RightsManagerPolicyControllerUpgradeable is Initializable, IRightsManagerPolicies {
+abstract contract RightsManagerPolicyControllerUpgradeable is Initializable, IRightsManagerPolicyHandler {
     using EnumerableSet for EnumerableSet.AddressSet;
 
     /// @custom:storage-location erc7201:rightsmanagerdelegationupgradeable

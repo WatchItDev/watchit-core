@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // NatSpec format convention - https://docs.soliditylang.org/en/v0.5.10/natspec-format.html
-pragma solidity ^0.8.26;
+pragma solidity 0.8.26;
 
 import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
@@ -18,6 +18,7 @@ import { RightsManagerContentAccessUpgradeable } from "contracts/base/upgradeabl
 import { RightsManagerCustodialUpgradeable } from "contracts/base/upgradeable/extensions/RightsManagerCustodialUpgradeable.sol";
 import { RightsManagerPolicyControllerUpgradeable } from "contracts/base/upgradeable/extensions/RightsManagerPolicyControllerUpgradeable.sol";
 
+import { IPolicy } from "contracts/interfaces/IPolicy.sol";
 import { ISyndicatableVerifiable } from "contracts/interfaces/ISyndicatableVerifiable.sol";
 import { IReferendumVerifiable } from "contracts/interfaces/IReferendumVerifiable.sol";
 import { IPolicyAuditorVerifiable } from "contracts/interfaces/IPolicyAuditorVerifiable.sol";
@@ -25,7 +26,6 @@ import { IRightsManagerVerifiable } from "contracts/interfaces/IRightsManagerVer
 import { IBalanceVerifiable } from "contracts/interfaces/IBalanceVerifiable.sol";
 import { IBalanceWithdrawable } from "contracts/interfaces/IBalanceWithdrawable.sol";
 import { IDisburser } from "contracts/interfaces/IDisburser.sol";
-import { IPolicy } from "contracts/interfaces/IPolicy.sol";
 import { IDistributor } from "contracts/interfaces/IDistributor.sol";
 
 import { TreasuryHelper } from "contracts/libraries/TreasuryHelper.sol";
@@ -97,6 +97,7 @@ contract RightsManager is
     /// @param holder The content rights holder.
     error InvalidNotRightsDelegated(address policy, address holder);
     error InvalidNotAuditedPolicy(address policy);
+    error InvalidPolicySetup(string reason);
     /// @dev Error that is thrown when a content hash is already registered.
     error InvalidInactiveDistributor();
     /// @dev Error thrown when a proposed agreement fails to execute.
@@ -104,6 +105,20 @@ contract RightsManager is
     error NoAgreement(string reason);
     /// @dev Error thrown when the fund withdrawal fails.
     error NoFundsToWithdraw(string);
+
+    /// @notice Modifier to check if the distributor is active and not blocked.
+    /// @param distributor The distributor address to check.
+    modifier onlyActiveDistributor(address distributor) {
+        if (distributor == address(0) || !_checkActiveDistributor(distributor)) revert InvalidInactiveDistributor();
+        _;
+    }
+
+    /// @dev Modifier to ensure that only audited policies can perform certain actions.
+    /// @param policy The address of the policy contract to check for audit status.
+    modifier onlyAuditedPolicy(address policy) {
+        if (policy == address(0) || !audit.isAudited(policy)) revert InvalidNotAuditedPolicy(policy);
+        _;
+    }
 
     /// @dev Constructor that disables initializers to prevent the implementation contract from being initialized.
     /// https://forum.openzeppelin.com/t/uupsupgradeable-vulnerability-post-mortem/15680
@@ -136,20 +151,6 @@ contract RightsManager is
         audit = IPolicyAuditorVerifiable(audit_);
     }
 
-    /// @notice Modifier to check if the distributor is active and not blocked.
-    /// @param distributor The distributor address to check.
-    modifier onlyActiveDistributor(address distributor) {
-        if (distributor == address(0) || !_checkActiveDistributor(distributor)) revert InvalidInactiveDistributor();
-        _;
-    }
-
-    /// @dev Modifier to ensure that only audited policies can perform certain actions.
-    /// @param policy The address of the policy contract to check for audit status.
-    modifier onlyAuditedPolicy(address policy) {
-        if (policy == address(0) || !audit.isAudited(policy)) revert InvalidNotAuditedPolicy(policy);
-        _;
-    }
-
     /// @notice Returns the contract's balance for the specified currency.
     /// @param currency The address of the token to check the balance of (address(0) for native currency).
     /// @return The balance of the contract in the specified currency.
@@ -162,7 +163,11 @@ contract RightsManager is
     /// @param recipient The address that will receive the withdrawn tokens.
     /// @param amount The amount of tokens to withdraw.
     /// @param currency The currency to associate fees with. Use address(0) for the native coin.
-    function withdraw(address recipient, uint256 amount, address currency) external onlyValidCurrency(currency) {
+    function withdraw(
+        address recipient,
+        uint256 amount,
+        address currency
+    ) external nonReentrant onlyValidCurrency(currency) {
         if (getLedgerBalance(_msgSender(), currency) < amount)
             revert NoFundsToWithdraw("Insuficient funds to withdraw.");
         _subLedgerEntry(_msgSender(), amount, currency);
@@ -209,12 +214,17 @@ contract RightsManager is
         emit CustodialGranted(prevCustody, distributor, contentHolder);
     }
 
-    /// @notice Delegates rights to a policy contract for content held by the holder.
-    /// @param policy The address of the policy contract to which rights are being delegated.
-    function authorizePolicy(address policy) external onlyAuditedPolicy(policy) {
-        address holder = _msgSender();
-        _authorizePolicy(policy, holder);
-        emit RightsGranted(policy, holder);
+    /// @notice Initializes and authorizes a policy contract for content held by the holder.
+    /// @param policy The address of the policy contract to be initialized and authorized.
+    /// @param data Additional data required for initializing the policy.
+    function setupPolicy(address policy, bytes calldata data) external onlyAuditedPolicy(policy) {
+        T.Setup memory setupData = T.Setup(_msgSender(), data);
+        try IPolicy(policy).setup(setupData) {
+            _authorizePolicy(policy, setupData.holder);
+            emit RightsGranted(policy, setupData.holder);
+        } catch Error(string memory reason) {
+            revert InvalidPolicySetup(reason);
+        }
     }
 
     /// @notice Revokes the delegation of rights to a policy contract.
@@ -255,28 +265,32 @@ contract RightsManager is
     /// @param currency The address of the ERC20 token (or native currency) being used in the agreement.
     /// @param holder The address of the content holder whose content is being accessed.
     /// @param account The address of the account proposing the agreement.
+    /// @param payload Additional data required to execute the agreement.
     /// @return bytes32 A unique identifier (agreementProof) representing the created agreement.
     function createAgreement(
         uint256 total,
         address currency,
         address holder,
-        address account
+        address account,
+        bytes calldata payload
     ) public onlySupportedCurrency(currency) returns (bytes32) {
         uint256 deductions = calcFees(total, currency);
         if (deductions > total) revert NoAgreement("The fees are too high.");
         uint256 available = total - deductions; // the total after fees
-        // create a new agreement to interact with register policy
+        // one agreement it's unique and cannot be reconstructed..
+        // create a new immutable agreement to interact with register policy
         T.Agreement memory agreement = T.Agreement(
-            block.timestamp, // the agreementl creation date
+            block.timestamp, // the agreement creation time
             total, // the transaction total amount
             available, // the remaining amount after fees
             currency, // the currency used in transaction
             account, // the account related to agreement
             holder, // the content rights holder
+            payload, // any additional data needed during agreement execution
             true // the agreement status, true for active, false for closed.
         );
 
-        // keccak256(abi.encodePacked(agreement..))
+        // keccak256(abi.encodePacked(....))
         return _createProof(agreement);
     }
 
@@ -285,28 +299,27 @@ contract RightsManager is
     ///      and registers the policy in the system, representing the formal closure of the agreement.
     /// @param proof The unique identifier of the agreement to be enforced.
     /// @param policyAddress The address of the policy contract managing the agreement.
-    /// @param data Additional data required to execute the agreement.
     function registerPolicy(
         bytes32 proof,
-        address policyAddress,
-        bytes calldata data
-    ) public payable nonReentrant onlyValidProof(proof) onlyAuditedPolicy(policyAddress) {
+        address policyAddress
+    ) public payable onlyValidProof(proof) onlyAuditedPolicy(policyAddress) {
         T.Agreement memory agreement = getAgreement(proof);
         // check if policy is authorized by holder to operate over content
         if (!isPolicyAuthorized(policyAddress, agreement.holder))
             revert InvalidNotRightsDelegated(policyAddress, agreement.holder);
+
         // the remaining is registered to policy contract to operate distribution..
         _msgSender().safeDeposit(agreement.total, agreement.currency);
-
         // validate policy execution..
-        IPolicy policy = IPolicy(policyAddress);
-        (bool success, string memory reason) = policy.exec(agreement, data);
-        if (!success) revert NoAgreement(reason);
-
-        _closeAgreement(proof); // inactivate the agreement after success..
-        _sumLedgerEntry(policyAddress, agreement.available, agreement.currency);
-        _registerPolicy(agreement.account, policyAddress);
-        emit AccessGranted(agreement.account, proof, policyAddress);
+        try IPolicy(policyAddress).exec(agreement) {
+            _closeAgreement(proof); // inactivate the agreement after success..
+            _sumLedgerEntry(policyAddress, agreement.available, agreement.currency);
+            _registerPolicy(agreement.account, policyAddress);
+            emit AccessGranted(agreement.account, proof, policyAddress);
+        } catch Error(string memory reason) {
+            // catch revert, require with a reason..
+            revert NoAgreement(reason);
+        }
     }
 
     /// @notice Executes the creation of an agreement and immediately registers the policy in a single transaction.
@@ -325,9 +338,9 @@ contract RightsManager is
         address account,
         address policyAddress,
         bytes calldata data
-    ) public returns (bytes32) {
-        bytes32 proof = createAgreement(total, currency, holder, account);
-        registerPolicy(proof, policyAddress, data);
+    ) public payable returns (bytes32) {
+        bytes32 proof = createAgreement(total, currency, holder, account, data);
+        registerPolicy(proof, policyAddress);
         return proof;
     }
 
