@@ -65,7 +65,7 @@ contract Ownership is
         __UUPSUpgradeable_init();
         __ERC721Enumerable_init();
         __ERC721_init("Ownership", "OWN");
-        __Governable_init(_msgSender());
+        __Governable_init(msg.sender);
         referendum = IReferendumVerifiable(referendum_);
     }
 

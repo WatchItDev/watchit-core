@@ -37,7 +37,7 @@ contract Treasury is Initializable, UUPSUpgradeable, GovernableUpgradeable, IBal
     /// @notice Initializes the contract. Should be called only once.
     function initialize() public initializer {
         __UUPSUpgradeable_init();
-        __Governable_init(_msgSender());
+        __Governable_init(msg.sender);
     }
 
     function withdraw(address recipient, uint256 amount, address currency) public onlyGov {}

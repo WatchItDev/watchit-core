@@ -143,7 +143,7 @@ contract RightsManager is
         __UUPSUpgradeable_init();
         __ReentrancyGuard_init();
         __CurrencyManager_init();
-        __Governable_init(_msgSender());
+        __Governable_init(msg.sender);
         __Treasurer_init(treasury);
 
         syndication = ISyndicatableVerifiable(syndication_);
@@ -159,7 +159,7 @@ contract RightsManager is
     }
 
     /// @notice Withdraws tokens from the contract to a specified recipient's address.
-    /// @dev This function withdraws funds from the caller's balance (checked via _msgSender()) and transfers them to the recipient.
+    /// @dev This function withdraws funds from the caller's balance (checked via msg.sender) and transfers them to the recipient.
     /// @param recipient The address that will receive the withdrawn tokens.
     /// @param amount The amount of tokens to withdraw.
     /// @param currency The currency to associate fees with. Use address(0) for the native coin.
@@ -168,9 +168,9 @@ contract RightsManager is
         uint256 amount,
         address currency
     ) external nonReentrant onlyValidCurrency(currency) {
-        if (getLedgerBalance(_msgSender(), currency) < amount)
+        if (getLedgerBalance(msg.sender, currency) < amount)
             revert NoFundsToWithdraw("Insuficient funds to withdraw.");
-        _subLedgerEntry(_msgSender(), amount, currency);
+        _subLedgerEntry(msg.sender, amount, currency);
         recipient.transfer(amount, currency);
         // TODO emit event
     }
@@ -211,17 +211,16 @@ contract RightsManager is
     /// @param distributor The address of the distributor who will receive custodial rights.
     function grantCustody(address distributor) external onlyActiveDistributor(distributor) {
         // if it's first custody assignment prev = address(0)
-        address contentHolder = _msgSender();
-        address prevCustody = getCustody(contentHolder);
-        _grantCustody(distributor, contentHolder);
-        emit CustodialGranted(prevCustody, distributor, contentHolder);
+        address prevCustody = getCustody(msg.sender);
+        _grantCustody(distributor, msg.sender);
+        emit CustodialGranted(prevCustody, distributor, msg.sender);
     }
 
     /// @notice Initializes and authorizes a policy contract for content held by the holder.
     /// @param policy The address of the policy contract to be initialized and authorized.
     /// @param data Additional data required for initializing the policy.
     function setupPolicy(address policy, bytes calldata data) external onlyAuditedPolicy(policy) {
-        T.Setup memory setupData = T.Setup(_msgSender(), data);
+        T.Setup memory setupData = T.Setup(msg.sender, data);
         try IPolicy(policy).setup(setupData) {
             _authorizePolicy(policy, setupData.holder);
             emit RightsGranted(policy, setupData.holder);
@@ -233,9 +232,8 @@ contract RightsManager is
     /// @notice Revokes the delegation of rights to a policy contract.
     /// @param policy The address of the policy contract whose rights delegation is being revoked.
     function revokePolicy(address policy) external {
-        address holder = _msgSender();
-        _revokePolicy(policy, holder);
-        emit RightsRevoked(policy, holder);
+        _revokePolicy(policy, msg.sender);
+        emit RightsRevoked(policy, msg.sender);
     }
 
     /// @notice Calculates the fees for the treasury based on the provided total amount.
@@ -313,7 +311,7 @@ contract RightsManager is
             revert InvalidNotRightsDelegated(policyAddress, agreement.holder);
 
         // the remaining is registered to policy contract to operate distribution..
-        _msgSender().safeDeposit(agreement.total, agreement.currency);
+        msg.sender.safeDeposit(agreement.total, agreement.currency);
         // validate policy execution..
         try IPolicy(policyAddress).exec(agreement) {
             _closeAgreement(proof); // inactivate the agreement after success..

@@ -108,7 +108,7 @@ contract Syndication is
         __ReentrancyGuard_init();
         __UUPSUpgradeable_init();
         __CurrencyManager_init();
-        __Governable_init(_msgSender());
+        __Governable_init(msg.sender);
         __Treasurer_init(treasury);
         // 6 months initially..
         enrollmentPeriod = 180 days;
@@ -180,7 +180,7 @@ contract Syndication is
         address currency
     ) external payable onlyDistributorContract(distributor) onlySupportedCurrency(currency) {
         uint256 fees = getFees(currency);
-        address manager = _msgSender(); // expected manager paying fees..
+        address manager = msg.sender; // expected manager paying fees..
         uint256 total = manager.safeDeposit(fees, currency);
         // set the distributor active enrollment period..
         // after this time the distributor is considered inactive...
@@ -201,7 +201,7 @@ contract Syndication is
         address distributor,
         address currency
     ) external nonReentrant onlyDistributorContract(distributor) onlySupportedCurrency(currency) {
-        address manager = _msgSender(); // the sender is expected to be the manager..
+        address manager = msg.sender; // the sender is expected to be the manager..
         uint256 ledgerAmount = getLedgerBalance(manager, currency);
 
         // eg: (100 * bps) / BPS_MAX

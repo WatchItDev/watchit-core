@@ -26,7 +26,7 @@ contract ContentVault is Initializable, UUPSUpgradeable, GovernableUpgradeable, 
     /// @param contentId The identifier of the content.
     /// @dev Reverts if the sender is not the owner of the content based on the Ownership contract.
     modifier onlyHolder(uint256 contentId) {
-        if (ownership.ownerOf(contentId) != _msgSender()) revert InvalidContentHolder();
+        if (ownership.ownerOf(contentId) != msg.sender) revert InvalidContentHolder();
         _;
     }
 
@@ -45,7 +45,7 @@ contract ContentVault is Initializable, UUPSUpgradeable, GovernableUpgradeable, 
     /// mechanisms and governance controls, linking the Ownership contract for future use.
     function initialize(address ownership_) public initializer {
         __UUPSUpgradeable_init();
-        __Governable_init(_msgSender());
+        __Governable_init(msg.sender);
         ownership = IOwnership(ownership_);
     }
 

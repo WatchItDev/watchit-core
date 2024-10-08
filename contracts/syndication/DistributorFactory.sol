@@ -29,7 +29,7 @@ contract DistributorFactory is UpgradeableBeacon, Pausable {
     error DistributorAlreadyRegistered();
 
     // initialize implementation and initial owner
-    constructor(address implementation) UpgradeableBeacon(implementation, _msgSender()) Pausable() {}
+    constructor(address implementation) UpgradeableBeacon(implementation, msg.sender) Pausable() {}
 
     /// @notice Function to pause the contract, preventing the creation of new distributors.
     /// @dev Can only be called by the owner of the contract.
@@ -51,10 +51,10 @@ contract DistributorFactory is UpgradeableBeacon, Pausable {
         bytes32 hashed = keccak256(abi.encode(endpoint));
         if (registry[hashed] != address(0)) revert DistributorAlreadyRegistered();
         // initialize storage layout using Distributor contract impl..
-        bytes memory data = abi.encodeWithSignature("initialize(string,address)", endpoint, _msgSender());
+        bytes memory data = abi.encodeWithSignature("initialize(string,address)", endpoint, msg.sender);
         address newContract = address(new BeaconProxy(address(this), data));
         // register manager...
-        registry[hashed] = _msgSender();
+        registry[hashed] = msg.sender;
         return newContract;
     }
 }

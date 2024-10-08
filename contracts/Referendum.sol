@@ -66,7 +66,7 @@ contract Referendum is
         __Quorum_init();
         __UUPSUpgradeable_init();
         __EIP712_init("Referendum", "1");
-        __Governable_init(_msgSender());
+        __Governable_init(msg.sender);
     }
 
     /// @notice Grants the verified role to a specific account.
@@ -89,7 +89,7 @@ contract Referendum is
     /// @param contentId The ID of the content to be submitted.
     /// @dev The content ID is reviewed by governance.
     function submit(uint256 contentId) external {
-        _submit(contentId, _msgSender());
+        _submit(contentId, msg.sender);
     }
 
     /// @notice Submits a content proposition for referendum with a signature.

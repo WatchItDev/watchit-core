@@ -66,7 +66,7 @@ contract PolicyAudit is
     function initialize() public initializer {
         __Quorum_init();
         __UUPSUpgradeable_init();
-        __Governable_init(_msgSender());
+        __Governable_init(msg.sender);
     }
 
     /// @dev Authorizes the upgrade of the contract.
@@ -88,7 +88,7 @@ contract PolicyAudit is
     /// @param policy The address of the policy to be submitted for auditing.
     function submit(address policy) external onlyPolicyContract(policy) {
         _register(uint160(policy));
-        emit PolicySubmitted(policy, _msgSender());
+        emit PolicySubmitted(policy, msg.sender);
     }
 
     /// @inheritdoc IPolicyAuditor
@@ -97,7 +97,7 @@ contract PolicyAudit is
     /// @dev This function emits the PolicyApproved event upon successful audit approval.
     function approve(address policy) external onlyPolicyContract(policy) onlyMod {
         _approve(uint160(policy));
-        emit PolicyApproved(policy, _msgSender());
+        emit PolicyApproved(policy, msg.sender);
     }
 
     /// @inheritdoc IPolicyAuditor
@@ -106,6 +106,6 @@ contract PolicyAudit is
     /// @dev This function emits the PolicyRevoked event upon successful audit revocation.
     function reject(address policy) external onlyPolicyContract(policy) onlyMod {
         _revoke(uint160(policy));
-        emit PolicyRevoked(policy, _msgSender());
+        emit PolicyRevoked(policy, msg.sender);
     }
 }
